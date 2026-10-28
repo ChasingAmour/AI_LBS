@@ -5,22 +5,46 @@ export const FONT_SIZE = {
   title: 24,
 } as const;
 
+/** Numeric palette for Graphics/Rectangle fills. */
+export const TINTS = {
+  ink: 0x2b2118,
+  inkSoft: 0x5a4630,
+  cream: 0xf0e6d2,
+  parchment: 0xf0dfb8,
+  gold: 0xffd479,
+  goldDark: 0xb8792a,
+  muted: 0x8d7b5e,
+  wood: 0x8a5a2b,
+  woodDark: 0x4a2f18,
+  hp: 0xc94f4f,
+  hunger: 0xe0913f,
+  thirst: 0x3f8fd0,
+  energy: 0x6fbf4f,
+  track: 0x3a2d20,
+  night: 0x081a33,
+} as const;
+
+function hex(value: number): string {
+  return `#${value.toString(16).padStart(6, '0')}`;
+}
+
+/** String palette for Text styles, derived from TINTS so both stay in sync. */
 export const COLORS = {
-  ink: '#2b2118',
-  inkSoft: '#5a4630',
-  cream: '#f0e6d2',
-  parchment: '#f0dfb8',
-  gold: '#ffd479',
-  goldDark: '#b8792a',
-  muted: '#8d7b5e',
-  wood: '#8a5a2b',
-  woodDark: '#4a2f18',
-  hp: '#c94f4f',
-  hunger: '#e0913f',
-  thirst: '#3f8fd0',
-  energy: '#6fbf4f',
-  track: '#3a2d20',
-  night: '#081a33',
+  ink: hex(TINTS.ink),
+  inkSoft: hex(TINTS.inkSoft),
+  cream: hex(TINTS.cream),
+  parchment: hex(TINTS.parchment),
+  gold: hex(TINTS.gold),
+  goldDark: hex(TINTS.goldDark),
+  muted: hex(TINTS.muted),
+  wood: hex(TINTS.wood),
+  woodDark: hex(TINTS.woodDark),
+  hp: hex(TINTS.hp),
+  hunger: hex(TINTS.hunger),
+  thirst: hex(TINTS.thirst),
+  energy: hex(TINTS.energy),
+  track: hex(TINTS.track),
+  night: hex(TINTS.night),
 } as const;
 
 export const DEPTH = {

@@ -3,204 +3,309 @@ import type { GameState } from '../core/gameState';
 import { ITEMS } from '../data/items';
 import { getCampChecklist } from '../systems/campSystem';
 import { currentGoal } from '../systems/tutorialSystem';
-import { formatClock, formatDay, formatPhase, getInteractPrompt } from './format';
+import { formatClock, formatDay, getInteractPrompt } from './format';
+import { makeText } from './text';
+import { COLORS, TINTS } from './theme';
+import { ensureHudIcons, iconColor, iconTexture, type HudIcon } from './icons';
+import { HUD, barWidth, hotbarSlotRect } from './widgets/layout';
+import { drawPanel } from './widgets/panel';
+import { drawBarTrack } from './widgets/bar';
+import { drawSlot } from './widgets/slot';
 
-const BAR_WIDTH = 86;
-const BAR_HEIGHT = 7;
+const BAR_W = 78;
+const BAR_H = 8;
+const ROW_H = 24;
+const TEXT_INTERVAL = 200;
 
-interface Bar {
+interface StatusRow {
   fill: Phaser.GameObjects.Rectangle;
+  value: Phaser.GameObjects.Text;
+}
+
+interface HotbarSlot {
+  number: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
+  count: Phaser.GameObjects.Text;
+  durability: Phaser.GameObjects.Rectangle;
 }
 
 export class Hud {
   private scene: Phaser.Scene;
-  private dayText: Phaser.GameObjects.Text;
+  private chrome: Phaser.GameObjects.Graphics;
+  private promptChrome: Phaser.GameObjects.Graphics;
+  private slotChrome: Phaser.GameObjects.Graphics;
   private clockText: Phaser.GameObjects.Text;
-  private phaseText: Phaser.GameObjects.Text;
-  private promptText: Phaser.GameObjects.Text;
-  private campText: Phaser.GameObjects.Text;
-  private tutorialText: Phaser.GameObjects.Text;
+  private sunIcon: Phaser.GameObjects.Image;
+  private moonIcon: Phaser.GameObjects.Image;
   private bannerText: Phaser.GameObjects.Text;
+  private campText: Phaser.GameObjects.Text;
+  private campProgress: Phaser.GameObjects.Rectangle;
+  private campLabel: Phaser.GameObjects.Text;
+  private goalText: Phaser.GameObjects.Text;
+  private promptText: Phaser.GameObjects.Text;
   private progressRing: Phaser.GameObjects.Graphics;
-  private bars: Record<'hp' | 'hunger' | 'thirst' | 'energy', Bar>;
-  private hotbarNames: Phaser.GameObjects.Text[] = [];
-  private hotbarCounts: Phaser.GameObjects.Text[] = [];
-  private hotbarDurability: Phaser.GameObjects.Rectangle[] = [];
+  private rows!: Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
+  private slots: HotbarSlot[] = [];
+  private lastTextAt = 0;
+  private lastHotbarIndex = -1;
   private promptOverride: string | null = null;
+  private bannerQueue: { text: string; duration: number }[] = [];
+  private bannerUntil = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    const style = { fontFamily: 'monospace', fontSize: '11px', color: '#d8e4f0' };
+    ensureHudIcons(scene);
+    this.chrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
+    this.slotChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
 
-    this.dayText = scene.add.text(8, 6, '', style).setDepth(8000).setScrollFactor(0);
-    this.clockText = scene.add.text(8, 20, '', style).setDepth(8000).setScrollFactor(0);
-    this.phaseText = scene.add
-      .text(150, 6, '', { ...style, color: '#9fb7c9' })
-      .setDepth(8000)
+    for (const rect of [HUD.clock, HUD.banner, HUD.camp, HUD.status, HUD.goal]) {
+      drawPanel(this.chrome, rect);
+    }
+    this.promptChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
+    drawPanel(this.promptChrome, HUD.prompt);
+
+    this.sunIcon = scene.add
+      .image(HUD.clock.x + 10, HUD.clock.y + 15, iconTexture('sun'))
+      .setDepth(8001)
       .setScrollFactor(0);
-
-    this.bars = {
-      hp: this.createBar(8, 38, 0xc94f4f, '生命'),
-      hunger: this.createBar(8, 58, 0xd59a45, '饱食'),
-      thirst: this.createBar(8, 78, 0x5a9fd4, '口渴'),
-      energy: this.createBar(8, 98, 0x6fbf73, '精力'),
-    };
-
-    this.campText = scene.add
-      .text(632, 6, '', { ...style, align: 'right' })
-      .setOrigin(1, 0)
-      .setDepth(8000)
-      .setScrollFactor(0);
-
-    this.tutorialText = scene.add
-      .text(8, 118, '', { ...style, color: '#ffd479' })
-      .setDepth(8000)
-      .setScrollFactor(0);
-
-    this.progressRing = scene.add.graphics().setDepth(8600).setScrollFactor(0);
-
-    this.promptText = scene.add
-      .text(320, 326, '', { ...style, color: '#ffd479' })
-      .setOrigin(0.5, 1)
-      .setDepth(8000)
-      .setScrollFactor(0);
-
-    this.bannerText = scene.add
-      .text(320, 60, '', {
-        fontFamily: 'monospace',
-        fontSize: '15px',
-        color: '#ffe9a8',
-        backgroundColor: '#1b2430',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5, 0)
-      .setDepth(8500)
+    this.moonIcon = scene.add
+      .image(HUD.clock.x + 10, HUD.clock.y + 15, iconTexture('moon'))
+      .setDepth(8001)
       .setScrollFactor(0)
-      .setAlpha(0);
+      .setVisible(false);
+    this.clockText = makeText(scene, HUD.clock.x + 20, HUD.clock.y + 15, '', {
+      origin: [0, 0.5],
+      color: COLORS.ink,
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+
+    scene.add
+      .image(HUD.banner.x + 10, HUD.banner.y + 15, iconTexture('campfire'))
+      .setDepth(8001)
+      .setScrollFactor(0);
+    this.bannerText = makeText(scene, HUD.banner.x + HUD.banner.w / 2 + 6, HUD.banner.y + 15, '荒野求生', {
+      origin: [0.5, 0.5],
+      color: COLORS.ink,
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+
+    this.campText = makeText(scene, HUD.camp.x + 8, HUD.camp.y + 9, '', {
+      color: COLORS.ink,
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+    drawBarTrack(this.chrome, {
+      x: HUD.camp.x + 8,
+      y: HUD.camp.y + 19,
+      w: HUD.camp.w - 46,
+      h: 6,
+      color: TINTS.goldDark,
+    });
+    this.campProgress = scene.add
+      .rectangle(HUD.camp.x + 8, HUD.camp.y + 19, 0, 6, TINTS.gold, 1)
+      .setOrigin(0, 0)
+      .setDepth(8001)
+      .setScrollFactor(0);
+    this.campLabel = makeText(scene, HUD.camp.x + HUD.camp.w - 8, HUD.camp.y + 9, '', {
+      origin: [1, 0],
+      color: COLORS.inkSoft,
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+
+    this.createStatusRows();
+
+    this.goalText = makeText(scene, HUD.goal.x + 8, HUD.goal.y + 13, '', {
+      origin: [0, 0.5],
+      color: COLORS.ink,
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+
+    this.promptText = makeText(scene, HUD.prompt.x + HUD.prompt.w / 2, HUD.prompt.y + 12, '', {
+      origin: [0.5, 0.5],
+      color: COLORS.ink,
+      align: 'center',
+    })
+      .setDepth(8001)
+      .setScrollFactor(0);
+    this.progressRing = scene.add.graphics().setDepth(8600).setScrollFactor(0);
 
     this.createHotbar();
   }
 
-  private createBar(x: number, y: number, color: number, name: string): Bar {
-    const style = { fontFamily: 'monospace', fontSize: '9px', color: '#aebfcd' };
-    this.scene.add.text(x, y - 2, name, style).setDepth(8000).setScrollFactor(0);
-    this.scene.add
-      .rectangle(x + 30, y, BAR_WIDTH, BAR_HEIGHT, 0x1b2430, 0.9)
-      .setOrigin(0, 0)
-      .setDepth(8000)
-      .setScrollFactor(0);
-    const fill = this.scene.add
-      .rectangle(x + 30, y, BAR_WIDTH, BAR_HEIGHT, color, 1)
-      .setOrigin(0, 0)
-      .setDepth(8001)
-      .setScrollFactor(0);
-    const label = this.scene.add
-      .text(x + 30 + BAR_WIDTH + 6, y - 2, '', style)
-      .setDepth(8001)
-      .setScrollFactor(0);
-    return { fill, label };
+  private createStatusRows(): void {
+    const rows: Array<['hp' | 'hunger' | 'thirst' | 'energy', HudIcon, string]> = [
+      ['hp', 'hp', '生命'],
+      ['hunger', 'hunger', '饱食'],
+      ['thirst', 'thirst', '口渴'],
+      ['energy', 'energy', '精力'],
+    ];
+    this.rows = {} as Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
+    rows.forEach(([key, icon, label], index) => {
+      const top = HUD.status.y + 8 + index * ROW_H;
+      this.scene.add
+        .image(HUD.status.x + 12, top + 5, iconTexture(icon))
+        .setDepth(8001)
+        .setScrollFactor(0);
+      makeText(this.scene, HUD.status.x + 26, top + 5, label, {
+        origin: [0, 0.5],
+        color: COLORS.ink,
+      })
+        .setDepth(8001)
+        .setScrollFactor(0);
+      drawBarTrack(this.chrome, {
+        x: HUD.status.x + 66,
+        y: top + 1,
+        w: BAR_W,
+        h: BAR_H,
+        color: iconColor(icon),
+      });
+      const fill = this.scene.add
+        .rectangle(HUD.status.x + 66, top + 1, BAR_W, BAR_H, iconColor(icon), 1)
+        .setOrigin(0, 0)
+        .setDepth(8001)
+        .setScrollFactor(0);
+      const value = makeText(this.scene, HUD.status.x + HUD.status.w - 8, top + 5, '', {
+        origin: [1, 0.5],
+        color: COLORS.ink,
+      })
+        .setDepth(8001)
+        .setScrollFactor(0);
+      this.rows[key] = { fill, value };
+    });
   }
 
   private createHotbar(): void {
-    const slotSize = 26;
-    const gap = 3;
-    const total = 8 * slotSize + 7 * gap;
-    const startX = (640 - total) / 2;
-    const y = 302;
-    for (let i = 0; i < 8; i++) {
-      const x = startX + i * (slotSize + gap);
-      this.scene.add
-        .rectangle(x, y, slotSize, slotSize, 0x111a24, 0.85)
+    for (let index = 0; index < 8; index++) {
+      const rect = hotbarSlotRect(index);
+      const number = makeText(this.scene, rect.x + 3, rect.y + 1, String(index + 1), {
+        color: COLORS.muted,
+      })
+        .setDepth(8002)
+        .setScrollFactor(0);
+      const label = makeText(this.scene, rect.x + rect.size / 2, rect.y + 13, '', {
+        origin: [0.5, 0],
+        color: COLORS.cream,
+      })
+        .setDepth(8002)
+        .setScrollFactor(0);
+      const count = makeText(this.scene, rect.x + rect.size - 3, rect.y + rect.size - 1, '', {
+        origin: [1, 1],
+        color: COLORS.gold,
+      })
+        .setDepth(8002)
+        .setScrollFactor(0);
+      const durability = this.scene.add
+        .rectangle(rect.x + 4, rect.y + rect.size - 5, rect.size - 8, 3, TINTS.energy, 1)
         .setOrigin(0, 0)
-        .setStrokeStyle(1, 0x44515e)
-        .setDepth(8000)
-        .setScrollFactor(0);
-      this.scene.add
-        .text(x + 2, y + 1, String(i + 1), {
-          fontFamily: 'monospace',
-          fontSize: '8px',
-          color: '#5a6b7a',
-        })
-        .setDepth(8001)
-        .setScrollFactor(0);
-      this.hotbarNames.push(
-        this.scene.add
-          .text(x + slotSize / 2, y + 10, '', {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#d8e4f0',
-          })
-          .setOrigin(0.5, 0)
-          .setDepth(8001)
-          .setScrollFactor(0),
-      );
-      this.hotbarCounts.push(
-        this.scene.add
-          .text(x + slotSize - 2, y + slotSize - 2, '', {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#ffd479',
-          })
-          .setOrigin(1, 1)
-          .setDepth(8001)
-          .setScrollFactor(0),
-      );
-      this.hotbarDurability.push(
-        this.scene.add
-          .rectangle(x + 2, y + slotSize - 4, slotSize - 4, 2, 0x6fbf73, 1)
-          .setOrigin(0, 0)
-          .setDepth(8002)
-          .setScrollFactor(0)
-          .setVisible(false),
-      );
+        .setDepth(8002)
+        .setScrollFactor(0)
+        .setVisible(false);
+      this.slots.push({ number, label, count, durability });
+    }
+  }
+
+  private redrawHotbarChrome(selected: number): void {
+    this.slotChrome.clear();
+    for (let index = 0; index < 8; index++) {
+      const rect = hotbarSlotRect(index);
+      drawSlot(this.slotChrome, rect.x, rect.y, rect.size, index === selected);
     }
   }
 
   update(state: GameState): void {
-    this.dayText.setText(formatDay(state.time.day));
-    this.clockText.setText(formatClock(state.time.clockMin));
-    this.phaseText.setText(formatPhase(state.time.phase));
+    const now = this.scene.time.now;
+    this.drawStatus('hp', state.player.hp);
+    this.drawStatus('hunger', state.player.hunger);
+    this.drawStatus('thirst', state.player.thirst);
+    this.drawStatus('energy', state.player.energy);
 
-    this.setBar('hp', state.player.hp);
-    this.setBar('hunger', state.player.hunger);
-    this.setBar('thirst', state.player.thirst);
-    this.setBar('energy', state.player.energy);
+    if (state.hotbarIndex !== this.lastHotbarIndex) {
+      this.lastHotbarIndex = state.hotbarIndex;
+      this.redrawHotbarChrome(state.hotbarIndex);
+    }
 
-    const checklist = getCampChecklist(state)
-      .map((row) => row.label)
-      .join('\n');
-    this.campText.setText(`营地 Lv${state.camp.level}\n${checklist}`);
+    if (now - this.lastTextAt < TEXT_INTERVAL) return;
+    this.lastTextAt = now;
 
-    this.promptText.setText(this.promptOverride ?? getInteractPrompt(state) ?? '');
+    this.setIfChanged(
+      this.clockText,
+      `${formatDay(state.time.day)}  ${formatClock(state.time.clockMin)}`,
+    );
+    const night = state.time.phase === 'night';
+    this.sunIcon.setVisible(!night);
+    this.moonIcon.setVisible(night);
+
+    const checklist = getCampChecklist(state);
+    const done = checklist.filter((row) => row.done).length;
+    this.setIfChanged(this.campText, `营地 Lv${state.camp.level}`);
+    this.setIfChanged(this.campLabel, `${done}/${checklist.length}`);
+    this.campProgress.setSize(barWidth(done, checklist.length, HUD.camp.w - 46), 6);
 
     const goal = currentGoal(state);
-    this.tutorialText.setText(goal ? `目标：${goal.label}` : '目标：自由求生');
+    this.setIfChanged(this.goalText, goal ? `目标：${goal.label}` : '目标：自由求生');
 
-    for (let i = 0; i < 8; i++) {
-      const baseId = state.hotbar[i];
-      const name = baseId ? (ITEMS[baseId]?.name ?? baseId) : '';
-      this.hotbarNames[i].setText(name);
-      const stack = baseId
-        ? state.inventory.find((item) => item.baseId === baseId && item.durability !== undefined)
-        : undefined;
-      const max = baseId ? ITEMS[baseId]?.maxDurability : undefined;
-      if (stack && max && stack.durability !== undefined) {
-        const ratio = Math.max(0, Math.min(1, stack.durability / max));
-        this.hotbarDurability[i]
-          .setVisible(true)
-          .setSize((26 - 4) * ratio, 2)
-          .setFillStyle(ratio > 0.3 ? 0x6fbf73 : 0xc94f4f, 1);
-      } else {
-        this.hotbarDurability[i].setVisible(false);
-      }
-      const count = baseId
-        ? state.inventory
-            .filter((item) => item.baseId === baseId)
-            .reduce((sum, item) => sum + item.count, 0)
-        : 0;
-      this.hotbarCounts[i].setText(count > 1 ? String(count) : '');
+    const prompt = this.promptOverride ?? getInteractPrompt(state) ?? '';
+    this.setIfChanged(this.promptText, prompt);
+    this.promptChrome.setVisible(prompt.length > 0);
+    this.promptText.setVisible(prompt.length > 0);
+
+    for (let index = 0; index < 8; index++) {
+      this.updateSlot(state, index);
     }
+
+    this.tickBanner(now);
+  }
+
+  private updateSlot(state: GameState, index: number): void {
+    const slot = this.slots[index];
+    const baseId = state.hotbar[index];
+    const name = baseId ? (ITEMS[baseId]?.name ?? baseId) : '';
+    this.setIfChanged(slot.label, name ? name.slice(0, 1) : '');
+    this.setIfChanged(slot.number, String(index + 1));
+
+    const stack = baseId
+      ? state.inventory.find((item) => item.baseId === baseId && item.durability !== undefined)
+      : undefined;
+    const max = baseId ? ITEMS[baseId]?.maxDurability : undefined;
+    if (stack && max && stack.durability !== undefined) {
+      const ratio = Math.max(0, Math.min(1, stack.durability / max));
+      slot.durability
+        .setVisible(true)
+        .setSize((hotbarSlotRect(index).size - 8) * ratio, 3)
+        .setFillStyle(ratio > 0.3 ? TINTS.energy : TINTS.hp, 1);
+    } else {
+      slot.durability.setVisible(false);
+    }
+
+    const count = baseId
+      ? state.inventory
+          .filter((item) => item.baseId === baseId)
+          .reduce((sum, item) => sum + item.count, 0)
+      : 0;
+    this.setIfChanged(slot.count, count > 1 ? String(count) : '');
+  }
+
+  private drawStatus(key: 'hp' | 'hunger' | 'thirst' | 'energy', value: number): void {
+    const row = this.rows[key];
+    const clamped = Math.max(0, Math.min(100, value));
+    row.fill.setSize(barWidth(clamped, 100, BAR_W), BAR_H);
+    this.setIfChanged(row.value, String(Math.round(clamped)));
+  }
+
+  private setIfChanged(text: Phaser.GameObjects.Text, value: string): void {
+    if (text.text !== value) text.setText(value);
+  }
+
+  private tickBanner(now: number): void {
+    if (now < this.bannerUntil) return;
+    const next = this.bannerQueue.shift();
+    if (!next) return;
+    this.bannerText.setText(next.text).setAlpha(1);
+    this.bannerUntil = now + next.duration;
   }
 
   setPrompt(text: string | null): void {
@@ -212,29 +317,17 @@ export class Hud {
     this.progressRing.clear();
     if (value === null || value <= 0) return;
     const clamped = Math.max(0, Math.min(1, value));
-    this.progressRing.lineStyle(3, 0xffd479, 0.95);
+    const cx = HUD.prompt.x + HUD.prompt.w / 2;
+    const cy = HUD.prompt.y + 12;
+    this.progressRing.lineStyle(3, TINTS.gold, 0.95);
     this.progressRing.beginPath();
-    this.progressRing.arc(320, 292, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamped, false);
+    this.progressRing.arc(cx, cy, 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamped, false);
     this.progressRing.strokePath();
     this.progressRing.fillStyle(0x111a24, 0.7);
-    this.progressRing.fillCircle(320, 292, 9);
-  }
-
-  private setBar(key: 'hp' | 'hunger' | 'thirst' | 'energy', value: number): void {
-    const bar = this.bars[key];
-    const clamped = Math.max(0, Math.min(100, value));
-    bar.fill.setSize((BAR_WIDTH * clamped) / 100, BAR_HEIGHT);
-    bar.label.setText(String(Math.round(clamped)));
+    this.progressRing.fillCircle(cx, cy, 9);
   }
 
   showBanner(text: string, durationMs = 2600): void {
-    this.bannerText.setText(text).setAlpha(1);
-    this.scene.tweens.killTweensOf(this.bannerText);
-    this.scene.tweens.add({
-      targets: this.bannerText,
-      alpha: 0,
-      delay: durationMs,
-      duration: 400,
-    });
+    this.bannerQueue.push({ text, duration: durationMs });
   }
 }
