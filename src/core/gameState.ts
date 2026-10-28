@@ -51,6 +51,9 @@ export interface ResourceNodeState {
 
 export interface GameState {
   version: number;
+  settings: { muted: boolean; sfxVolume: number };
+  lootSeed: number;
+  lootRolls: number;
   savedAt: number;
   playtimeSec: number;
   rngState: number;
@@ -98,6 +101,7 @@ export interface GameState {
     clearedThisWeek: boolean;
     firstClearDone: boolean;
     resetDay: number;
+    pendingReset: boolean;
   };
   flags: { tutorialStep: number; raidWarnedDay: number; firstRaidDone: boolean };
   raid: { active: boolean; day: number } | null;
@@ -108,6 +112,9 @@ export function createNewGame(seed: number = Date.now()): GameState {
   const wreckSpawn = { x: 12 * 16, y: 48 * 16 };
   return {
     version: SAVE_VERSION,
+    settings: { muted: false, sfxVolume: 0.7 },
+    lootSeed: seed,
+    lootRolls: 0,
     savedAt: Date.now(),
     playtimeSec: 0,
     rngState: seed,
@@ -148,6 +155,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
       clearedThisWeek: false,
       firstClearDone: false,
       resetDay: 1,
+      pendingReset: false,
     },
     flags: { tutorialStep: 0, raidWarnedDay: 0, firstRaidDone: false },
     raid: null,
