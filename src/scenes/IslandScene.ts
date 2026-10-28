@@ -149,6 +149,7 @@ export class IslandScene extends Phaser.Scene {
   private setupTerrain(): void {
     this.island = generateIsland(this.state.world.seed);
     this.terrain = this.island.terrain;
+    this.registry.set('island', this.island);
     this.state.world.hash = this.island.hash;
     this.state.camp.center = {
       x: Math.floor(this.island.campCenter.x / WORLD.tile),

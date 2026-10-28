@@ -236,7 +236,11 @@ export function validateSave(data: unknown): GameState {
   requireNumber(world.hash, 'world.hash', 0, Number.MAX_SAFE_INTEGER);
   if (typeof world.explored !== 'string') fail('world.explored 必须是字符串');
   requireArray(world.discovered, 'world.discovered');
-  if (world.waypoint !== null) requireObject(world.waypoint, 'world.waypoint');
+  if (world.waypoint !== null) {
+    const waypoint = requireObject(world.waypoint, 'world.waypoint');
+    requireNumber(waypoint.x, 'world.waypoint.x', 0, 1_000_000);
+    requireNumber(waypoint.y, 'world.waypoint.y', 0, 1_000_000);
+  }
   requireObject(world.nodeStates, 'world.nodeStates');
   requireObject(world.nodes, 'world.nodes');
   requireArray(world.uniqueLoot, 'world.uniqueLoot');

@@ -3,6 +3,7 @@ import type { GameState } from '../core/gameState';
 import { Hud } from '../ui/hud';
 import { Panel } from '../ui/panel';
 import { InventoryOverlay } from '../ui/inventoryPanel';
+import { MapPanel } from '../ui/mapPanel';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -12,6 +13,7 @@ export class UIScene extends Phaser.Scene {
   private hud!: Hud;
   private panel!: Panel;
   private inventory!: InventoryOverlay;
+  private map!: MapPanel;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
@@ -24,6 +26,7 @@ export class UIScene extends Phaser.Scene {
     this.hud = new Hud(this);
     this.panel = new Panel(this);
     this.inventory = new InventoryOverlay(this);
+    this.map = new MapPanel(this);
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -35,12 +38,22 @@ export class UIScene extends Phaser.Scene {
     if (keyboard) {
       keyboard.on('keydown-I', () => {
         this.panel.close();
+        this.map.close();
         this.withState((state) => this.inventory.toggle(state));
       });
       keyboard.on('keydown-C', () => this.withState((state) => this.openCraft(state)));
       keyboard.on('keydown-B', () => this.withState((state) => this.openBuild(state)));
       keyboard.on('keydown-L', () => this.withState((state) => this.openLabor(state)));
+      keyboard.on('keydown-M', () => {
+        this.panel.close();
+        this.inventory.close();
+        this.withState((state) => this.map.toggle(state));
+      });
       keyboard.on('keydown-ESC', () => {
+        if (this.map.isOpen) {
+          this.map.close();
+          return;
+        }
         if (this.inventory.isOpen) {
           this.inventory.close();
           return;
@@ -73,7 +86,7 @@ export class UIScene extends Phaser.Scene {
   update(): void {
     const state = this.state();
     if (state) this.hud.update(state);
-    this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen);
+    this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen || this.map.isOpen);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
     const progress = this.registry.get('interactProgress');
@@ -97,16 +110,19 @@ export class UIScene extends Phaser.Scene {
 
   private openCraft(state: GameState): void {
     this.inventory.close();
+    this.map.close();
     openCraftPanel(this.panel, state, this.nearStation());
   }
 
   private openBuild(state: GameState): void {
     this.inventory.close();
+    this.map.close();
     openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
   }
 
   private openLabor(state: GameState): void {
     this.inventory.close();
+    this.map.close();
     openLaborPanel(this.panel, state);
   }
 
