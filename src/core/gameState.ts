@@ -54,6 +54,8 @@ export interface GameState {
   settings: { muted: boolean; sfxVolume: number };
   lootSeed: number;
   lootRolls: number;
+  /** pixels moved since the last boot durability tick */
+  bootWear: number;
   savedAt: number;
   playtimeSec: number;
   rngState: number;
@@ -115,6 +117,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
     settings: { muted: false, sfxVolume: 0.7 },
     lootSeed: seed,
     lootRolls: 0,
+    bootWear: 0,
     savedAt: Date.now(),
     playtimeSec: 0,
     rngState: seed,
