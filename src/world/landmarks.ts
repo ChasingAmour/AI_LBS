@@ -147,36 +147,18 @@ export interface PlacementResult {
 }
 
 /**
- * Landmark order matters: the wreck anchors the south beach, the camp must sit
- * 1�? screens inland, and the spring is the first guided objective.
+ * Landmark order matters: the camp anchors the south beach where the player
+ * washes ashore, the wreck is beached on the east coast, and the spring is the
+ * first guided objective.
  */
 export function placeLandmarks(island: TerrainData, seed: number): PlacementResult {
   const placed: Landmark[] = [];
 
-  const wreckPoint = pick(island, seed, {
+  // The player washes ashore on the south beach; the camp sits on the flat ground there.
+  const campPoint = pick(island, seed, {
     center: { x: 5200, y: 5150 },
     minPx: 0,
-    maxPx: 1200,
-    region: 0,
-    salt: 101,
-    predicate: (tx, ty) => {
-      if (tileAt(island, tx, ty) !== TILE.sand) return false;
-      const neighbours = [
-        tileAt(island, tx + 1, ty),
-        tileAt(island, tx - 1, ty),
-        tileAt(island, tx, ty + 1),
-        tileAt(island, tx, ty - 1),
-      ];
-      return neighbours.some((tile) => !isWalkableTile(tile));
-    },
-  });
-  const wreck = landmark('wreck', island, wreckPoint);
-  placed.push(wreck);
-
-  const campPoint = pick(island, seed, {
-    center: wreckPoint,
-    minPx: 320,
-    maxPx: 640,
+    maxPx: 700,
     salt: 211,
     predicate: (tx, ty) => {
       for (let dy = -2; dy <= 2; dy++) {
@@ -194,6 +176,36 @@ export function placeLandmarks(island: TerrainData, seed: number): PlacementResu
   );
   placed.push(landmark('camp', island, campCenter));
 
+  const spawnPoint =
+    findTile(island, seed, {
+      center: campCenter,
+      minPx: 32,
+      maxPx: 96,
+      salt: 401,
+      predicate: (tx, ty) => isWalkableTile(tileAt(island, tx, ty)),
+    }) ?? campCenter;
+
+  // The wreck is beached on the east coast, a few screens away from the camp.
+  const wreckPoint = pick(island, seed, {
+    center: { x: 8700, y: 3400 },
+    minPx: 0,
+    maxPx: 1400,
+    salt: 101,
+    predicate: (tx, ty) => {
+      if (tileAt(island, tx, ty) !== TILE.sand) return false;
+      const neighbours = [
+        tileAt(island, tx + 1, ty),
+        tileAt(island, tx - 1, ty),
+        tileAt(island, tx, ty + 1),
+        tileAt(island, tx, ty - 1),
+      ];
+      return (
+        neighbours.some((tile) => !isWalkableTile(tile)) && farFrom(placed, 1800)(tx, ty)
+      );
+    },
+  });
+  placed.push(landmark('wreck', island, wreckPoint));
+
   const springPoint = pick(island, seed, {
     center: campCenter,
     minPx: 480,
@@ -205,15 +217,6 @@ export function placeLandmarks(island: TerrainData, seed: number): PlacementResu
     },
   });
   placed.push(landmark('spring', island, springPoint));
-
-  const spawnPoint =
-    findTile(island, seed, {
-      center: wreckPoint,
-      minPx: 32,
-      maxPx: 96,
-      salt: 401,
-      predicate: (tx, ty) => isWalkableTile(tileAt(island, tx, ty)),
-    }) ?? wreckPoint;
 
   const outer: Array<{ kind: LandmarkKind; region: number; center: Vec2; salt: number }> = [
     { kind: 'cave', region: 1, center: { x: 7100, y: 3700 }, salt: 503 },

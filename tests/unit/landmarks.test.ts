@@ -19,20 +19,24 @@ describe('generateIsland', () => {
     for (const l of island.landmarks) expect(walkable(l.x, l.y)).toBe(true);
   });
 
-  it('keeps the camp and spring near the wreck', () => {
-    const wreck = island.landmarks.find((l) => l.kind === 'wreck')!;
+  it('keeps the spring near the camp', () => {
     const camp = island.landmarks.find((l) => l.kind === 'camp')!;
     const spring = island.landmarks.find((l) => l.kind === 'spring')!;
     const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
       Math.hypot(a.x - b.x, a.y - b.y);
-    expect(dist(wreck, camp)).toBeLessThanOrEqual(640);
     expect(dist(camp, spring)).toBeGreaterThanOrEqual(480);
     expect(dist(camp, spring)).toBeLessThanOrEqual(640);
   });
 
-  it('spawns the player on the beach near the wreck', () => {
+  it('beaches the wreck on the east coast, far from the spawn', () => {
     const wreck = island.landmarks.find((l) => l.kind === 'wreck')!;
-    expect(Math.hypot(island.spawn.x - wreck.x, island.spawn.y - wreck.y)).toBeLessThanOrEqual(96);
+    expect(wreck.x).toBeGreaterThan(7000);
+    expect(Math.hypot(island.spawn.x - wreck.x, island.spawn.y - wreck.y)).toBeGreaterThan(1500);
+  });
+
+  it('spawns the player on walkable ground near the camp', () => {
+    const camp = island.landmarks.find((l) => l.kind === 'camp')!;
+    expect(Math.hypot(island.spawn.x - camp.x, island.spawn.y - camp.y)).toBeLessThanOrEqual(200);
     expect(walkable(island.spawn.x, island.spawn.y)).toBe(true);
   });
 

@@ -6,6 +6,7 @@ import { ITEMS } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
 import { WEAPONS } from '../data/weapons';
+import { TILE } from '../world/terrain';
 
 /**
  * Cross-checks every data table reference. Returns human-readable errors;
@@ -92,7 +93,14 @@ export function validateGameData(): string[] {
 
   for (const animal of Object.values(ANIMALS)) {
     if (animal.hp <= 0) errors.push(`动物 ${animal.id} 的生命无效`);
+    if (animal.damage <= 0) errors.push(`动物 ${animal.id} 的伤害无效`);
+    if (animal.attackCooldownSec <= 0) errors.push(`动物 ${animal.id} 的攻击间隔无效`);
     if (animal.habitat.length === 0) errors.push(`动物 ${animal.id} 没有栖息地`);
+    for (const tile of animal.habitat) {
+      if (!(Object.values(TILE) as number[]).includes(tile)) {
+        errors.push(`动物 ${animal.id} 的栖息地瓦片 ${tile} 无效`);
+      }
+    }
     for (const drop of animal.drops) {
       if (!hasItem(drop.baseId)) errors.push(`动物 ${animal.id} 的产出 ${drop.baseId} 不存在`);
       if (drop.min < 0 || drop.max < drop.min) {

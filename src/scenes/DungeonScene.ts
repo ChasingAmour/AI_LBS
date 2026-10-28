@@ -36,6 +36,7 @@ import { isFloorCleared, markFloorCleared, tickWeekReset } from '../systems/dung
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
+import { enemySprite } from '../ui/assets';
 
 const STEP = 1 / 60;
 const TILE = 16;
@@ -212,25 +213,20 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private makeEnemyTextures(): void {
-    if (this.textures.exists('dungeon-crab')) return;
+    if (this.textures.exists('dungeon-snake')) return;
     const g = this.make.graphics({ x: 0, y: 0 }, false);
-    // crab
-    g.fillStyle(0x9a3b2a).fillRect(2, 5, 10, 6);
-    g.fillStyle(0xc94f3a).fillRect(3, 4, 8, 3);
-    g.fillStyle(0x2b2118).fillRect(1, 4, 2, 2).fillRect(11, 4, 2, 2);
-    g.generateTexture('dungeon-crab', 14, 12);
-    g.clear();
-    // hermit
-    g.fillStyle(0x8a5a2b).fillCircle(7, 6, 5);
-    g.fillStyle(0xc9a24a).fillCircle(5, 5, 2);
-    g.fillStyle(0x2b2118).fillRect(9, 3, 2, 2).fillRect(9, 7, 2, 2);
-    g.generateTexture('dungeon-hermit', 14, 12);
-    g.clear();
-    // snake
-    g.fillStyle(0x3f8a4f).fillRect(2, 6, 10, 3);
-    g.fillStyle(0x5fbf5f).fillRect(4, 4, 6, 2);
-    g.fillStyle(0x2b2118).fillRect(11, 5, 2, 2);
-    g.generateTexture('dungeon-snake', 14, 12);
+    // sea serpent: wavy body, head with eye and forked tongue
+    g.fillStyle(0x2f6b3f).fillRect(2, 9, 5, 3);
+    g.fillRect(6, 6, 5, 3);
+    g.fillRect(10, 9, 5, 3);
+    g.fillRect(14, 6, 4, 3);
+    g.fillStyle(0x4f9f5f).fillRect(3, 8, 4, 1);
+    g.fillRect(7, 5, 4, 1);
+    g.fillRect(11, 8, 4, 1);
+    g.fillStyle(0x5fbf5f).fillRect(17, 4, 4, 5);
+    g.fillStyle(0x2b2118).fillRect(19, 5, 1, 1);
+    g.fillStyle(0xd8452f).fillRect(21, 6, 2, 1);
+    g.generateTexture('dungeon-snake', 24, 14);
     g.destroy();
   }
 
@@ -238,8 +234,9 @@ export class DungeonScene extends Phaser.Scene {
     if (isFloorCleared(this.state, this.floorData.floor)) return;
     this.floorData.enemies.forEach((spawn, index) => {
       const enemy = createDungeonEnemy(spawn.type, spawn.x * TILE + 8, spawn.y * TILE + 8, `d${this.floorData.floor}_e${index}`);
+      const spec = enemySprite(enemy.type);
       const sprite = this.add
-        .image(enemy.x, enemy.y, `dungeon-${enemy.type}`)
+        .image(enemy.x, enemy.y, spec.texture, spec.frame)
         .setOrigin(0.5, 1)
         .setDepth(9002);
       this.enemies.push({ state: enemy, sprite });

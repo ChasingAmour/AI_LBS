@@ -20,7 +20,6 @@ export interface AnimalDef {
   drops: DropDef[];
   /** tile ids this species spawns on */
   habitat: number[];
-  sprite: { texture: string; frame: number };
 }
 
 export const ANIMALS: Record<string, AnimalDef> = {
@@ -37,7 +36,6 @@ export const ANIMALS: Record<string, AnimalDef> = {
     disengageSec: 5,
     drops: [{ baseId: 'raw_meat', min: 1, max: 2 }],
     habitat: [TILE.grass, TILE.forest],
-    sprite: { texture: 'farm', frame: 0 },
   },
   rabbit: {
     id: 'rabbit',
@@ -52,7 +50,6 @@ export const ANIMALS: Record<string, AnimalDef> = {
     disengageSec: 5,
     drops: [{ baseId: 'raw_meat', min: 1, max: 1 }],
     habitat: [TILE.grass, TILE.forest],
-    sprite: { texture: 'farm', frame: 1 },
   },
   boar: {
     id: 'boar',
@@ -67,7 +64,6 @@ export const ANIMALS: Record<string, AnimalDef> = {
     disengageSec: 5,
     drops: [{ baseId: 'raw_meat', min: 3, max: 4 }],
     habitat: [TILE.forest, TILE.rock],
-    sprite: { texture: 'farm', frame: 2 },
   },
 };
 

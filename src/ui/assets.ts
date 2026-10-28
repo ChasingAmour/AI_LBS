@@ -68,6 +68,25 @@ export function animalSprite(type: string): { texture: string } {
   return ANIMAL_SPRITES[type] ?? { texture: 'animal-chicken' };
 }
 
+export interface EnemySpriteSpec {
+  texture: string;
+  frame?: number;
+}
+
+/** Dungeon monsters: crab and hermit use the Tiny Dungeon art, the serpent is hand-drawn. */
+const ENEMY_SPRITES: Record<string, EnemySpriteSpec> = {
+  crab: { texture: TEXTURE.dungeon, frame: 110 },
+  hermit: { texture: TEXTURE.dungeon, frame: 123 },
+  snake: { texture: 'dungeon-snake' },
+};
+
+export function enemySprite(type: string): EnemySpriteSpec {
+  return ENEMY_SPRITES[type] ?? { texture: TEXTURE.dungeon, frame: 110 };
+}
+
+/** Hand-drawn beached hull, created in IslandScene.makeWorldTextures. */
+export const WRECK_TEXTURE = 'wreck-ship';
+
 /** Procedural hatch drawn in IslandScene, deliberately not the campfire frame. */
 export const ENTRANCE_TEXTURE = 'wreck-hatch';
 

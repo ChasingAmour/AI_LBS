@@ -1,6 +1,7 @@
 import type { BuildingInstance, GameState } from '../core/gameState';
 import { CONFIG } from '../core/config';
 import { BUILDINGS, type BuildingDef } from '../data/buildings';
+import { ITEMS } from '../data/items';
 import { addItem, countItem, removeItem } from './inventorySystem';
 
 export { BUILDINGS } from '../data/buildings';
@@ -78,7 +79,7 @@ export function canPlace(
   if (world?.hasEnemy?.(tileX, tileY)) return { ok: false, reason: '敌人占据了这个位置' };
   for (const cost of def.cost) {
     if (countItem(state, cost.baseId) < cost.count) {
-      return { ok: false, reason: `材料不足：${cost.baseId}` };
+      return { ok: false, reason: `材料不足：${ITEMS[cost.baseId]?.name ?? cost.baseId}` };
     }
   }
   return { ok: true };

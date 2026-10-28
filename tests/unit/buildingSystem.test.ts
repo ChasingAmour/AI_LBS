@@ -151,6 +151,12 @@ describe('building system', () => {
     });
   });
 
+  it('材料不足时用中文物品名', () => {
+    const s = createNewGame(1);
+    flagAt(s);
+    expect(canPlace(s, 'campfire', 45, 45).reason).toBe('材料不足：木头');
+  });
+
   it('插旗的横幅是据点已建立', () => {
     expect(placementBanner('flag')).toBe('据点已建立');
     expect(placementBanner('campfire')).toBe('建成了营火');

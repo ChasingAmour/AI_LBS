@@ -17,7 +17,7 @@ import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
-import { buildingSprite, animalSprite, entranceSprite, nodeSprite } from '../ui/assets';
+import { buildingSprite, animalSprite, entranceSprite, nodeSprite, WRECK_TEXTURE } from '../ui/assets';
 import { makeText } from '../ui/text';
 import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
@@ -163,6 +163,7 @@ export class IslandScene extends Phaser.Scene {
 
     this.registerWorldObjects();
     this.syncNodes(true);
+    this.ensureWreckSprite();
     this.ensureEntranceSprite();
     this.syncBuildings();
     this.syncSavages();
@@ -375,6 +376,9 @@ export class IslandScene extends Phaser.Scene {
     this.drawHatch(g);
     g.clear();
 
+    this.drawWreck(g);
+    g.clear();
+
     this.drawAnimals(g);
     g.destroy();
 
@@ -447,6 +451,69 @@ export class IslandScene extends Phaser.Scene {
     g.generateTexture('animal-boar', 16, 16);
   }
 
+  /** 64×40 beached shipwreck: broken hull, ribs, snapped mast and torn sail. */
+  private drawWreck(g: Phaser.GameObjects.Graphics): void {
+    // sand mound
+    g.fillStyle(0xc9a06a, 1).fillEllipse(32, 35, 58, 10);
+    g.fillStyle(0xb8905c, 1).fillEllipse(32, 36, 44, 6);
+    // hull
+    g.fillStyle(0x3f2a17, 1).fillPoints(
+      [
+        new Phaser.Geom.Point(3, 33),
+        new Phaser.Geom.Point(9, 20),
+        new Phaser.Geom.Point(52, 16),
+        new Phaser.Geom.Point(61, 29),
+        new Phaser.Geom.Point(55, 36),
+        new Phaser.Geom.Point(9, 37),
+      ],
+      true,
+    );
+    g.fillStyle(0x6b4a2c, 1).fillPoints(
+      [
+        new Phaser.Geom.Point(8, 30),
+        new Phaser.Geom.Point(12, 23),
+        new Phaser.Geom.Point(50, 19),
+        new Phaser.Geom.Point(57, 28),
+        new Phaser.Geom.Point(50, 32),
+        new Phaser.Geom.Point(12, 33),
+      ],
+      true,
+    );
+    // deck planks and ribs
+    g.fillStyle(0x8a6a3c, 1).fillRect(12, 24, 38, 2);
+    for (const x of [16, 24, 32, 40, 48]) {
+      g.fillStyle(0x9c7a46, 1).fillRect(x, 21, 2, 10);
+    }
+    // broken ribs sticking out of the sand
+    g.fillStyle(0x9c7a46, 1).fillRect(6, 30, 2, 6);
+    g.fillRect(11, 28, 2, 8);
+    // snapped mast leaning right
+    g.fillStyle(0x5a3a1c, 1).fillPoints(
+      [
+        new Phaser.Geom.Point(34, 20),
+        new Phaser.Geom.Point(50, 1),
+        new Phaser.Geom.Point(52, 2),
+        new Phaser.Geom.Point(36, 21),
+      ],
+      true,
+    );
+    // torn sail hanging off the mast
+    g.fillStyle(0xd8cfb6, 1).fillPoints(
+      [
+        new Phaser.Geom.Point(47, 5),
+        new Phaser.Geom.Point(60, 12),
+        new Phaser.Geom.Point(53, 14),
+        new Phaser.Geom.Point(56, 19),
+        new Phaser.Geom.Point(46, 13),
+      ],
+      true,
+    );
+    g.fillStyle(0xbdb397, 1).fillRect(47, 9, 6, 1);
+    // dark water line under the hull
+    g.fillStyle(0x2f6b7a, 1).fillRect(4, 36, 54, 2);
+    g.generateTexture('wreck-ship', 64, 40);
+  }
+
   /** 12×20 camp flag: wooden pole with a red pennant. */
   private drawFlag(g: Phaser.GameObjects.Graphics): void {
     g.fillStyle(0x5a3a1c).fillRect(4, 4, 2, 16);
@@ -516,6 +583,19 @@ export class IslandScene extends Phaser.Scene {
         this.state.world.nodes.chest_cave = { x: landmark.x, y: landmark.y, type: 'chest' };
       }
     }
+  }
+
+  /** Beached hull drawn behind the wreck chest and hatch. */
+  private ensureWreckSprite(): void {
+    const wreck = this.island.landmarks.find((entry) => entry.kind === 'wreck');
+    if (!wreck) return;
+    this.add
+      .ellipse(wreck.x - 14, wreck.y + 2, 52, 12, 0x000000, 0.18)
+      .setDepth(depthFor(wreck.y) - 2);
+    this.add
+      .image(wreck.x - 14, wreck.y + 4, WRECK_TEXTURE)
+      .setOrigin(0.5, 1)
+      .setDepth(depthFor(wreck.y) - 1);
   }
 
   /** Visible hatch beside the wreck chest so the dungeon entrance can be found. */
@@ -611,6 +691,7 @@ export class IslandScene extends Phaser.Scene {
       }
       sprite.setPosition(animal.x, animal.y - (animal.mode === 'dead' ? 0 : bob));
       sprite.setDepth(depthFor(animal.y));
+      sprite.setScale(animal.type === 'boar' ? 1.4 : 1);
       sprite.setAlpha(animal.mode === 'dead' ? 0.35 : 1);
       sprite.setFlipX(animal.x < this.state.player.x);
       if (animal.mode === 'retaliate') sprite.setTint(0xffb4a0);
@@ -1059,7 +1140,11 @@ export class IslandScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     tickBootWear(this.state, Math.hypot(body.deltaX(), body.deltaY()));
     const idle =
-      Math.hypot(body.velocity.x, body.velocity.y) < 1 && !this.channel && !uiOpen && !buildSelection;
+      Math.hypot(body.velocity.x, body.velocity.y) < 1 &&
+      !this.channel &&
+      !uiOpen &&
+      !buildSelection &&
+      this.time.now >= this.nextAttackAt;
     tickEnergyRegen(this.state, dt, idle);
     this.player.setDepth(depthFor(this.player.y));
     const velocity = this.player.body as Phaser.Physics.Arcade.Body;

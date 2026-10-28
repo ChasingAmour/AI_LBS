@@ -149,8 +149,10 @@ export class MapPanel {
     const entrance = state.world.wreckEntrance;
     if (entrance && entrance.x > 0 && state.world.discovered.includes('wreck')) {
       const p = worldToMap(entrance.x, entrance.y, MAP_RECT);
-      g.fillStyle(TINTS.woodDark, 1).fillRect(p.x - 3, p.y - 2, 6, 4);
-      g.lineStyle(1, TINTS.gold, 1).strokeRect(p.x - 3, p.y - 2, 6, 4);
+      const ex = p.x + 5;
+      const ey = p.y - 4;
+      g.fillStyle(TINTS.woodDark, 1).fillRect(ex - 3, ey - 2, 6, 4);
+      g.lineStyle(1, TINTS.gold, 1).strokeRect(ex - 3, ey - 2, 6, 4);
     }
     for (const landmark of island.landmarks) {
       const point = worldToMap(landmark.x, landmark.y, MAP_RECT);

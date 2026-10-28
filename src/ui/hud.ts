@@ -53,6 +53,7 @@ export class Hud {
   private goalChrome!: Phaser.GameObjects.Graphics;
   private compactChrome!: Phaser.GameObjects.Graphics;
   private compactBars: Phaser.GameObjects.Rectangle[] = [];
+  private compactIcons: Phaser.GameObjects.Image[] = [];
   private rowObjects: Phaser.GameObjects.GameObject[] = [];
   private compactToggle!: Phaser.GameObjects.Text;
   private compact = false;
@@ -198,11 +199,21 @@ export class Hud {
       this.rows[key] = { fill, value };
       this.rowObjects.push(iconImage, labelText, fill, value);
 
+      const compactIcon = this.scene.add
+        .image(
+          HUD.statusCompact.x + 7,
+          HUD.statusCompact.y + 3 + index * 7,
+          iconTexture(icon),
+        )
+        .setDisplaySize(6, 6)
+        .setDepth(8001)
+        .setScrollFactor(0)
+        .setVisible(false);
       const compactBar = this.scene.add
         .rectangle(
-          HUD.statusCompact.x + 26,
-          HUD.statusCompact.y + 4 + index * 6,
-          120,
+          HUD.statusCompact.x + 16,
+          HUD.statusCompact.y + 3 + index * 7,
+          118,
           3,
           iconColor(icon),
           1,
@@ -211,6 +222,7 @@ export class Hud {
         .setDepth(8001)
         .setScrollFactor(0)
         .setVisible(false);
+      this.compactIcons.push(compactIcon);
       this.compactBars.push(compactBar);
     });
 
@@ -239,6 +251,7 @@ export class Hud {
     }
     this.compactChrome.setVisible(compact);
     for (const bar of this.compactBars) bar.setVisible(compact);
+    for (const icon of this.compactIcons) icon.setVisible(compact);
     const rect = compact ? HUD.goalCompact : HUD.goal;
     this.goalChrome.clear();
     drawPanel(this.goalChrome, rect);

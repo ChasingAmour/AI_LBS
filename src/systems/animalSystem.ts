@@ -119,8 +119,12 @@ export function updateAnimalAi(
 
   animal.disengageTimer = 0;
   if (dist > BITE_RANGE) {
-    animal.x += (dx / dist) * def.chaseSpeed * dtSec;
-    animal.y += (dy / dist) * def.chaseSpeed * dtSec;
+    const nx = animal.x + (dx / dist) * def.chaseSpeed * dtSec;
+    const ny = animal.y + (dy / dist) * def.chaseSpeed * dtSec;
+    if (def.habitat.includes(world.tileAt(Math.floor(nx / TILE), Math.floor(ny / TILE)))) {
+      animal.x = nx;
+      animal.y = ny;
+    }
     return;
   }
 

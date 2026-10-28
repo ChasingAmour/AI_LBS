@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { animalSprite, buildingSprite, entranceSprite, nodeSprite } from '../../src/ui/assets';
+import { animalSprite, buildingSprite, enemySprite, entranceSprite, nodeSprite, WRECK_TEXTURE } from '../../src/ui/assets';
 
 describe('sprite mapping', () => {
   it('maps every resource node type', () => {
@@ -27,5 +27,16 @@ describe('sprite mapping', () => {
   it('沉船入口用独立舱口贴图，不是营火帧', () => {
     expect(entranceSprite().texture).toBe('wreck-hatch');
     expect(entranceSprite().texture).not.toBe(buildingSprite('campfire').texture);
+  });
+
+  it('沉船本体有自己的贴图', () => {
+    expect(WRECK_TEXTURE).toBe('wreck-ship');
+  });
+
+  it('怪物用图集里的真图，蛇是独立贴图', () => {
+    expect(enemySprite('crab')).toEqual({ texture: 'dungeon', frame: 110 });
+    expect(enemySprite('hermit')).toEqual({ texture: 'dungeon', frame: 123 });
+    expect(enemySprite('snake').texture).toBe('dungeon-snake');
+    expect(enemySprite('crab')).not.toEqual(enemySprite('hermit'));
   });
 });
