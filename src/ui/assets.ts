@@ -68,6 +68,13 @@ export function animalSprite(type: string): { texture: string } {
   return ANIMAL_SPRITES[type] ?? { texture: 'animal-chicken' };
 }
 
+/** Procedural hatch drawn in IslandScene, deliberately not the campfire frame. */
+export const ENTRANCE_TEXTURE = 'wreck-hatch';
+
+export function entranceSprite(): { texture: string } {
+  return { texture: ENTRANCE_TEXTURE };
+}
+
 export function nodeSprite(type: string, depleted = false): NodeSpriteSpec {
   if (depleted && DEPLETED_SPRITES[type]) return DEPLETED_SPRITES[type];
   return NODE_SPRITES[type] ?? FALLBACK_NODE;

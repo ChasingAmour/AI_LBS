@@ -279,11 +279,12 @@ export function validateSave(data: unknown): GameState {
   if (data.version !== SAVE_VERSION) fail('存档版本不兼容');
 
   const state = validateCore(data);
+  if (!Array.isArray(state.animals)) state.animals = [];
   const settings = requireObject(state.settings, 'settings');
   if (typeof settings.muted !== 'boolean') fail('settings.muted 必须是布尔值');
   requireNumber(settings.sfxVolume, 'settings.sfxVolume', 0, 1);
+  if (settings.hudCompact === undefined) settings.hudCompact = false;
   if (typeof settings.hudCompact !== 'boolean') fail('settings.hudCompact 必须是布尔值');
-  requireArray(state.animals, 'animals');
   requireNumber(state.lootSeed, 'lootSeed', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(state.lootRolls, 'lootRolls', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);

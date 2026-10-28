@@ -27,6 +27,13 @@ export function campRingBounds(
   return { x: cx - r, y: cy - r, w: r * 2, h: r * 2 };
 }
 
+/** Banner shown after a successful placement. */
+export function placementBanner(type: string): string {
+  const def = BUILDINGS[type];
+  if (!def) return `建成了${type}`;
+  return def.unique ? '据点已建立' : `建成了${def.name}`;
+}
+
 /** The camp only exists once the player has planted the flag. */
 export function hasCampFlag(state: GameState): boolean {
   return state.buildings.some((b) => b.type === 'flag');

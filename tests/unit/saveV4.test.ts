@@ -34,4 +34,14 @@ describe('v3 → v4 迁移', () => {
     const restored = validateSave(JSON.parse(JSON.stringify(state)));
     expect(restored.settings.hudCompact).toBe(true);
   });
+
+  it('缺少 hudCompact 与 animals 的 v4 存档按默认值补齐', () => {
+    const state = createNewGame(5);
+    const raw = JSON.parse(JSON.stringify(state));
+    delete raw.settings.hudCompact;
+    delete raw.animals;
+    const restored = validateSave(raw);
+    expect(restored.settings.hudCompact).toBe(false);
+    expect(restored.animals).toEqual([]);
+  });
 });

@@ -1,4 +1,4 @@
-﻿import { hash2D } from '../core/noise';
+import { hash2D } from '../core/noise';
 import { chunkOf } from './chunks';
 import { TILE } from './terrain';
 import { tileAt } from './landmarks';

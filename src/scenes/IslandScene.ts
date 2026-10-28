@@ -17,7 +17,7 @@ import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
-import { buildingSprite, animalSprite, nodeSprite } from '../ui/assets';
+import { buildingSprite, animalSprite, entranceSprite, nodeSprite } from '../ui/assets';
 import { makeText } from '../ui/text';
 import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
@@ -48,7 +48,7 @@ import {
   respawnNodes,
   tickTorchFuel,
 } from '../systems/resourceSystem';
-import { BUILDINGS, campRingBounds, canPlace, placeBuilding } from '../systems/buildingSystem';
+import { BUILDINGS, campRingBounds, canPlace, hasCampFlag, placeBuilding, placementBanner } from '../systems/buildingSystem';
 import { checkCampUpgrade } from '../systems/campSystem';
 import { captureSavage } from '../systems/captureSystem';
 import { settleLaborRations, tickLabor } from '../systems/laborSystem';
@@ -193,6 +193,12 @@ export class IslandScene extends Phaser.Scene {
     this.terrain = this.island.terrain;
     this.registry.set('island', this.island);
     this.state.world.hash = this.island.hash;
+    if (!hasCampFlag(this.state)) {
+      this.state.camp.center = {
+        x: Math.floor(this.island.campCenter.x / WORLD.tile),
+        y: Math.floor(this.island.campCenter.y / WORLD.tile),
+      };
+    }
     this.state.world.wreckSpawn = { x: this.island.spawn.x, y: this.island.spawn.y };
   }
 
@@ -366,6 +372,9 @@ export class IslandScene extends Phaser.Scene {
     this.drawFlag(g);
     g.clear();
 
+    this.drawHatch(g);
+    g.clear();
+
     this.drawAnimals(g);
     g.destroy();
 
@@ -391,6 +400,17 @@ export class IslandScene extends Phaser.Scene {
       ctx.fillRect(0, 0, 320, 180);
       vignette.refresh();
     }
+  }
+
+  /** 16×16 shipwreck hatch: planked trapdoor with an iron ring. */
+  private drawHatch(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x4a3320).fillRect(1, 6, 14, 10);
+    g.fillStyle(0x6b4a2c).fillRect(2, 7, 12, 3);
+    g.fillRect(2, 12, 12, 3);
+    g.fillStyle(0x2b1d12).fillRect(2, 10, 12, 2);
+    g.fillStyle(0x8a6a3c).fillRect(7, 9, 2, 4);
+    g.fillStyle(0xc9c2b0).fillRect(7, 10, 2, 1);
+    g.generateTexture('wreck-hatch', 16, 16);
   }
 
   /** Three 16×16 wildlife sprites drawn in code: fowl, hare and boar. */
@@ -438,7 +458,8 @@ export class IslandScene extends Phaser.Scene {
   }
 
   /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
-  private drawPalm(g: Phaser.GameObjects.Graphics): void {    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
+  private drawPalm(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
     g.fillRect(7, 14, 3, 10);
     g.fillStyle(0x8a5a2b).fillRect(10, 10, 2, 14);
     g.fillStyle(0x2f6b34).fillRect(1, 5, 8, 3);
@@ -505,7 +526,7 @@ export class IslandScene extends Phaser.Scene {
       .ellipse(entrance.x, entrance.y - 2, 14, 5, 0x000000, 0.25)
       .setDepth(depthFor(entrance.y) - 1);
     this.add
-      .image(entrance.x, entrance.y, 'dungeon', 29)
+      .image(entrance.x, entrance.y, entranceSprite().texture)
       .setOrigin(0.5, 1)
       .setDepth(depthFor(entrance.y));
   }
@@ -760,24 +781,11 @@ export class IslandScene extends Phaser.Scene {
     this.syncBuildings();
     this.registry.set('buildSelection', null);
     this.clearBuildPreview();
-    this.game.events.emit('ui:banner', `建成了${this.buildingName(type)}`);
+    this.game.events.emit('ui:banner', placementBanner(type));
+    if (type === 'flag') this.bus.emit('camp:flagPlaced', { x: building.x, y: building.y });
     checkCampUpgrade(this.state, this.bus);
     refreshTutorial(this.state, this.bus);
     this.bus.emit('save:requested', { reason: 'build' });
-  }
-
-  private buildingName(type: string): string {
-    const names: Record<string, string> = {
-      campfire: '营火',
-      workbench: '工作台',
-      cage: '囚笼',
-      tent: '帐篷',
-      storage: '储物箱',
-      fence: '木栅栏',
-      stone_wall: '石墙',
-      drying_rack: '晾肉架',
-    };
-    return names[type] ?? type;
   }
 
   private placementWorld() {
@@ -1084,10 +1092,20 @@ export class IslandScene extends Phaser.Scene {
     this.syncLaborers();
     this.syncBuildings();
     for (const animal of this.state.animals) {
-      updateAnimalAi(this.state, animal, dt, this.animalWorld());
+      updateAnimalAi(
+        this.state,
+        animal,
+        dt,
+        this.animalWorld(),
+        uiOpen || Boolean(buildSelection),
+      );
     }
     pruneAnimals(this.state, this.state.time.clockMin);
-    if (this.time.now >= this.animalRefillAt) {
+    if (
+      this.time.now >= this.animalRefillAt &&
+      this.state.time.clockMin >= 360 &&
+      this.state.time.clockMin < 1200
+    ) {
       this.animalRefillAt = this.time.now + ANIMAL_SPAWN.refillSec * 1000;
       spawnAnimals(this.state, this.animalWorld(), this.rng);
     }

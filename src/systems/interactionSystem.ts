@@ -143,7 +143,7 @@ export function findInteractTarget(
         y: entrance.y,
         durationSec: 0,
       },
-      3.5,
+      2.5,
     );
   }
 

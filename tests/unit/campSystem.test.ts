@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
 import { EventBus } from '../../src/core/eventBus';
 import { spawnRaid } from '../../src/systems/raidSystem';
+import { generateIsland } from '../../src/world/generate';
+import { TILE } from '../../src/world/terrain';
 import {
   checkCampUpgrade,
   getCampChecklist,
@@ -60,6 +62,21 @@ describe('camp system', () => {
     const savages = spawnRaid(s);
     expect(savages.length).toBeGreaterThan(0);
     expect(Number.isFinite(savages[0].x)).toBe(true);
+  });
+
+  it('兜底营地中心落在陆地上，入侵不会刷进深海', () => {
+    const s = createNewGame(3);
+    const island = generateIsland(s.world.seed);
+    s.camp.center = {
+      x: Math.floor(island.campCenter.x / 16),
+      y: Math.floor(island.campCenter.y / 16),
+    };
+    const savages = spawnRaid(s);
+    const tile =
+      island.terrain[
+        Math.floor(savages[0].y / 16) * island.width + Math.floor(savages[0].x / 16)
+      ];
+    expect(tile).not.toBe(TILE.deepWater);
   });
 
   it('upgrades to lv2 with tent storage and eight fences', () => {

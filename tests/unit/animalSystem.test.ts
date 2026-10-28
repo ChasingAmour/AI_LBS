@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
 import { createRng } from '../../src/core/rng';
 import { ANIMALS, ANIMAL_SPAWN } from '../../src/data/animals';
@@ -30,10 +30,20 @@ describe('动物生成', () => {
     const a = createNewGame(7);
     const b = createNewGame(7);
     spawnAnimals(a, forestWorld, createRng(7));
-    spawnAnimals(b, forestWorld, createRng(7));
+    spawnAnimals(b, forestWorld, createRng(999));
     expect(a.animals.map((x) => [x.type, x.x, x.y])).toEqual(
       b.animals.map((x) => [x.type, x.x, x.y]),
     );
+  });
+
+  it('离场再补货不会产生重复 id', () => {
+    const state = createNewGame(21);
+    for (let cycle = 0; cycle < 4; cycle++) {
+      spawnAnimals(state, forestWorld, createRng(21 + cycle));
+      state.animals = state.animals.filter((_, index) => index % 3 !== 0);
+    }
+    const ids = state.animals.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('只落在栖息地上', () => {
@@ -74,6 +84,17 @@ describe('动物行为', () => {
     state.player.y = animal.y;
     for (let i = 0; i < 60; i++) updateAnimalAi(state, animal, 0.1, forestWorld);
     expect(animal.mode).toBe('wander');
+  });
+
+  it('面板打开时动物不会继续咬人', () => {
+    const state = createNewGame(1);
+    const animal = spawnAnimals(state, forestWorld, createRng(1))[0];
+    animal.x = state.player.x + 5;
+    animal.y = state.player.y;
+    applyHitToAnimal(state, animal, WEAPONS.fist, createRng(5));
+    const before = state.player.hp;
+    for (let i = 0; i < 60; i++) updateAnimalAi(state, animal, 0.1, forestWorld, true);
+    expect(state.player.hp).toBe(before);
   });
 });
 

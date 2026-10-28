@@ -7,6 +7,7 @@ import type { WeaponDef } from '../data/weapons';
 import type { CombatMods } from './combatSystem';
 import { addItem } from './inventorySystem';
 import { applyDamage } from './needsSystem';
+import { hash2D } from '../core/noise';
 
 export interface AnimalWorld {
   tileAt(tileX: number, tileY: number): number;
@@ -19,39 +20,52 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
-function aliveCount(state: GameState, size: 'small' | 'large'): number {
-  return state.animals.filter((a) => a.mode !== 'dead' && ANIMALS[a.type]?.size === size).length;
-}
-
 function pickSpecies(size: 'small' | 'large', roll: number): string {
   const ids = Object.keys(ANIMALS).filter((id) => ANIMALS[id].size === size);
   return ids[Math.min(ids.length - 1, Math.floor(roll * ids.length))];
 }
 
-/** Tops the local population back up to the caps, spawning in a ring around the player. */
-export function spawnAnimals(state: GameState, world: AnimalWorld, rng: Rng): AnimalState[] {
-  const spawned: AnimalState[] = [];
+/** Slot-stable spawn point: same day, slot and seed always give the same spot. */
+function slotSpawn(
+  state: GameState,
+  size: 'small' | 'large',
+  slot: number,
+): { id: string; species: string; x: number; y: number } {
+  const seed = state.world.seed;
   const day = state.time.day;
-  const groups: Array<{ size: 'small' | 'large'; cap: number }> = [
-    { size: 'small', cap: ANIMAL_SPAWN.smallCap },
-    { size: 'large', cap: ANIMAL_SPAWN.largeCap },
+  const angle = hash2D(day, slot, seed + 1201) * Math.PI * 2;
+  const spread = ANIMAL_SPAWN.minDist + hash2D(day, slot, seed + 1202) * (ANIMAL_SPAWN.maxDist - ANIMAL_SPAWN.minDist);
+  const species = pickSpecies(size, hash2D(day, slot, seed + 1203));
+  return {
+    id: `animal_${species}_${day}_s${slot}`,
+    species,
+    x: state.player.x + Math.cos(angle) * spread,
+    y: state.player.y + Math.sin(angle) * spread,
+  };
+}
+
+/** Tops the local population back up to the caps using stable per-slot positions. */
+export function spawnAnimals(state: GameState, world: AnimalWorld, rng: Rng): AnimalState[] {
+  void rng;
+  const spawned: AnimalState[] = [];
+  const occupied = new Set(state.animals.map((a) => a.id));
+  const groups: Array<{ size: 'small' | 'large'; cap: number; offset: number }> = [
+    { size: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0 },
+    { size: 'large', cap: ANIMAL_SPAWN.largeCap, offset: 100 },
   ];
   for (const group of groups) {
-    let missing = group.cap - aliveCount(state, group.size);
-    let attempt = 0;
-    while (missing > 0 && attempt < 40) {
-      attempt += 1;
-      const angle = rng.next() * Math.PI * 2;
-      const dist = ANIMAL_SPAWN.minDist + rng.next() * (ANIMAL_SPAWN.maxDist - ANIMAL_SPAWN.minDist);
-      const x = state.player.x + Math.cos(angle) * dist;
-      const y = state.player.y + Math.sin(angle) * dist;
-      const species = pickSpecies(group.size, rng.next());
-      const def = ANIMALS[species];
-      if (!def.habitat.includes(world.tileAt(Math.floor(x / TILE), Math.floor(y / TILE)))) continue;
-      const animal = createAnimal(`animal_${species}_${day}_${state.animals.length}`, species, x, y);
+    for (let i = 0; i < group.cap; i++) {
+      const slot = group.offset + i;
+      const spot = slotSpawn(state, group.size, slot);
+      if (occupied.has(spot.id)) continue;
+      const def = ANIMALS[spot.species];
+      if (!def.habitat.includes(world.tileAt(Math.floor(spot.x / TILE), Math.floor(spot.y / TILE)))) {
+        continue;
+      }
+      const animal = createAnimal(spot.id, spot.species, spot.x, spot.y);
       state.animals.push(animal);
+      occupied.add(spot.id);
       spawned.push(animal);
-      missing -= 1;
     }
   }
   return spawned;
@@ -63,8 +77,9 @@ export function updateAnimalAi(
   animal: AnimalState,
   dtSec: number,
   world: AnimalWorld,
+  paused = false,
 ): void {
-  if (animal.mode === 'dead') return;
+  if (animal.mode === 'dead' || paused) return;
   const def = ANIMALS[animal.type];
   if (!def) return;
 

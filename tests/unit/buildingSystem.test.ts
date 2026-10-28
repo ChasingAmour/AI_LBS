@@ -10,6 +10,7 @@ import {
   getStorage,
   hasCampFlag,
   placeBuilding,
+  placementBanner,
 } from '../../src/systems/buildingSystem';
 
 /** Founds the camp without touching material counts, for placement tests. */
@@ -148,5 +149,10 @@ describe('building system', () => {
       w: 384,
       h: 384,
     });
+  });
+
+  it('插旗的横幅是据点已建立', () => {
+    expect(placementBanner('flag')).toBe('据点已建立');
+    expect(placementBanner('campfire')).toBe('建成了营火');
   });
 });

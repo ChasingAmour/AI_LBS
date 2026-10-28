@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { animalSprite, buildingSprite, nodeSprite } from '../../src/ui/assets';
+import { animalSprite, buildingSprite, entranceSprite, nodeSprite } from '../../src/ui/assets';
 
 describe('sprite mapping', () => {
   it('maps every resource node type', () => {
@@ -22,5 +22,10 @@ describe('sprite mapping', () => {
       expect(animalSprite(id).texture).toBeTruthy();
     }
     expect(animalSprite('chicken')).not.toEqual(animalSprite('boar'));
+  });
+
+  it('沉船入口用独立舱口贴图，不是营火帧', () => {
+    expect(entranceSprite().texture).toBe('wreck-hatch');
+    expect(entranceSprite().texture).not.toBe(buildingSprite('campfire').texture);
   });
 });
