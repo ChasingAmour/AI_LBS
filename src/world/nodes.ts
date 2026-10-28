@@ -13,7 +13,7 @@ export interface GeneratedNode {
 
 const STRIDE = 12;
 
-function pickType(tile: number, region: number, roll: number): string | null {
+function pickType(tile: number, roll: number): string | null {
   switch (tile) {
     case TILE.forest:
       return roll < 0.7 ? 'tree' : roll < 0.88 ? 'vine' : 'berry';
@@ -32,7 +32,7 @@ function pickType(tile: number, region: number, roll: number): string | null {
     case TILE.shallowWater:
       return 'tide';
     default:
-      return region === 3 && roll < 0.5 ? 'tide' : null;
+      return null;
   }
 }
 
@@ -49,8 +49,7 @@ export function generateNodes(island: IslandData, seed: number): GeneratedNode[]
       const roll = hash2D(tx, ty, seed + 900);
       if (roll > 0.5) continue;
       const tile = tileAt(island, tx, ty);
-      const region = island.regions[ty * island.width + tx];
-      const type = pickType(tile, region, hash2D(tx + 11, ty + 7, seed + 417));
+      const type = pickType(tile, hash2D(tx + 11, ty + 7, seed + 417));
       if (!type) continue;
 
       const x = tx * 16 + 8;
@@ -62,7 +61,7 @@ export function generateNodes(island: IslandData, seed: number): GeneratedNode[]
       const key = `${cx},${cy}`;
       const index = perChunk.get(key) ?? 0;
       perChunk.set(key, index + 1);
-      nodes.push({ id: `${type}:${cx}:${cy}:${index}`, type, x, y });
+      nodes.push({ id: `${type}_${cx}_${cy}_${index}`, type, x, y });
     }
   }
 

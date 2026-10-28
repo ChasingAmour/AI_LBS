@@ -4,9 +4,9 @@ import { WORLD } from '../core/config';
 import { EventBus } from '../core/eventBus';
 import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
-import { BuildingSprite, buildingTextures } from '../entities/building';
+import { BuildingSprite } from '../entities/building';
 import { LABORER_TEXTURE } from '../entities/laborer';
-import { CANOPY_OFFSET, LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
+import { LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
 import { CHUNK_PX, CHUNK_TILES, chunkKey, visibleChunks } from '../world/chunks';
@@ -15,6 +15,7 @@ import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
+import { buildingSprite, nodeSprite } from '../ui/assets';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
 import { WEAPONS, weaponFor } from '../data/weapons';
 import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
@@ -62,16 +63,6 @@ interface Keys {
 }
 
 const STEP = 1 / 60;
-const NODE_TEXTURES: Record<string, string> = {
-  tree: 'tree-trunk',
-  rock: 'rock',
-  vine: 'vine',
-  berry: 'berry',
-  palm: 'palm',
-  tide: 'tide',
-  clay: 'clay',
-  chest: 'chest',
-};
 
 export class IslandScene extends Phaser.Scene {
   private island!: IslandData;
@@ -86,7 +77,10 @@ export class IslandScene extends Phaser.Scene {
   private bus = new EventBus();
   private rng!: Rng;
 
-  private nodeSprites = new Map<string, Phaser.GameObjects.Image[]>();
+  private nodeSprites = new Map<
+    string,
+    { shadow: Phaser.GameObjects.Ellipse; sprite: Phaser.GameObjects.Image }
+  >();
   private buildingSprites = new Map<string, BuildingSprite>();
   private savageSprites = new Map<string, Phaser.GameObjects.Image>();
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
@@ -278,7 +272,7 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private makeTextures(): void {
-    if (this.textures.exists('player') && this.textures.exists('build-campfire')) return;
+    if (this.textures.exists('player') && this.textures.exists('hut')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(0x2f2a26).fillRect(2, 8, 8, 8);
@@ -286,49 +280,7 @@ export class IslandScene extends Phaser.Scene {
     g.generateTexture('player', 12, 16);
     g.clear();
 
-    g.fillStyle(0x5b3f2a).fillRect(0, 0, 8, 20);
-    g.generateTexture('tree-trunk', 8, 20);
-    g.clear();
-
-    g.fillStyle(0x3f6b3a).fillCircle(14, 10, 10);
-    g.fillStyle(0x4e7f45).fillCircle(8, 12, 8);
-    g.fillStyle(0x5a8f4d).fillCircle(20, 12, 8);
-    g.generateTexture('tree-canopy', 28, 22);
-    g.clear();
-
-    g.fillStyle(0x6f6a5f).fillRect(1, 4, 14, 8);
-    g.fillStyle(0x8a8478).fillRect(3, 2, 10, 4);
-    g.generateTexture('rock', 16, 14);
-    g.clear();
-
-    g.fillStyle(0x7a4b2a).fillRect(1, 2, 12, 10);
-    g.fillStyle(0xd6b25a).fillRect(6, 5, 4, 4);
-    g.generateTexture('chest', 14, 14);
-    g.clear();
-
-    g.fillStyle(0x5b3f2a).fillRect(6, 8, 6, 16);
-    g.fillStyle(0x3f6b3a).fillCircle(9, 8, 9);
-    g.generateTexture('palm', 18, 24);
-    g.clear();
-
-    g.fillStyle(0x3f6b3a).fillRect(0, 8, 12, 4);
-    g.fillStyle(0x6fa05a).fillRect(2, 4, 8, 4);
-    g.generateTexture('vine', 12, 12);
-    g.clear();
-
-    g.fillStyle(0x3f6b3a).fillCircle(6, 8, 6);
-    g.fillStyle(0xb73838).fillRect(3, 6, 2, 2);
-    g.fillStyle(0xb73838).fillRect(8, 9, 2, 2);
-    g.generateTexture('berry', 12, 14);
-    g.clear();
-
-    g.fillStyle(0x2f6f7e).fillRect(0, 3, 14, 6);
-    g.fillStyle(0x6fb6c4).fillRect(2, 4, 10, 2);
-    g.generateTexture('tide', 14, 10);
-    g.clear();
-
-    g.fillStyle(0x9a6f4f).fillRect(0, 4, 14, 6);
-    g.generateTexture('clay', 14, 10);
+    this.drawPalm(g);
     g.clear();
 
     g.fillStyle(0x8a3b2a).fillRect(2, 6, 8, 10);
@@ -341,7 +293,7 @@ export class IslandScene extends Phaser.Scene {
     g.generateTexture(LABORER_TEXTURE, 12, 16);
     g.clear();
 
-    this.generateBuildingTextures(g);
+    this.drawHut(g);
     g.destroy();
 
     const canvas = this.textures.createCanvas('light', 256, 256);
@@ -356,77 +308,47 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private generateBuildingTextures(g: Phaser.GameObjects.Graphics): void {
-    const defs: { key: string; draw: () => void }[] = [
-      {
-        key: 'build-campfire',
-        draw: () => {
-          g.fillStyle(0x5b3f2a).fillRect(2, 10, 12, 4);
-          g.fillStyle(0xd9772f).fillTriangle(8, 1, 3, 11, 13, 11);
-        },
-      },
-      {
-        key: 'build-workbench',
-        draw: () => {
-          g.fillStyle(0x7a4b2a).fillRect(1, 4, 14, 6);
-          g.fillStyle(0x5b3f2a).fillRect(2, 10, 2, 5);
-          g.fillStyle(0x5b3f2a).fillRect(12, 10, 2, 5);
-        },
-      },
-      {
-        key: 'build-cage',
-        draw: () => {
-          g.lineStyle(1, 0x9aa7b2, 1);
-          g.strokeRect(1, 2, 14, 13);
-          for (let x = 4; x < 15; x += 3) g.lineBetween(x, 2, x, 15);
-        },
-      },
-      {
-        key: 'build-tent',
-        draw: () => {
-          g.fillStyle(0xc9b48a).fillTriangle(8, 0, 1, 15, 15, 15);
-          g.fillStyle(0x8a6f4f).fillRect(7, 8, 2, 7);
-        },
-      },
-      {
-        key: 'build-storage',
-        draw: () => {
-          g.fillStyle(0x7a4b2a).fillRect(1, 3, 14, 12);
-          g.fillStyle(0xd6b25a).fillRect(7, 7, 2, 4);
-        },
-      },
-      {
-        key: 'build-fence',
-        draw: () => {
-          g.fillStyle(0x7a4b2a).fillRect(0, 5, 16, 3);
-          g.fillStyle(0x5b3f2a).fillRect(2, 2, 3, 12);
-          g.fillStyle(0x5b3f2a).fillRect(11, 2, 3, 12);
-        },
-      },
-      {
-        key: 'build-stone-wall',
-        draw: () => {
-          g.fillStyle(0x8a8478).fillRect(0, 4, 16, 11);
-          g.fillStyle(0x6f6a5f).fillRect(0, 10, 16, 2);
-        },
-      },
-      {
-        key: 'build-drying-rack',
-        draw: () => {
-          g.fillStyle(0x7a4b2a).fillRect(1, 4, 14, 2);
-          g.fillStyle(0x5b3f2a).fillRect(2, 6, 2, 9);
-          g.fillStyle(0x5b3f2a).fillRect(12, 6, 2, 9);
-          g.fillStyle(0xb73838).fillRect(5, 6, 2, 5);
-          g.fillStyle(0xb73838).fillRect(9, 6, 2, 5);
-        },
-      },
-    ];
-    for (const def of defs) {
-      if (this.textures.exists(def.key)) continue;
-      def.draw();
-      g.generateTexture(def.key, 16, 16);
-      g.clear();
-    }
+  /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
+  private drawPalm(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
+    g.fillRect(7, 14, 3, 10);
+    g.fillStyle(0x8a5a2b).fillRect(10, 10, 2, 14);
+    g.fillStyle(0x2f6b34).fillRect(1, 5, 8, 3);
+    g.fillRect(9, 5, 8, 3);
+    g.fillRect(4, 2, 10, 3);
+    g.fillRect(2, 8, 6, 2);
+    g.fillRect(10, 8, 6, 2);
+    g.fillStyle(0x4e8f45).fillRect(5, 1, 8, 2);
+    g.fillStyle(0x3a2a18).fillRect(7, 10, 2, 2);
+    g.fillRect(10, 11, 2, 2);
+    g.generateTexture('palm', 18, 24);
+  }
+
+  /** 32×32 thatch hut (shown at 2× as the 2×2 camp shelter). */
+  private drawHut(g: Phaser.GameObjects.Graphics): void {
+    // stone foundation
+    g.fillStyle(0x8a8478).fillRect(3, 26, 26, 4);
+    g.fillStyle(0x6f6a5f).fillRect(3, 29, 26, 1);
+    // log walls
+    g.fillStyle(0x8a5a2b).fillRect(5, 13, 22, 14);
+    g.fillStyle(0x6b4420).fillRect(5, 13, 22, 2);
+    g.fillStyle(0x6b4420).fillRect(5, 20, 22, 1);
+    g.fillStyle(0x6b4420).fillRect(5, 25, 22, 1);
+    // thatch roof
+    g.fillStyle(0xb98b3c).fillTriangle(1, 14, 16, 2, 31, 14);
+    g.fillStyle(0xd8b25a).fillTriangle(4, 12, 16, 3, 28, 12);
+    g.fillStyle(0xa97c32).fillRect(1, 12, 30, 3);
+    // chimney
+    g.fillStyle(0x8a8478).fillRect(23, 1, 5, 9);
+    g.fillStyle(0x6f6a5f).fillRect(23, 1, 5, 2);
+    // door with warm light
+    g.fillStyle(0x3a2412).fillRect(12, 18, 8, 10);
+    g.fillStyle(0xffc861).fillRect(13, 20, 6, 6);
+    g.fillStyle(0xfff0b8).fillRect(14, 21, 4, 3);
+    // window
+    g.fillStyle(0x3a2412).fillRect(7, 16, 4, 4);
+    g.fillStyle(0xffd479).fillRect(8, 17, 2, 2);
+    g.generateTexture('hut', 32, 32);
   }
 
   private registerWorldObjects(): void {
@@ -446,39 +368,28 @@ export class IslandScene extends Phaser.Scene {
   private syncNodes(initial = false): void {
     if (initial) {
       for (const [id, node] of Object.entries(this.state.world.nodes)) {
-        const texture = NODE_TEXTURES[node.type] ?? 'rock';
-        if (node.type === 'tree') {
-          const trunk = this.add
-            .image(node.x, node.y, 'tree-trunk')
-            .setOrigin(0.5, 1)
-            .setDepth(depthFor(node.y));
-          const canopy = this.add
-            .image(node.x, node.y, 'tree-canopy')
-            .setOrigin(0.5, 1)
-            .setDepth(depthFor(node.y) + CANOPY_OFFSET);
-          this.nodeSprites.set(id, [trunk, canopy]);
-        } else {
-          const sprite = this.add
-            .image(node.x, node.y, texture)
-            .setOrigin(0.5, 1)
-            .setDepth(depthFor(node.y));
-          this.nodeSprites.set(id, [sprite]);
-        }
+        const spec = nodeSprite(node.type, false);
+        const shadow = this.add
+          .ellipse(node.x, node.y - 2, 10, 4, 0x000000, 0.22)
+          .setDepth(depthFor(node.y) - 1);
+        const sprite = this.add
+          .image(node.x, node.y, spec.texture, spec.frame)
+          .setOrigin(0.5, 1)
+          .setDepth(depthFor(node.y));
+        this.nodeSprites.set(id, { shadow, sprite });
       }
     }
 
-    for (const [id, sprites] of this.nodeSprites) {
+    for (const [id, view] of this.nodeSprites) {
       const node = this.state.world.nodes[id];
       if (!node) continue;
       const def = RESOURCE_NODES[node.type];
       const depleted = def ? (this.state.world.nodeStates[id]?.remaining ?? def.maxHits) <= 0 : false;
       const chestOpened = id.startsWith('chest_') && this.state.world.uniqueLoot.includes(id);
-      if (node.type === 'tree') {
-        sprites[0].setAlpha(depleted ? 0.4 : 1);
-        sprites[1].setVisible(!depleted);
-      } else {
-        sprites[0].setAlpha(depleted || chestOpened ? 0.3 : 1);
-      }
+      const spec = nodeSprite(node.type, depleted || chestOpened);
+      view.shadow.setVisible(!depleted);
+      view.sprite.setTexture(spec.texture, spec.frame);
+      view.sprite.setAlpha(depleted || chestOpened ? 0.35 : 1);
     }
   }
 
@@ -672,13 +583,13 @@ export class IslandScene extends Phaser.Scene {
       this.buildGhost = undefined;
       return;
     }
-    const texture = buildingTextures()[type] ?? 'build-storage';
+    const spec = buildingSprite(type);
     if (!this.buildGhost) {
-      this.buildGhost = this.add.image(0, 0, texture).setOrigin(0.5, 1).setAlpha(0.6).setDepth(9000);
+      this.buildGhost = this.add.image(0, 0, spec.texture, spec.frame).setOrigin(0.5, 1).setAlpha(0.6).setDepth(9000);
     }
     const tileX = Math.floor(pointer.worldX / 16);
     const tileY = Math.floor(pointer.worldY / 16);
-    this.buildGhost.setTexture(texture);
+    this.buildGhost.setTexture(spec.texture, spec.frame).setDisplaySize(spec.w, spec.h);
     this.buildGhost.setPosition(tileX * 16 + 8, tileY * 16 + 16);
     const check = canPlace(this.state, type, tileX, tileY, this.placementWorld());
     this.buildGhost.setTint(check.ok ? 0x8fff8f : 0xff8f8f);
