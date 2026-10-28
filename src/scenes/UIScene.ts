@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { Hud } from '../ui/hud';
 import { Panel } from '../ui/panel';
-import { openInventoryPanel } from '../ui/inventoryPanel';
+import { InventoryOverlay } from '../ui/inventoryPanel';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -11,6 +11,7 @@ import type { EventBus } from '../core/eventBus';
 export class UIScene extends Phaser.Scene {
   private hud!: Hud;
   private panel!: Panel;
+  private inventory!: InventoryOverlay;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
@@ -22,6 +23,7 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     this.hud = new Hud(this);
     this.panel = new Panel(this);
+    this.inventory = new InventoryOverlay(this);
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -31,11 +33,15 @@ export class UIScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
-      keyboard.on('keydown-I', () => this.withState((state) => openInventoryPanel(this.panel, state)));
-      keyboard.on('keydown-C', () => this.withState((state) => openCraftPanel(this.panel, state, this.nearStation())));
-      keyboard.on('keydown-B', () => this.withState((state) => openBuildMenu(this.panel, state, (type) => this.selectBuild(type))));
-      keyboard.on('keydown-L', () => this.withState((state) => openLaborPanel(this.panel, state)));
+      keyboard.on('keydown-I', () => this.withState((state) => this.inventory.toggle(state)));
+      keyboard.on('keydown-C', () => this.withState((state) => this.openCraft(state)));
+      keyboard.on('keydown-B', () => this.withState((state) => this.openBuild(state)));
+      keyboard.on('keydown-L', () => this.withState((state) => this.openLabor(state)));
       keyboard.on('keydown-ESC', () => {
+        if (this.inventory.isOpen) {
+          this.inventory.close();
+          return;
+        }
         if (this.panel.isOpen) {
           this.panel.close();
           return;
@@ -64,7 +70,7 @@ export class UIScene extends Phaser.Scene {
   update(): void {
     const state = this.state();
     if (state) this.hud.update(state);
-    this.registry.set('uiOpen', this.panel.isOpen);
+    this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
     const progress = this.registry.get('interactProgress');
@@ -79,11 +85,26 @@ export class UIScene extends Phaser.Scene {
 
   private openPanel(kind: string): void {
     this.withState((state) => {
-      if (kind === 'inventory') openInventoryPanel(this.panel, state);
-      else if (kind === 'craft') openCraftPanel(this.panel, state, this.nearStation());
-      else if (kind === 'build') openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
-      else if (kind === 'labor') openLaborPanel(this.panel, state);
+      if (kind === 'inventory') this.inventory.toggle(state);
+      else if (kind === 'craft') this.openCraft(state);
+      else if (kind === 'build') this.openBuild(state);
+      else if (kind === 'labor') this.openLabor(state);
     });
+  }
+
+  private openCraft(state: GameState): void {
+    this.inventory.close();
+    openCraftPanel(this.panel, state, this.nearStation());
+  }
+
+  private openBuild(state: GameState): void {
+    this.inventory.close();
+    openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
+  }
+
+  private openLabor(state: GameState): void {
+    this.inventory.close();
+    openLaborPanel(this.panel, state);
   }
 
   private state(): GameState | null {
