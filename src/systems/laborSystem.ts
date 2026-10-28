@@ -85,6 +85,8 @@ function unload(state: GameState, laborer: LaborerState, storage: BuildingInstan
     state.world.groundLoot.push({
       baseId: laborer.carryingType,
       count: laborer.carrying,
+      x: laborer.x,
+      y: laborer.y,
     });
   }
   laborer.carrying = 0;

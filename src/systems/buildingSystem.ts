@@ -103,7 +103,13 @@ export function damageBuilding(state: GameState, id: string, amount: number): vo
   building.hp -= Math.max(0, amount);
   if (building.hp > 0) return;
   if (building.storage?.length) {
-    state.world.groundLoot.push(...building.storage.map((item) => ({ ...item })));
+    state.world.groundLoot.push(
+      ...building.storage.map((item) => ({
+        ...item,
+        x: building.x * 16 + 8,
+        y: building.y * 16 + 16,
+      })),
+    );
   }
   state.buildings.splice(index, 1);
 }

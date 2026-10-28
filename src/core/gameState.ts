@@ -5,6 +5,9 @@ export interface ItemStack {
   count: number;
   instanceId?: string;
   durability?: number;
+  /** world position for loot lying on the ground */
+  x?: number;
+  y?: number;
 }
 
 export interface EquipInstance {
@@ -66,6 +69,7 @@ export interface GameState {
   };
   inventory: ItemStack[];
   hotbar: (string | null)[];
+  hotbarIndex: number;
   equipment: { weapon: string | null; armor: string | null; boots: string | null };
   equipmentInstances: EquipInstance[];
   world: {
@@ -110,6 +114,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
     },
     inventory: [],
     hotbar: Array.from({ length: 8 }, () => null),
+    hotbarIndex: 0,
     equipment: { weapon: null, armor: null, boots: null },
     equipmentInstances: [],
     world: {

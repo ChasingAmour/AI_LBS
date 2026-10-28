@@ -14,4 +14,11 @@ export class EventBus {
       cb(payload);
     }
   }
+
+  off(event: string, cb: EventHandler): void {
+    const list = this.handlers.get(event);
+    if (!list) return;
+    const index = list.indexOf(cb);
+    if (index >= 0) list.splice(index, 1);
+  }
 }

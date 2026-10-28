@@ -1,8 +1,47 @@
 import Phaser from 'phaser';
-import { createNewGame } from '../core/gameState';
+import { createNewGame, type GameState } from '../core/gameState';
+import { EventBus } from '../core/eventBus';
+import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
+import { BuildingSprite, buildingTextures } from '../entities/building';
+import { LABORER_TEXTURE } from '../entities/laborer';
 import { CANOPY_OFFSET, LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
 import { TILE, terrainSpeedAt } from '../world/terrain';
+import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
+import { WEAPONS, weaponFor } from '../data/weapons';
+import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
+import {
+  applySleepRecovery,
+  drinkFreshWater,
+  tickNeeds,
+} from '../systems/needsSystem';
+import { damageTool } from '../systems/inventorySystem';
+import {
+  gatherNode,
+  hasToolFor,
+  openUniqueChest,
+  respawnNodes,
+  tickTorchFuel,
+} from '../systems/resourceSystem';
+import { canPlace, placeBuilding } from '../systems/buildingSystem';
+import { checkCampUpgrade } from '../systems/campSystem';
+import { captureSavage } from '../systems/captureSystem';
+import { settleLaborRations, tickLabor } from '../systems/laborSystem';
+import { resolveRaidDawn, spawnRaid, updateSavageAi } from '../systems/raidSystem';
+import {
+  applyHitToSavage,
+  computeHitTargets,
+  tickSavageStun,
+} from '../systems/combatSystem';
+import {
+  collectLoot,
+  findInteractTarget,
+  pickUpGroundLoot,
+  type InteractTarget,
+} from '../systems/interactionSystem';
+import { refreshTutorial } from '../systems/tutorialSystem';
+import { saveGame } from '../systems/saveSystem';
+import { ITEMS } from '../data/items';
 
 interface Keys {
   W: Phaser.Input.Keyboard.Key;
@@ -10,7 +49,20 @@ interface Keys {
   S: Phaser.Input.Keyboard.Key;
   D: Phaser.Input.Keyboard.Key;
   SHIFT: Phaser.Input.Keyboard.Key;
+  E: Phaser.Input.Keyboard.Key;
 }
+
+const STEP = 1 / 60;
+const NODE_TEXTURES: Record<string, string> = {
+  tree: 'tree-trunk',
+  rock: 'rock',
+  vine: 'vine',
+  berry: 'berry',
+  palm: 'palm',
+  tide: 'tide',
+  clay: 'clay',
+  chest: 'chest',
+};
 
 export class IslandScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
@@ -18,9 +70,22 @@ export class IslandScene extends Phaser.Scene {
   private collision!: Phaser.Tilemaps.TilemapLayer;
   private player!: PlayerEntity;
   private keys!: Keys;
+  private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private nightOverlay!: Phaser.GameObjects.Rectangle;
   private light!: Phaser.GameObjects.Image;
-  private state = createNewGame();
+  private state!: GameState;
+  private bus = new EventBus();
+  private rng!: Rng;
+
+  private nodeSprites = new Map<string, Phaser.GameObjects.Image[]>();
+  private buildingSprites = new Map<string, BuildingSprite>();
+  private savageSprites = new Map<string, Phaser.GameObjects.Image>();
+  private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
+  private buildGhost?: Phaser.GameObjects.Image;
+  private channel: { target: InteractTarget; elapsed: number } | null = null;
+  private accumulator = 0;
+  private nextAttackAt = 0;
+  private deathLaunched = false;
 
   constructor() {
     super('IslandScene');
@@ -32,20 +97,27 @@ export class IslandScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.makeTextures();
+    const registered = this.registry.get('state') as GameState | undefined;
+    this.state = registered ?? createNewGame();
+    this.bus = new EventBus();
+    this.registry.set('state', this.state);
+    this.registry.set('bus', this.bus);
+    this.registry.set('nearStation', false);
+    this.registry.set('buildSelection', null);
+    this.registry.set('interactPrompt', null);
+    this.registry.set('interactProgress', null);
+    this.rng = createRng(this.state.rngState);
+    this.deathLaunched = false;
 
-    this.map = this.make.tilemap({ key: 'island' });
-    const tileset = this.map.addTilesetImage('placeholder', 'tiles', 16, 16, 0, 0);
-    if (!tileset) throw new Error('Missing tileset');
-    this.ground = this.map.createLayer('ground', tileset, 0, 0)!;
-    this.collision = this.map.createLayer('collision', tileset, 0, 0)!;
-    this.collision.setVisible(false);
-    this.collision.setCollisionByExclusion([-1, 0]);
+    this.makeTextures();
+    this.makeMap();
 
     const spawn = this.map.findObject('objects', (o) => o.name === 'spawn_wreck');
-    const spawnX = typeof spawn?.x === 'number' ? spawn.x : this.state.world.wreckSpawn.x;
-    const spawnY = typeof spawn?.y === 'number' ? spawn.y : this.state.world.wreckSpawn.y;
-    this.player = new PlayerEntity(this, spawnX + 8, spawnY + 16);
+    const spawnX = typeof spawn?.x === 'number' ? spawn.x + 8 : this.state.world.wreckSpawn.x;
+    const spawnY = typeof spawn?.y === 'number' ? spawn.y + 16 : this.state.world.wreckSpawn.y;
+    const startX = this.state.player.x || spawnX;
+    const startY = this.state.player.y || spawnY;
+    this.player = new PlayerEntity(this, startX, startY);
     this.physics.add.collider(this.player, this.collision);
     this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
 
@@ -53,14 +125,23 @@ export class IslandScene extends Phaser.Scene {
     this.cameras.main.setZoom(2);
     this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
 
-    this.addDecorations();
+    this.registerWorldObjects();
+    this.syncNodes(true);
+    this.syncBuildings();
+    this.syncSavages();
+    this.syncLaborers();
     this.createNightLayer();
+    this.bindInput();
+    this.bindGameEvents();
 
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,SHIFT') as unknown as Keys;
+    if (!this.scene.isActive('UIScene')) {
+      this.scene.launch('UIScene');
+    }
+    refreshTutorial(this.state, this.bus);
   }
 
   private makeTextures(): void {
-    if (this.textures.exists('player')) return;
+    if (this.textures.exists('player') && this.textures.exists('build-campfire')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(0x2f2a26).fillRect(2, 8, 8, 8);
@@ -111,6 +192,19 @@ export class IslandScene extends Phaser.Scene {
 
     g.fillStyle(0x9a6f4f).fillRect(0, 4, 14, 6);
     g.generateTexture('clay', 14, 10);
+    g.clear();
+
+    g.fillStyle(0x8a3b2a).fillRect(2, 6, 8, 10);
+    g.fillStyle(0xd9a06a).fillRect(3, 1, 6, 6);
+    g.generateTexture('savage', 12, 16);
+    g.clear();
+
+    g.fillStyle(0x2f5f6b).fillRect(2, 6, 8, 10);
+    g.fillStyle(0xd9a06a).fillRect(3, 1, 6, 6);
+    g.generateTexture(LABORER_TEXTURE, 12, 16);
+    g.clear();
+
+    this.generateBuildingTextures(g);
     g.destroy();
 
     const canvas = this.textures.createCanvas('light', 256, 256);
@@ -125,38 +219,203 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private addDecorations(): void {
+  private generateBuildingTextures(g: Phaser.GameObjects.Graphics): void {
+    const defs: { key: string; draw: () => void }[] = [
+      {
+        key: 'build-campfire',
+        draw: () => {
+          g.fillStyle(0x5b3f2a).fillRect(2, 10, 12, 4);
+          g.fillStyle(0xd9772f).fillTriangle(8, 1, 3, 11, 13, 11);
+        },
+      },
+      {
+        key: 'build-workbench',
+        draw: () => {
+          g.fillStyle(0x7a4b2a).fillRect(1, 4, 14, 6);
+          g.fillStyle(0x5b3f2a).fillRect(2, 10, 2, 5);
+          g.fillStyle(0x5b3f2a).fillRect(12, 10, 2, 5);
+        },
+      },
+      {
+        key: 'build-cage',
+        draw: () => {
+          g.lineStyle(1, 0x9aa7b2, 1);
+          g.strokeRect(1, 2, 14, 13);
+          for (let x = 4; x < 15; x += 3) g.lineBetween(x, 2, x, 15);
+        },
+      },
+      {
+        key: 'build-tent',
+        draw: () => {
+          g.fillStyle(0xc9b48a).fillTriangle(8, 0, 1, 15, 15, 15);
+          g.fillStyle(0x8a6f4f).fillRect(7, 8, 2, 7);
+        },
+      },
+      {
+        key: 'build-storage',
+        draw: () => {
+          g.fillStyle(0x7a4b2a).fillRect(1, 3, 14, 12);
+          g.fillStyle(0xd6b25a).fillRect(7, 7, 2, 4);
+        },
+      },
+      {
+        key: 'build-fence',
+        draw: () => {
+          g.fillStyle(0x7a4b2a).fillRect(0, 5, 16, 3);
+          g.fillStyle(0x5b3f2a).fillRect(2, 2, 3, 12);
+          g.fillStyle(0x5b3f2a).fillRect(11, 2, 3, 12);
+        },
+      },
+      {
+        key: 'build-stone-wall',
+        draw: () => {
+          g.fillStyle(0x8a8478).fillRect(0, 4, 16, 11);
+          g.fillStyle(0x6f6a5f).fillRect(0, 10, 16, 2);
+        },
+      },
+      {
+        key: 'build-drying-rack',
+        draw: () => {
+          g.fillStyle(0x7a4b2a).fillRect(1, 4, 14, 2);
+          g.fillStyle(0x5b3f2a).fillRect(2, 6, 2, 9);
+          g.fillStyle(0x5b3f2a).fillRect(12, 6, 2, 9);
+          g.fillStyle(0xb73838).fillRect(5, 6, 2, 5);
+          g.fillStyle(0xb73838).fillRect(9, 6, 2, 5);
+        },
+      },
+    ];
+    for (const def of defs) {
+      if (this.textures.exists(def.key)) continue;
+      def.draw();
+      g.generateTexture(def.key, 16, 16);
+      g.clear();
+    }
+  }
+
+  private makeMap(): void {
+    this.map = this.make.tilemap({ key: 'island' });
+    const tileset = this.map.addTilesetImage('placeholder', 'tiles', 16, 16, 0, 0);
+    if (!tileset) throw new Error('Missing tileset');
+    this.ground = this.map.createLayer('ground', tileset, 0, 0)!;
+    this.collision = this.map.createLayer('collision', tileset, 0, 0)!;
+    this.collision.setVisible(false);
+    this.collision.setCollisionByExclusion([-1, 0]);
+  }
+
+  private registerWorldObjects(): void {
     const objects = this.map.getObjectLayer('objects')?.objects ?? [];
     for (const obj of objects) {
       const name = obj.name ?? '';
       const x = (obj.x ?? 0) + 8;
       const y = (obj.y ?? 0) + 16;
-      if (name.startsWith('tree_')) {
-        this.add.image(x, y, 'tree-trunk').setOrigin(0.5, 1).setDepth(depthFor(y));
-        this.add
-          .image(x, y, 'tree-canopy')
-          .setOrigin(0.5, 1)
-          .setDepth(depthFor(y) + CANOPY_OFFSET);
-      } else if (name.startsWith('rock_')) {
-        this.add.image(x, y, 'rock').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name.startsWith('vine_')) {
-        this.add.image(x, y, 'vine').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name.startsWith('berry_')) {
-        this.add.image(x, y, 'berry').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name.startsWith('palm_')) {
-        this.add.image(x, y, 'palm').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name.startsWith('tide_')) {
-        this.add.image(x, y, 'tide').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name.startsWith('clay_')) {
-        this.add.image(x, y, 'clay').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name === 'chest_wreck' || name === 'chest_cave') {
-        this.add.image(x, y, 'chest').setOrigin(0.5, 1).setDepth(depthFor(y));
-      } else if (name === 'dungeon_entrance') {
-        this.add
-          .text(x, y, '沉船', { fontFamily: 'monospace', fontSize: '10px', color: '#d8e4f0' })
-          .setOrigin(0.5, 1)
-          .setDepth(depthFor(y));
+      if (name === 'camp_center') {
+        this.state.camp.center = {
+          x: Math.floor((obj.x ?? 768) / 16),
+          y: Math.floor((obj.y ?? 768) / 16),
+        };
+        continue;
       }
+      if (name.startsWith('chest_')) {
+        this.state.world.nodes[name] = { x, y, type: 'chest' };
+        continue;
+      }
+      const type = name.split('_')[0];
+      if (!RESOURCE_NODES[type]) continue;
+      this.state.world.nodes[name] = { x, y, type };
+    }
+  }
+
+  private syncNodes(initial = false): void {
+    if (initial) {
+      for (const [id, node] of Object.entries(this.state.world.nodes)) {
+        const texture = NODE_TEXTURES[node.type] ?? 'rock';
+        if (node.type === 'tree') {
+          const trunk = this.add
+            .image(node.x, node.y, 'tree-trunk')
+            .setOrigin(0.5, 1)
+            .setDepth(depthFor(node.y));
+          const canopy = this.add
+            .image(node.x, node.y, 'tree-canopy')
+            .setOrigin(0.5, 1)
+            .setDepth(depthFor(node.y) + CANOPY_OFFSET);
+          this.nodeSprites.set(id, [trunk, canopy]);
+        } else {
+          const sprite = this.add
+            .image(node.x, node.y, texture)
+            .setOrigin(0.5, 1)
+            .setDepth(depthFor(node.y));
+          this.nodeSprites.set(id, [sprite]);
+        }
+      }
+    }
+
+    for (const [id, sprites] of this.nodeSprites) {
+      const node = this.state.world.nodes[id];
+      if (!node) continue;
+      const def = RESOURCE_NODES[node.type];
+      const depleted = def ? (this.state.world.nodeStates[id]?.remaining ?? def.maxHits) <= 0 : false;
+      const chestOpened = id.startsWith('chest_') && this.state.world.uniqueLoot.includes(id);
+      if (node.type === 'tree') {
+        sprites[0].setAlpha(depleted ? 0.4 : 1);
+        sprites[1].setVisible(!depleted);
+      } else {
+        sprites[0].setAlpha(depleted || chestOpened ? 0.3 : 1);
+      }
+    }
+  }
+
+  private syncBuildings(): void {
+    const ids = new Set(this.state.buildings.map((b) => b.id));
+    for (const [id, sprite] of this.buildingSprites) {
+      if (!ids.has(id)) {
+        sprite.destroy();
+        this.buildingSprites.delete(id);
+      }
+    }
+    for (const building of this.state.buildings) {
+      if (this.buildingSprites.has(building.id)) continue;
+      this.buildingSprites.set(building.id, new BuildingSprite(this, building));
+    }
+  }
+
+  private syncSavages(): void {
+    const ids = new Set(this.state.savages.map((s) => s.id));
+    for (const [id, sprite] of this.savageSprites) {
+      if (!ids.has(id)) {
+        sprite.destroy();
+        this.savageSprites.delete(id);
+      }
+    }
+    for (const savage of this.state.savages) {
+      let sprite = this.savageSprites.get(savage.id);
+      if (!sprite) {
+        sprite = this.add.image(savage.x, savage.y, 'savage').setOrigin(0.5, 1);
+        this.savageSprites.set(savage.id, sprite);
+      }
+      sprite.setPosition(savage.x, savage.y).setDepth(depthFor(savage.y));
+      sprite.setAlpha(savage.mode === 'dead' ? 0.25 : 1);
+      if (savage.mode === 'stunned') sprite.setTint(0x8fd4ff);
+      else sprite.clearTint();
+    }
+  }
+
+  private syncLaborers(): void {
+    const ids = new Set(this.state.laborers.map((l) => l.id));
+    for (const [id, sprite] of this.laborerSprites) {
+      if (!ids.has(id)) {
+        sprite.destroy();
+        this.laborerSprites.delete(id);
+      }
+    }
+    for (const laborer of this.state.laborers) {
+      let sprite = this.laborerSprites.get(laborer.id);
+      if (!sprite) {
+        sprite = this.add
+          .image(laborer.x, laborer.y, LABORER_TEXTURE)
+          .setOrigin(0.5, 1);
+        this.laborerSprites.set(laborer.id, sprite);
+      }
+      sprite.setPosition(laborer.x, laborer.y).setDepth(depthFor(laborer.y));
     }
   }
 
@@ -175,20 +434,505 @@ export class IslandScene extends Phaser.Scene {
       .setVisible(false);
   }
 
-  update(): void {
+  private bindInput(): void {
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,SHIFT,E') as unknown as Keys;
+    const codes = [
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+      Phaser.Input.Keyboard.KeyCodes.FOUR,
+      Phaser.Input.Keyboard.KeyCodes.FIVE,
+      Phaser.Input.Keyboard.KeyCodes.SIX,
+      Phaser.Input.Keyboard.KeyCodes.SEVEN,
+      Phaser.Input.Keyboard.KeyCodes.EIGHT,
+    ];
+    this.numberKeys = codes.map((code) => this.input.keyboard!.addKey(code));
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown()) {
+        this.cancelBuild();
+        return;
+      }
+      if (pointer.leftButtonDown()) this.handleLeftClick(pointer);
+    });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      this.updateBuildGhost(pointer);
+    });
+  }
+
+  private bindGameEvents(): void {
+    this.bus.on('save:requested', () => this.persist());
+    this.bus.on('raid:started', () => {
+      spawnRaid(this.state);
+      this.syncSavages();
+    });
+    this.bus.on('raid:dawn', () => {
+      const result = resolveRaidDawn(this.state);
+      this.syncSavages();
+      const lost = result.foodLost > 0 ? `，消耗口粮 ${result.foodLost}` : '';
+      this.game.events.emit('ui:banner', `黎明：野人撤退了${lost}`);
+    });
+    this.bus.on('time:dayChanged', () => {
+      respawnNodes(this.state);
+      const rations = settleLaborRations(this.state);
+      if (rations.fled.length > 0) {
+        this.bus.emit('labor:fled', { ids: rations.fled });
+      }
+      refreshTutorial(this.state, this.bus);
+      this.persist();
+    });
+  }
+
+  private handleLeftClick(pointer: Phaser.Input.Pointer): void {
+    const selected = this.registry.get('buildSelection') as string | null;
+    if (selected) {
+      this.placeSelectedBuilding(selected, pointer);
+      return;
+    }
+    if (this.registry.get('uiOpen')) return;
+    this.attack(pointer);
+  }
+
+  private placeSelectedBuilding(type: string, pointer: Phaser.Input.Pointer): void {
+    const tileX = Math.floor(pointer.worldX / 16);
+    const tileY = Math.floor(pointer.worldY / 16);
+    const building = placeBuilding(this.state, type, tileX, tileY, this.placementWorld());
+    if (!building) {
+      this.game.events.emit('ui:banner', '这里不能建造');
+      return;
+    }
+    this.syncBuildings();
+    this.registry.set('buildSelection', null);
+    this.buildGhost?.destroy();
+    this.buildGhost = undefined;
+    this.game.events.emit('ui:banner', `建成了${this.buildingName(type)}`);
+    checkCampUpgrade(this.state, this.bus);
+    refreshTutorial(this.state, this.bus);
+    this.bus.emit('save:requested', { reason: 'build' });
+  }
+
+  private buildingName(type: string): string {
+    const names: Record<string, string> = {
+      campfire: '营火',
+      workbench: '工作台',
+      cage: '囚笼',
+      tent: '帐篷',
+      storage: '储物箱',
+      fence: '木栅栏',
+      stone_wall: '石墙',
+      drying_rack: '晾肉架',
+    };
+    return names[type] ?? type;
+  }
+
+  private placementWorld() {
+    return {
+      isWater: (tileX: number, tileY: number) => {
+        const index = this.ground.getTileAt(tileX, tileY)?.index ?? -1;
+        return index === TILE.deepWater || index === TILE.shallowWater || index === TILE.stream;
+      },
+      hasNode: (tileX: number, tileY: number) =>
+        Object.values(this.state.world.nodes).some(
+          (node) => Math.floor(node.x / 16) === tileX && Math.floor(node.y / 16) === tileY,
+        ),
+      hasEnemy: (tileX: number, tileY: number) =>
+        this.state.savages.some(
+          (savage) =>
+            savage.mode !== 'dead' &&
+            Math.floor(savage.x / 16) === tileX &&
+            Math.floor(savage.y / 16) === tileY,
+        ),
+    };
+  }
+
+  private updateBuildGhost(pointer: Phaser.Input.Pointer): void {
+    const type = this.registry.get('buildSelection') as string | null;
+    if (!type) {
+      this.buildGhost?.destroy();
+      this.buildGhost = undefined;
+      return;
+    }
+    const texture = buildingTextures()[type] ?? 'build-storage';
+    if (!this.buildGhost) {
+      this.buildGhost = this.add.image(0, 0, texture).setOrigin(0.5, 1).setAlpha(0.6).setDepth(9000);
+    }
+    const tileX = Math.floor(pointer.worldX / 16);
+    const tileY = Math.floor(pointer.worldY / 16);
+    this.buildGhost.setTexture(texture);
+    this.buildGhost.setPosition(tileX * 16 + 8, tileY * 16 + 16);
+    const check = canPlace(this.state, type, tileX, tileY, this.placementWorld());
+    this.buildGhost.setTint(check.ok ? 0x8fff8f : 0xff8f8f);
+  }
+
+  private cancelBuild(): void {
+    if (!this.registry.get('buildSelection')) return;
+    this.registry.set('buildSelection', null);
+    this.buildGhost?.destroy();
+    this.buildGhost = undefined;
+    this.game.events.emit('ui:banner', '已取消建造');
+  }
+
+  private attack(pointer: Phaser.Input.Pointer): void {
+    const now = this.time.now;
+    if (now < this.nextAttackAt) return;
+    const weapon = weaponFor(this.selectedWeaponBaseId());
+    this.nextAttackAt = now + weapon.cooldownSec * 1000;
+
+    const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
+    const targets = this.state.savages
+      .filter((savage) => savage.mode !== 'dead')
+      .map((savage) => ({ id: savage.id, x: savage.x, y: savage.y }));
+    const hitIds = computeHitTargets(
+      { x: this.player.x, y: this.player.y, angle },
+      weapon.pattern,
+      targets,
+    );
+    for (const id of hitIds) {
+      const savage = this.state.savages.find((entry) => entry.id === id);
+      if (!savage) continue;
+      const result = applyHitToSavage(savage, weapon, 0);
+      if (result === 'stunned') {
+        this.game.events.emit('ui:banner', '野人眩晕了！靠近按 E 用藤蔓捆绑');
+      } else if (result === 'dead') {
+        this.game.events.emit('ui:banner', '野人倒下了');
+      }
+    }
+    if (hitIds.length > 0) this.damageWeapon();
+    this.drawSwing(angle, weapon.pattern.range);
+    this.syncSavages();
+  }
+
+  private selectedWeaponBaseId(): string | null {
+    const equipped = this.state.equipment.weapon
+      ? this.state.equipmentInstances.find((i) => i.instanceId === this.state.equipment.weapon)
+      : null;
+    if (equipped) return equipped.baseId;
+    const hot = this.state.hotbar[this.state.hotbarIndex];
+    return hot && WEAPONS[hot] ? hot : null;
+  }
+
+  private damageWeapon(): void {
+    const equipped = this.state.equipment.weapon
+      ? this.state.equipmentInstances.find((i) => i.instanceId === this.state.equipment.weapon)
+      : null;
+    if (equipped) {
+      equipped.durability = Math.max(0, equipped.durability - 1);
+      return;
+    }
+    const hot = this.state.hotbar[this.state.hotbarIndex];
+    if (hot && WEAPONS[hot]) damageTool(this.state, hot, 1);
+  }
+
+  private drawSwing(angle: number, range: number): void {
+    const g = this.add.graphics().setDepth(depthFor(this.player.y) + 1);
+    g.lineStyle(2, 0xffe9a8, 0.9);
+    g.beginPath();
+    g.arc(this.player.x, this.player.y - 8, range, angle - 0.6, angle + 0.6);
+    g.strokePath();
+    this.tweens.add({ targets: g, alpha: 0, duration: 160, onComplete: () => g.destroy() });
+  }
+
+  update(_time: number, delta: number): void {
+    const dt = Math.min(delta / 1000, 0.1);
+    const uiOpen = Boolean(this.registry.get('uiOpen'));
+    const buildSelection = Boolean(this.registry.get('buildSelection'));
+    if (uiOpen && this.channel) this.cancelChannel();
+
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
-    const length = Math.hypot(dx, dy) || 1;
-    const input = { x: dx / length, y: dy / length };
-    const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
-    const terrain = terrainSpeedAt(tile?.index ?? TILE.grass);
-    const sprint = this.keys.SHIFT.isDown ? 1.5 : 1;
-    this.player.setVelocityFromInput(input, 90 * terrain * sprint);
+    const moving = dx !== 0 || dy !== 0;
+    if (moving && this.channel) this.cancelChannel();
+    if (moving && uiOpen) this.player.setVelocity(0, 0);
+    else if (this.channel || uiOpen || buildSelection) this.player.setVelocity(0, 0);
+    else {
+      const length = Math.hypot(dx, dy) || 1;
+      const input = { x: dx / length, y: dy / length };
+      const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
+      const terrain = terrainSpeedAt(tile?.index ?? TILE.grass);
+      const sprint = this.keys.SHIFT.isDown ? 1.5 : 1;
+      this.player.setVelocityFromInput(input, 90 * terrain * sprint);
+      if (dx !== 0) this.state.player.facing = dx < 0 ? 'left' : 'right';
+      else if (dy !== 0) this.state.player.facing = dy < 0 ? 'up' : 'down';
+    }
     this.player.setDepth(depthFor(this.player.y));
     this.light.setPosition(this.player.x, this.player.y - 8);
+    this.state.player.x = this.player.x;
+    this.state.player.y = this.player.y;
+    this.registry.set('nearStation', this.isNearStation());
+
+    for (let i = 0; i < this.numberKeys.length; i++) {
+      if (Phaser.Input.Keyboard.JustDown(this.numberKeys[i])) {
+        this.state.hotbarIndex = i;
+        this.game.events.emit('ui:banner', `快捷栏 ${i + 1}：${this.hotbarLabel(i)}`);
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.E)) {
+      if (this.channel) this.cancelChannel();
+      else if (!uiOpen && !buildSelection) this.beginInteraction();
+    }
+
+    this.tickChannel(dt);
+    this.updatePrompt(uiOpen || buildSelection);
+    this.syncSavages();
+    this.syncLaborers();
+    this.syncBuildings();
+    this.syncNodes();
 
     const isNight = this.state.time.phase === 'night';
     this.nightOverlay.setVisible(isNight);
     this.light.setVisible(isNight);
+
+    this.accumulator += dt;
+    while (this.accumulator >= STEP) {
+      this.accumulator -= STEP;
+      this.step(STEP);
+    }
+  }
+
+  private hotbarLabel(index: number): string {
+    const baseId = this.state.hotbar[index];
+    if (!baseId) return '空';
+    return ITEMS[baseId]?.name ?? baseId;
+  }
+
+  private isNearStation(): boolean {
+    return this.state.buildings.some((building) => {
+      if (!['workbench', 'campfire', 'drying_rack'].includes(building.type)) return false;
+      const bx = building.x * 16 + 8;
+      const by = building.y * 16 + 16;
+      return Math.hypot(this.player.x - bx, this.player.y - by) <= 48;
+    });
+  }
+
+  private step(dt: number): void {
+    this.state.player.x = this.player.x;
+    this.state.player.y = this.player.y;
+    advanceTime(this.state, dt, this.bus);
+    tickNeeds(this.state, dt);
+    tickLabor(this.state, dt);
+    respawnNodes(this.state);
+    for (const savage of this.state.savages) {
+      tickSavageStun(savage, dt);
+      updateSavageAi(this.state, savage, dt);
+    }
+    tickTorchFuel(this.state, dt);
+    refreshTutorial(this.state, this.bus);
+    checkCampUpgrade(this.state, this.bus);
+
+    if (this.state.player.dead && !this.deathLaunched) {
+      this.deathLaunched = true;
+      this.scene.pause();
+      this.scene.pause('UIScene');
+      this.scene.launch('DeathScene');
+    }
+  }
+
+  private updatePrompt(suppressed: boolean): void {
+    if (suppressed) {
+      this.registry.set('interactPrompt', null);
+      this.registry.set('interactProgress', null);
+      return;
+    }
+    if (this.channel) {
+      this.registry.set('interactProgress', this.channel.elapsed / this.channel.target.durationSec);
+      return;
+    }
+    const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
+    const onWater = tile?.index === TILE.shallowWater || tile?.index === TILE.stream;
+    const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
+    this.registry.set('interactPrompt', target ? `E ${target.label}` : null);
+    this.registry.set('interactProgress', null);
+  }
+
+  private beginInteraction(): void {
+    const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
+    const onWater = tile?.index === TILE.shallowWater || tile?.index === TILE.stream;
+    const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
+    if (!target) return;
+    if (target.kind === 'node') {
+      const def = RESOURCE_NODES[this.state.world.nodes[target.id]?.type ?? ''];
+      const remaining = this.state.world.nodeStates[target.id]?.remaining ?? def?.maxHits ?? 0;
+      if (remaining <= 0) {
+        this.game.events.emit('ui:banner', '这里已经采空了，过几天再来');
+        return;
+      }
+    }
+    if (target.kind === 'chest' && this.state.world.uniqueLoot.includes(target.id)) {
+      this.game.events.emit('ui:banner', '这个箱子已经打开过了');
+      return;
+    }
+    this.channel = { target, elapsed: 0 };
+  }
+
+  private cancelChannel(): void {
+    this.channel = null;
+    this.registry.set('interactProgress', null);
+  }
+
+  private tickChannel(dt: number): void {
+    if (!this.channel) return;
+    const target = this.channel.target;
+    const distance = Math.hypot(this.player.x - target.x, this.player.y - target.y);
+    if (target.kind !== 'water' && distance > 48) {
+      this.cancelChannel();
+      return;
+    }
+    this.channel.elapsed += dt;
+    if (this.channel.elapsed < target.durationSec) return;
+    const finished = this.channel.target;
+    this.channel = null;
+    this.registry.set('interactProgress', null);
+    this.performInteraction(finished);
+  }
+
+  private performInteraction(target: InteractTarget): void {
+    switch (target.kind) {
+      case 'node':
+        this.gather(target);
+        break;
+      case 'chest':
+        this.openChest(target);
+        break;
+      case 'water':
+        drinkFreshWater(this.state);
+        this.game.events.emit('ui:banner', '你喝了几口水，口渴 +40');
+        break;
+      case 'savage':
+        this.capture(target);
+        break;
+      case 'laborer':
+        this.game.events.emit('ui:panel', 'labor');
+        break;
+      case 'building':
+        this.useBuilding(target);
+        break;
+      case 'groundLoot':
+        if (pickUpGroundLoot(this.state, target.id)) {
+          this.game.events.emit('ui:banner', `拾取了${ITEMS[target.id]?.name ?? target.id}`);
+        } else {
+          this.game.events.emit('ui:banner', '背包已经满了');
+        }
+        break;
+    }
+    refreshTutorial(this.state, this.bus);
+  }
+
+  private gather(target: InteractTarget): void {
+    const node = this.state.world.nodes[target.id];
+    if (!node) return;
+    const def = RESOURCE_NODES[node.type];
+    if (!def) return;
+    const result = gatherNode(this.state, target.id, this.rng);
+    this.state.rngState = this.rng.state();
+    if (result.items.length > 0) {
+      const leftover = collectLoot(this.state, result.items, node.x, node.y);
+      const names = result.items
+        .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
+        .join('、');
+      this.game.events.emit(
+        'ui:banner',
+        leftover > 0 ? `采集到${names}，背包已满` : `采集到${names}`,
+      );
+      for (const item of result.items) this.assignHotbar(item.baseId);
+    } else {
+      this.game.events.emit('ui:banner', `${def.name}被采空了`);
+    }
+    if (def.tool && hasToolFor(this.state, target.id)) {
+      damageTool(this.state, def.tool, 1);
+    }
+    this.syncNodes();
+  }
+
+  private assignHotbar(baseId: string): void {
+    const def = ITEMS[baseId];
+    if (!def || (def.kind !== 'tool' && def.kind !== 'weapon')) return;
+    if (this.state.hotbar.includes(baseId)) return;
+    const index = this.state.hotbar.findIndex((slot) => slot === null);
+    if (index >= 0) this.state.hotbar[index] = baseId;
+  }
+
+  private openChest(target: InteractTarget): void {
+    const def = UNIQUE_CHESTS[target.id];
+    if (!def) return;
+    const items = openUniqueChest(this.state, target.id);
+    if (!items) {
+      this.game.events.emit(
+        'ui:banner',
+        def.requiresTorch ? '箱子里太黑，需要手持点燃的火把' : '这个箱子已经打开过了',
+      );
+      return;
+    }
+    const node = this.state.world.nodes[target.id];
+    const leftover = collectLoot(this.state, items, node?.x ?? this.player.x, node?.y ?? this.player.y);
+    const names = items
+      .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
+      .join('、');
+    this.game.events.emit(
+      'ui:banner',
+      leftover > 0 ? `箱子里有${names}，部分装不下` : `打开箱子：${names}`,
+    );
+    this.syncNodes();
+  }
+
+  private capture(target: InteractTarget): void {
+    const laborer = captureSavage(this.state, target.id);
+    if (!laborer) {
+      this.game.events.emit('ui:banner', '需要先击晕野人，并准备藤蔓与囚笼空间');
+      return;
+    }
+    this.syncSavages();
+    this.syncLaborers();
+    this.game.events.emit('ui:banner', `${laborer.name}加入了营地`);
+  }
+
+  private useBuilding(target: InteractTarget): void {
+    const building = this.state.buildings.find((b) => b.id === target.id);
+    if (!building) return;
+    if (building.type === 'tent') {
+      const check = canSleep(this.state);
+      if (!check.ok) {
+        this.game.events.emit('ui:banner', check.reason ?? '现在不能睡觉');
+        return;
+      }
+      sleep(this.state, this.bus);
+      applySleepRecovery(this.state);
+      this.game.events.emit('ui:banner', '你睡到了第二天清晨');
+      this.persist();
+      return;
+    }
+    if (building.type === 'workbench') {
+      this.registry.set('nearStation', true);
+      this.game.events.emit('ui:panel', 'craft');
+      return;
+    }
+    if (building.type === 'storage') {
+      const contents = (building.storage ?? [])
+        .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
+        .join('、');
+      this.game.events.emit('ui:banner', contents ? `储物箱：${contents}` : '储物箱是空的');
+      return;
+    }
+    if (building.type === 'campfire') {
+      const bx = building.x * 16 + 8;
+      const by = building.y * 16 + 16;
+      const nearby = this.state.world.groundLoot.filter(
+        (loot) => loot.x !== undefined && loot.y !== undefined && Math.hypot(loot.x - bx, loot.y - by) < 48,
+      );
+      if (nearby.length === 0) {
+        this.game.events.emit('ui:banner', '营火噼啪作响');
+        return;
+      }
+      for (const loot of nearby) pickUpGroundLoot(this.state, loot.baseId);
+      this.game.events.emit('ui:banner', '拾取了营火旁的物资');
+    }
+  }
+
+  private persist(): void {
+    try {
+      saveGame(this.state);
+    } catch {
+      // Storage may be unavailable (private mode); the game keeps running.
+    }
   }
 }
