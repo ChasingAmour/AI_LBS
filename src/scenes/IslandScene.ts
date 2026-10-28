@@ -56,6 +56,7 @@ import {
 } from '../systems/interactionSystem';
 import { refreshTutorial } from '../systems/tutorialSystem';
 import { saveGame } from '../systems/saveSystem';
+import { tickWeekReset } from '../systems/dungeonReset';
 import { ITEMS } from '../data/items';
 
 interface Keys {
@@ -383,6 +384,7 @@ export class IslandScene extends Phaser.Scene {
     for (const landmark of this.island.landmarks) {
       if (landmark.kind === 'wreck') {
         this.state.world.nodes.chest_wreck = { x: landmark.x, y: landmark.y, type: 'chest' };
+        this.state.world.wreckEntrance = { x: landmark.x + 24, y: landmark.y };
       } else if (landmark.kind === 'cave') {
         this.state.world.nodes.chest_cave = { x: landmark.x, y: landmark.y, type: 'chest' };
       }
@@ -551,6 +553,7 @@ export class IslandScene extends Phaser.Scene {
       this.game.events.emit('ui:banner', `黎明：野人撤退了${lost}`);
     });
     this.bus.on('time:dayChanged', () => {
+      tickWeekReset(this.state, false);
       respawnNodes(this.state);
       const rations = settleLaborRations(this.state);
       if (rations.fled.length > 0) {
@@ -923,6 +926,25 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  private enterDungeon(): void {
+    if (this.state.raid?.active) {
+      this.game.events.emit('ui:banner', '野人入侵中，不能进入沉船');
+      return;
+    }
+    const hasTorch = this.state.inventory.some(
+      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
+    );
+    if (!hasTorch) {
+      this.game.events.emit('ui:banner', '里面太黑了，需要一支点燃的火把');
+      return;
+    }
+    this.state.scene = 'dungeon';
+    this.state.dungeonFloor = 1;
+    this.registry.set('inDungeon', true);
+    this.persist();
+    this.scene.start('DungeonScene');
+  }
+
   private updatePrompt(suppressed: boolean): void {
     if (suppressed) {
       this.registry.set('interactPrompt', null);
@@ -945,6 +967,10 @@ export class IslandScene extends Phaser.Scene {
     const onWater = tile === TILE.shallowWater || tile === TILE.stream;
     const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
     if (!target) return;
+    if (target.kind === 'dungeon') {
+      this.enterDungeon();
+      return;
+    }
     if (target.kind === 'node') {
       const def = RESOURCE_NODES[this.state.world.nodes[target.id]?.type ?? ''];
       const remaining = this.state.world.nodeStates[target.id]?.remaining ?? def?.maxHits ?? 0;

@@ -29,6 +29,12 @@ export class BootScene extends Phaser.Scene {
 
     const loaded = loadGameResult();
     const state = loaded.state ?? createNewGame();
+    // Dev-only QA shortcut: /AI_LBS/?dungeon=1|2|3 starts inside that floor.
+    const forcedFloor = Number(new URLSearchParams(window.location.search).get('dungeon'));
+    if (import.meta.env.DEV && forcedFloor >= 1 && forcedFloor <= 3) {
+      state.scene = 'dungeon';
+      state.dungeonFloor = forcedFloor as 1 | 2 | 3;
+    }
     this.registry.set('state', state);
     this.registry.set('loadSource', loaded.source);
     if (loaded.source === 'backup') {
@@ -37,6 +43,6 @@ export class BootScene extends Phaser.Scene {
       this.registry.set('loadNotice', `读取存档：第 ${state.time.day} 天`);
     }
 
-    this.scene.start('IslandScene');
+    this.scene.start(state.scene === 'dungeon' && state.dungeonFloor ? 'DungeonScene' : 'IslandScene');
   }
 }

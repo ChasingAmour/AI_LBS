@@ -90,7 +90,7 @@ export function generateDungeonFloor(seed: number, floorLevel: 1 | 2 | 3): Dunge
     height: size.h,
     tiles: new Uint8Array(size.w * size.h),
     rooms: [],
-    entry: { x: 2, y: Math.floor(size.h / 2) - 1 },
+    entry: { x: 12, y: Math.floor(size.h / 2) - 1 },
     stairs: { x: size.w - 3, y: Math.floor(size.h / 2) - 1 },
     chests: [],
     hazards: [],

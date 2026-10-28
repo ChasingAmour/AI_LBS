@@ -93,6 +93,8 @@ export interface GameState {
     nodes: Record<string, { x: number; y: number; type: string }>;
     uniqueLoot: string[];
     wreckSpawn: { x: number; y: number };
+    /** Shipwreck dungeon entrance (world px), beside the wreck chest. */
+    wreckEntrance: { x: number; y: number };
     groundLoot: ItemStack[];
   };
   camp: { level: 0 | 1 | 2 | 3; center: { x: number; y: number } };
@@ -148,6 +150,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
       nodes: {},
       uniqueLoot: [],
       wreckSpawn,
+      wreckEntrance: { x: 0, y: 0 },
       groundLoot: [],
     },
     camp: { level: 0, center: { x: 48, y: 48 } },

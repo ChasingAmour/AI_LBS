@@ -4,6 +4,7 @@ import { BASE_HEIGHT, BASE_WIDTH, integerScale } from './core/scaling';
 import { GAME_CONFIG } from './core/config';
 import { BootScene } from './scenes/BootScene';
 import { IslandScene } from './scenes/IslandScene';
+import { DungeonScene } from './scenes/DungeonScene';
 import { UIScene } from './scenes/UIScene';
 import { PauseScene } from './scenes/PauseScene';
 import { DeathScene } from './scenes/DeathScene';
@@ -34,7 +35,7 @@ async function boot(): Promise<void> {
 
   const game = new Phaser.Game({
     ...GAME_CONFIG,
-    scene: [BootScene, IslandScene, UIScene, PauseScene, DeathScene],
+    scene: [BootScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
   } as Phaser.Types.Core.GameConfig);
 
   applyIntegerScale(game);

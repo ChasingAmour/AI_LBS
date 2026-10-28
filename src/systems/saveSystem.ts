@@ -221,6 +221,9 @@ export function upgradeToV3(state: GameState): GameState {
   state.bootWear = typeof state.bootWear === 'number' ? state.bootWear : 0;
   state.dungeon.pendingReset = state.dungeon.pendingReset === true;
   state.dungeon.resetDay = typeof state.dungeon.resetDay === 'number' ? state.dungeon.resetDay : 1;
+  if (!state.world.wreckEntrance) {
+    state.world.wreckEntrance = { ...state.world.wreckSpawn };
+  }
 
   for (const stack of [...state.inventory]) {
     if (!LEGACY_WEAPONS.has(stack.baseId)) continue;
@@ -322,6 +325,7 @@ function validateCore(data: Record<string, unknown>): GameState {
   requireObject(world.nodes, 'world.nodes');
   requireArray(world.uniqueLoot, 'world.uniqueLoot');
   requireObject(world.wreckSpawn, 'world.wreckSpawn');
+  requireObject(world.wreckEntrance, 'world.wreckEntrance');
   requireArray(world.groundLoot, 'world.groundLoot');
 
   const camp = requireObject(data.camp, 'camp');

@@ -88,6 +88,7 @@ export class UIScene extends Phaser.Scene {
     const state = this.state();
     if (state) {
       this.hud.update(state);
+      this.minimap.setVisible(!this.registry.get('inDungeon'));
       this.minimap.update(state);
     }
     this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen || this.map.isOpen);

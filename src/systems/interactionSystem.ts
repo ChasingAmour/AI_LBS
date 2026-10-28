@@ -10,6 +10,7 @@ export type InteractKind =
   | 'laborer'
   | 'building'
   | 'chest'
+  | 'dungeon'
   | 'groundLoot'
   | 'node'
   | 'water';
@@ -108,6 +109,25 @@ export function findInteractTarget(
     consider(
       { kind: 'building', id: building.id, label, x: bx, y: by, durationSec: BASE_CHANNEL },
       2,
+    );
+  }
+
+  const entrance = state.world.wreckEntrance;
+  if (
+    entrance &&
+    entrance.x > 0 &&
+    distance(px, py, entrance.x, entrance.y) <= NODE_RADIUS
+  ) {
+    consider(
+      {
+        kind: 'dungeon',
+        id: 'wreck_entrance',
+        label: '进入沉船',
+        x: entrance.x,
+        y: entrance.y,
+        durationSec: 0,
+      },
+      3.5,
     );
   }
 

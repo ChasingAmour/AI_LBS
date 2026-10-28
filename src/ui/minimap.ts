@@ -17,6 +17,8 @@ export class Minimap {
   private overlay: Phaser.GameObjects.Graphics;
   private explored = new Set<string>();
   private lastRaw: string | null = null;
+  private objects: Phaser.GameObjects.GameObject[] = [];
+  private shown = true;
 
   constructor(scene: Phaser.Scene, onOpen: () => void) {
     this.scene = scene;
@@ -32,9 +34,20 @@ export class Minimap {
       .zone(FRAME.x + FRAME.w / 2, FRAME.y + FRAME.h / 2, FRAME.w, FRAME.h)
       .setInteractive({ useHandCursor: true });
     zone.on('pointerdown', onOpen);
+    this.objects.push(frame, border, this.overlay, zone);
+  }
+
+  setVisible(visible: boolean): void {
+    if (visible === this.shown) return;
+    this.shown = visible;
+    for (const object of this.objects) {
+      if (!object.active) continue;
+      (object as unknown as { setVisible: (v: boolean) => void }).setVisible(visible);
+    }
   }
 
   update(state: GameState): void {
+    if (!this.shown) return;
     const island = this.scene.registry.get('island') as IslandData | undefined;
     if (state.world.explored !== this.lastRaw) {
       this.lastRaw = state.world.explored;
@@ -47,6 +60,7 @@ export class Minimap {
         .setDisplaySize(IMAGE.w, IMAGE.h)
         .setDepth(8100)
         .setScrollFactor(0);
+      this.objects.push(this.image);
     }
     this.drawOverlay(state, island);
   }
