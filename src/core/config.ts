@@ -7,8 +7,8 @@ export const GAME_CONFIG = {
   roundPixels: true,
   backgroundColor: '#101418',
   scale: {
-    mode: 3,
-    autoCenter: 1,
+    mode: 0,
+    autoCenter: 0,
   },
   physics: {
     default: 'arcade',

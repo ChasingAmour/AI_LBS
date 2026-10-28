@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "assets": "node scripts/build-assets.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0"

@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'Fusion Pixel 12px';
+  src: url('/assets/fonts/fusion-pixel-12px.woff2') format('woff2');
+  font-display: swap;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #14110d;
+}
+
+body {
+  background: radial-gradient(circle at 50% 40%, #241d15 0%, #14110d 62%, #0b0906 100%);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#app canvas {
+  display: block;
+  image-rendering: pixelated;
+}
