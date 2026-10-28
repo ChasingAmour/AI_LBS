@@ -54,7 +54,9 @@ import {
   collectLoot,
   findInteractTarget,
   pickUpGroundLoot,
+  shouldCancelChannel,
   type InteractTarget,
+  type UiPanel,
 } from '../systems/interactionSystem';
 import { refreshTutorial } from '../systems/tutorialSystem';
 import { saveGame } from '../systems/saveSystem';
@@ -844,8 +846,9 @@ export class IslandScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.1);
     this.updateChunks();
     const uiOpen = Boolean(this.registry.get('uiOpen'));
+    const uiPanel = (this.registry.get('uiPanel') ?? null) as UiPanel;
     const buildSelection = Boolean(this.registry.get('buildSelection'));
-    if (uiOpen && this.channel) this.cancelChannel();
+    if (this.channel && shouldCancelChannel(uiPanel)) this.cancelChannel();
 
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);

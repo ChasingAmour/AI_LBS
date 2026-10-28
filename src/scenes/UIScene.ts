@@ -11,6 +11,7 @@ import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
 import type { EventBus } from '../core/eventBus';
 import { playSfx } from '../systems/audio';
+import type { UiPanel } from '../systems/interactionSystem';
 
 export class UIScene extends Phaser.Scene {
   private hud!: Hud;
@@ -21,6 +22,7 @@ export class UIScene extends Phaser.Scene {
   private adventure!: AdventurePanel;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
+  private panelKind: 'build' | 'craft' | 'labor' | null = null;
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
 
   constructor() {
@@ -120,6 +122,16 @@ export class UIScene extends Phaser.Scene {
       'uiOpen',
       this.panel.isOpen || this.inventory.isOpen || this.map.isOpen || this.adventure.isOpen,
     );
+    const uiPanel: UiPanel = this.inventory.isOpen
+      ? 'inventory'
+      : this.map.isOpen
+        ? 'map'
+        : this.adventure.isOpen
+          ? 'adventure'
+          : this.panel.isOpen
+            ? (this.panelKind ?? 'build')
+            : null;
+    this.registry.set('uiPanel', uiPanel);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
     const progress = this.registry.get('interactProgress');
@@ -153,6 +165,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'craft';
     openCraftPanel(this.panel, state, this.nearStation());
   }
 
@@ -160,6 +173,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'build';
     openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
   }
 
@@ -167,6 +181,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'labor';
     openLaborPanel(this.panel, state);
   }
 
