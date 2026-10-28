@@ -4,6 +4,13 @@ import { addItem, countItem } from '../../src/systems/inventorySystem';
 import { canCraft, craft, craftDurationSec, RECIPES } from '../../src/systems/craftingSystem';
 
 describe('crafting system', () => {
+  it('names the missing material in Chinese', () => {
+    const s = createNewGame(1);
+    const check = canCraft(s, 'stick', true);
+    expect(check.ok).toBe(false);
+    expect(check.reason).toContain('木头');
+  });
+
   it('crafts a stone axe and consumes exact materials', () => {
     const s = createNewGame(1);
     s.camp.level = 1;

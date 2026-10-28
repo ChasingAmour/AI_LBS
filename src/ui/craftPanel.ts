@@ -21,12 +21,9 @@ function costText(recipeId: string): string {
 export function craftRows(state: GameState, nearStation: boolean, refresh: () => void): PanelRow[] {
   const rows: PanelRow[] = [];
   for (const { station, label } of STATIONS) {
-    rows.push({ label: `— ${label} —`, disabled: true });
     const recipes = recipesFor(station, state.camp.level);
-    if (recipes.length === 0) {
-      rows.push({ label: '（暂无可用配方）', disabled: true });
-      continue;
-    }
+    if (recipes.length === 0) continue;
+    rows.push({ label: `— ${label} —`, disabled: true });
     for (const recipe of recipes) {
       const stationOk = station === 'hand' || nearStation;
       const check = canCraft(state, recipe.id, stationOk);

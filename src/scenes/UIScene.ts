@@ -33,7 +33,10 @@ export class UIScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
-      keyboard.on('keydown-I', () => this.withState((state) => this.inventory.toggle(state)));
+      keyboard.on('keydown-I', () => {
+        this.panel.close();
+        this.withState((state) => this.inventory.toggle(state));
+      });
       keyboard.on('keydown-C', () => this.withState((state) => this.openCraft(state)));
       keyboard.on('keydown-B', () => this.withState((state) => this.openBuild(state)));
       keyboard.on('keydown-L', () => this.withState((state) => this.openLabor(state)));

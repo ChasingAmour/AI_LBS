@@ -1,4 +1,5 @@
 import type { GameState } from '../core/gameState';
+import { ITEMS } from '../data/items';
 import { RECIPES, type Recipe, type Station } from '../data/recipes';
 import { addItem, countItem, removeItem } from './inventorySystem';
 
@@ -20,7 +21,7 @@ export function canCraft(state: GameState, recipeId: string, nearStation: boolea
   }
   for (const input of recipe.inputs) {
     if (countItem(state, input.baseId) < input.count) {
-      return { ok: false, reason: `材料不足：${input.baseId}` };
+      return { ok: false, reason: `材料不足：${ITEMS[input.baseId]?.name ?? input.baseId}` };
     }
   }
   return { ok: true };
