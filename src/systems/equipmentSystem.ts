@@ -1,6 +1,8 @@
 import type { EquipInstance, GameState } from '../core/gameState';
 import type { Rng } from '../core/rng';
 import { EQUIPMENT, RARITY, affixesFor, type Rarity } from '../data/equipment';
+import { WEAPONS } from '../data/weapons';
+import { addItem } from './inventorySystem';
 /**
  * Rolls one equipment instance: distinct slot-appropriate affixes at the
  * rarity's tier, a legendary trait for legendary gear and a scaled max
@@ -45,8 +47,40 @@ export function rollEquipment(
   };
 }
 
-export function equipInstance(state: GameState, instanceId: string): boolean {
-  const instance = state.equipmentInstances.find((item) => item.instanceId === instanceId);
+/** Base stats shown in the inventory tooltip, before affixes. */
+export function gearStatLines(instance: EquipInstance): string[] {
+  const base = EQUIPMENT[instance.baseId];
+  if (!base) return [];
+  const lines: string[] = [];
+  const weapon = base.weaponId ? WEAPONS[base.weaponId] : null;
+  if (weapon) lines.push(`攻击 ${weapon.damage}`);
+  if (base.defense) lines.push(`防御 ${base.defense}`);
+  if (base.moveMul && base.moveMul !== 1) {
+    lines.push(`移速 ${Math.round((base.moveMul - 1) * 100)}%`);
+  }
+  lines.push(`耐久 ${instance.durability}/${instance.maxDurability}`);
+  if (instance.affixes.length === 0) lines.push('无词条（普通品质）');
+  return lines;
+}
+
+/** Melts a piece of gear back into ingots; returns what was gained. */
+export function recycleInstance(
+  state: GameState,
+  instanceId: string,
+): { baseId: string; count: number } | null {
+  const index = state.equipmentInstances.findIndex((item) => item.instanceId === instanceId);
+  if (index < 0) return null;
+  const instance = state.equipmentInstances[index];
+  for (const slot of ['weapon', 'armor', 'boots'] as const) {
+    if (state.equipment[slot] === instanceId) state.equipment[slot] = null;
+  }
+  state.equipmentInstances.splice(index, 1);
+  const count = { common: 1, fine: 1, rare: 2, epic: 3, legendary: 4 }[instance.rarity];
+  addItem(state, 'iron_ingot', count);
+  return { baseId: 'iron_ingot', count };
+}
+
+export function equipInstance(state: GameState, instanceId: string): boolean {  const instance = state.equipmentInstances.find((item) => item.instanceId === instanceId);
   if (!instance) return false;
   state.equipment[instance.slot] = instanceId;
   return true;

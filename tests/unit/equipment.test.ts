@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { EQUIPMENT, RARITY, affixesFor } from '../../src/data/equipment';
-import { rollEquipment } from '../../src/systems/equipmentSystem';
+import { gearStatLines, recycleInstance, rollEquipment } from '../../src/systems/equipmentSystem';
 import { createRng } from '../../src/core/rng';
+import { createNewGame } from '../../src/core/gameState';
+import { countItem } from '../../src/systems/inventorySystem';
 
 describe('equipment rolls', () => {
   it('defines the 15 approved bases', () => {
@@ -36,5 +38,22 @@ describe('equipment rolls', () => {
     const legendary = rollEquipment(createRng(3), 'captain_coat', 'legendary', 'e4')!;
     expect(legendary.uniqueTraitId).toBe('old_sailor');
     expect(legendary.maxDurability).toBeGreaterThan(EQUIPMENT.captain_coat.durability);
+  });
+
+  it('tooltip 里显示攻击、耐久与无词条提示', () => {
+    const club = rollEquipment(createRng(1), 'club', 'common', 'e5')!;
+    expect(gearStatLines(club)).toEqual(['攻击 8', '耐久 40/40', '无词条（普通品质）']);
+  });
+
+  it('回炉会移除装备并熔出铁锭', () => {
+    const state = createNewGame(1);
+    const rare = rollEquipment(createRng(2), 'spear', 'rare', 'e6')!;
+    state.equipmentInstances.push(rare);
+    state.equipment.weapon = rare.instanceId;
+    const gained = recycleInstance(state, rare.instanceId);
+    expect(gained).toEqual({ baseId: 'iron_ingot', count: 2 });
+    expect(state.equipmentInstances).toHaveLength(0);
+    expect(state.equipment.weapon).toBeNull();
+    expect(countItem(state, 'iron_ingot')).toBe(2);
   });
 });

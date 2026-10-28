@@ -3,7 +3,7 @@ import type { EquipInstance, GameState } from '../core/gameState';
 import { AFFIXES, EQUIPMENT, RARITY } from '../data/equipment';
 import { ITEMS, isEdible } from '../data/items';
 import { consumeFood } from '../systems/needsSystem';
-import { compareEquipment, equipInstance, unequipSlot } from '../systems/equipmentSystem';
+import { compareEquipment, equipInstance, gearStatLines, recycleInstance, unequipSlot } from '../systems/equipmentSystem';
 import { sortInventory } from '../systems/inventorySystem';
 import { repairCost, repairEquipped } from '../systems/statsSystem';
 import { makeText } from './text';
@@ -310,7 +310,20 @@ export class InventoryOverlay {
           this.showStackTooltip(item.baseId, pointer.x, pointer.y),
         );
         zone.on('pointerout', () => this.hideTooltip());
-        zone.on('pointerdown', () => {
+        zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+          if (pointer.rightButtonDown()) {
+            const dropped = item.count;
+            state.world.groundLoot.push({
+              baseId: item.baseId,
+              count: dropped,
+              x: state.player.x,
+              y: state.player.y,
+            });
+            state.inventory = state.inventory.filter((entry) => entry !== item);
+            this.scene.game.events.emit('ui:banner', `丢弃了${ITEMS[item.baseId]?.name ?? item.baseId}×${dropped}`);
+            this.rebuild();
+            return;
+          }
           if (!isEdible(item.baseId)) return;
           consumeFood(state, item.baseId);
           this.rebuild();
@@ -341,7 +354,18 @@ export class InventoryOverlay {
           this.showGearTooltip(instance, pointer.x, pointer.y),
         );
         zone.on('pointerout', () => this.hideTooltip());
-        zone.on('pointerdown', () => {
+        zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+          if (pointer.rightButtonDown()) {
+            const gained = recycleInstance(state, instance.instanceId);
+            if (gained) {
+              this.scene.game.events.emit(
+                'ui:banner',
+                `回炉：获得铁锭 ×${gained.count}`,
+              );
+            }
+            this.rebuild();
+            return;
+          }
           equipInstance(state, instance.instanceId);
           this.rebuild();
         });
@@ -351,6 +375,9 @@ export class InventoryOverlay {
 
     const capacity = `${state.inventory.length} 种物品 · ${gear.length} 件装备`;
     this.root.add(makeText(this.scene, GRID.x, 286, capacity, { color: COLORS.inkSoft }));
+    this.root.add(
+      makeText(this.scene, GRID.x, 266, '左键穿戴/食用 · 右键回炉/丢弃', { color: COLORS.muted }),
+    );
 
     const sortButton = makeText(this.scene, GRID.x, 306, '整理背包（合并 / 按品级排序）', {
       color: COLORS.goldDark,
@@ -379,6 +406,7 @@ export class InventoryOverlay {
     if (!base) return;
     const rarity = RARITY[instance.rarity];
     const lines = [`${base.name} · ${rarity.label}`];
+    lines.push(...gearStatLines(instance));
     for (const affix of instance.affixes) {
       const def = AFFIXES.find((entry) => entry.id === affix.id);
       const value = affix.id.endsWith('Pct') || ['stun', 'savage', 'gather', 'move', 'hunger', 'durability'].includes(affix.id)
@@ -389,7 +417,6 @@ export class InventoryOverlay {
     if (instance.uniqueTraitId) {
       lines.push(`传说：${base.legendary.name} — ${base.legendary.desc}`);
     }
-    lines.push(`耐久 ${instance.durability}/${instance.maxDurability}`);
     if (this.state) {
       const equipped = this.state.equipment[instance.slot] === instance.instanceId;
       if (!equipped) {
@@ -405,6 +432,7 @@ export class InventoryOverlay {
         lines.push('已装备 · 点击卸下');
       }
     }
+    lines.push('右键回炉：熔成铁锭');
     this.buildTooltip(lines, px, py);
   }
 
