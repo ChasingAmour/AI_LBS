@@ -12,6 +12,8 @@ export interface SavageState {
   /** seconds since the last hit taken */
   lastHitAgo: number;
   mode: SavageMode;
+  /** seconds until the next building/player attack, optional */
+  attackCooldown?: number;
 }
 
 export function createSavage(id: string, x: number, y: number, hp = 60): SavageState {
