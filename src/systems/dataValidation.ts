@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings';
 import { CAMP_LEVELS, CAMP_MAX_LEVEL } from '../data/campLevels';
+import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import { RECIPES } from '../data/recipes';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
@@ -12,9 +13,10 @@ import { WEAPONS } from '../data/weapons';
 export function validateGameData(): string[] {
   const errors: string[] = [];
   const hasItem = (id: string): boolean => Boolean(ITEMS[id]);
+  const hasOutput = (id: string): boolean => Boolean(ITEMS[id] || EQUIPMENT[id]);
 
   for (const recipe of Object.values(RECIPES)) {
-    if (!hasItem(recipe.output)) {
+    if (!hasOutput(recipe.output)) {
       errors.push(`配方 ${recipe.id} 的产物 ${recipe.output} 不存在`);
     }
     if (recipe.unlockLevel < 0 || recipe.unlockLevel > CAMP_MAX_LEVEL) {
@@ -85,6 +87,14 @@ export function validateGameData(): string[] {
     if (weapon.damage < 0 || weapon.stun < 0) {
       errors.push(`武器 ${weapon.id} 的数值无效`);
     }
+  }
+
+  for (const base of Object.values(EQUIPMENT)) {
+    if (base.durability <= 0) errors.push(`装备 ${base.id} 的耐久无效`);
+    if (base.weaponId && !WEAPONS[base.weaponId]) {
+      errors.push(`装备 ${base.id} 引用了未知武器 ${base.weaponId}`);
+    }
+    if (!base.legendary?.id) errors.push(`装备 ${base.id} 缺少传说词条`);
   }
 
   return errors;

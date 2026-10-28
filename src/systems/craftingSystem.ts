@@ -1,6 +1,9 @@
 import type { GameState } from '../core/gameState';
+import { createRng } from '../core/rng';
+import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import { RECIPES, type Recipe, type Station } from '../data/recipes';
+import { rollEquipment } from './equipmentSystem';
 import { addItem, countItem, removeItem } from './inventorySystem';
 
 export { RECIPES } from '../data/recipes';
@@ -33,6 +36,22 @@ export function craft(state: GameState, recipeId: string, nearStation: boolean):
 
   for (const input of recipe.inputs) {
     removeItem(state, input.baseId, input.count);
+  }
+
+  if (EQUIPMENT[recipe.output]) {
+    state.lootRolls += 1;
+    const instance = rollEquipment(
+      createRng(state.lootSeed + state.lootRolls * 7919),
+      recipe.output,
+      'common',
+      `eq_${state.lootRolls}`,
+    );
+    if (!instance) {
+      for (const input of recipe.inputs) addItem(state, input.baseId, input.count);
+      return false;
+    }
+    state.equipmentInstances.push(instance);
+    return true;
   }
 
   const result = addItem(state, recipe.output, recipe.count);

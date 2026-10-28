@@ -1,8 +1,10 @@
 import type { GameState } from '../core/gameState';
 import { createNewGame } from '../core/gameState';
+import { createRng } from '../core/rng';
 import { decodeExplored } from '../core/explored';
 import { SAVE_VERSION } from '../core/saveVersion';
 import { generateIsland } from '../world/generate';
+import { rollEquipment } from './equipmentSystem';
 import { SaveError } from './saveError';
 
 export { SAVE_VERSION };
@@ -208,11 +210,60 @@ export function serializeSave(state: GameState): string {
   return JSON.stringify(state);
 }
 
+const LEGACY_WEAPONS = new Set(['club', 'spear']);
+
+/** Fills v3 fields and turns old club/spear stacks into common equipment instances. */
+export function upgradeToV3(state: GameState): GameState {
+  state.version = SAVE_VERSION;
+  if (!state.settings) state.settings = { muted: false, sfxVolume: 0.7 };
+  state.lootSeed = typeof state.lootSeed === 'number' ? state.lootSeed : (state.world?.seed ?? Date.now());
+  state.lootRolls = typeof state.lootRolls === 'number' ? state.lootRolls : 0;
+  state.bootWear = typeof state.bootWear === 'number' ? state.bootWear : 0;
+  state.dungeon.pendingReset = state.dungeon.pendingReset === true;
+  state.dungeon.resetDay = typeof state.dungeon.resetDay === 'number' ? state.dungeon.resetDay : 1;
+
+  for (const stack of [...state.inventory]) {
+    if (!LEGACY_WEAPONS.has(stack.baseId)) continue;
+    for (let i = 0; i < stack.count; i++) {
+      state.lootRolls += 1;
+      const instance = rollEquipment(
+        createRng(state.lootSeed + state.lootRolls * 7919),
+        stack.baseId,
+        'common',
+        `eq_${state.lootRolls}`,
+      );
+      if (!instance) continue;
+      if (stack.durability !== undefined) {
+        instance.durability = Math.min(instance.maxDurability, stack.durability);
+      }
+      state.equipmentInstances.push(instance);
+    }
+    state.inventory = state.inventory.filter((item) => item !== stack);
+  }
+  state.hotbar = state.hotbar.map((id) =>
+    id && LEGACY_WEAPONS.has(id) ? null : id,
+  );
+  return state;
+}
+
 export function validateSave(data: unknown): GameState {
   if (!isRecord(data)) fail('存档不是对象');
-  if (data.version === 1) return migrateV1(data);
+  if (data.version === 1) return upgradeToV3(migrateV1(data));
+  if (data.version === 2) return upgradeToV3(validateCore(data));
   if (data.version !== SAVE_VERSION) fail('存档版本不兼容');
 
+  const state = validateCore(data);
+  const settings = requireObject(state.settings, 'settings');
+  if (typeof settings.muted !== 'boolean') fail('settings.muted 必须是布尔值');
+  requireNumber(settings.sfxVolume, 'settings.sfxVolume', 0, 1);
+  requireNumber(state.lootSeed, 'lootSeed', 0, Number.MAX_SAFE_INTEGER);
+  requireNumber(state.lootRolls, 'lootRolls', 0, Number.MAX_SAFE_INTEGER);
+  requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);
+  if (typeof state.dungeon.pendingReset !== 'boolean') fail('dungeon.pendingReset 必须是布尔值');
+  return state;
+}
+
+function validateCore(data: Record<string, unknown>): GameState {
   requireNumber(data.savedAt, 'savedAt', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(data.playtimeSec, 'playtimeSec', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(data.rngState, 'rngState', 0, Number.MAX_SAFE_INTEGER);
@@ -229,7 +280,7 @@ export function validateSave(data: unknown): GameState {
   requireNumber(player.hp, 'player.hp', 0, 100);
   requireNumber(player.hunger, 'player.hunger', 0, 100);
   requireNumber(player.thirst, 'player.thirst', 0, 100);
-  requireNumber(player.energy, 'player.energy', 0, 100);
+  requireNumber(player.energy, 'player.energy', 0, 1000);
 
   requireArray(data.inventory, 'inventory');
   const hotbar = requireArray(data.hotbar, 'hotbar');

@@ -37,7 +37,7 @@ describe('save v2', () => {
     const old = { ...createNewGame(5), version: 1 } as Record<string, unknown>;
     delete (old.world as Record<string, unknown>).seed;
     const migrated = importSave(JSON.stringify(old));
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(SAVE_VERSION);
     expect(migrated.world.seed).toBeTypeOf('number');
   });
 });
