@@ -18,6 +18,15 @@ export const GAME_CONFIG = {
   },
 };
 
+/** World size in pixels and tiles. 16px tiles, 625×375 tiles. */
+export const WORLD = {
+  widthPx: 10000,
+  heightPx: 6000,
+  tile: 16,
+  widthTiles: 625,
+  heightTiles: 375,
+} as const;
+
 export const CONFIG = {
   tileSize: 16,
   daySeconds: 900,

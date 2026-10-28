@@ -73,6 +73,10 @@ export interface GameState {
   equipment: { weapon: string | null; armor: string | null; boots: string | null };
   equipmentInstances: EquipInstance[];
   world: {
+    /** Seed of the generated island; terrain is rebuilt from it on load. */
+    seed: number;
+    /** FNV-1a checksum of the generated terrain (0 until first generation). */
+    hash: number;
     nodeStates: Record<string, ResourceNodeState>;
     nodes: Record<string, { x: number; y: number; type: string }>;
     uniqueLoot: string[];
@@ -118,6 +122,8 @@ export function createNewGame(seed: number = Date.now()): GameState {
     equipment: { weapon: null, armor: null, boots: null },
     equipmentInstances: [],
     world: {
+      seed,
+      hash: 0,
       nodeStates: {},
       nodes: {},
       uniqueLoot: [],
