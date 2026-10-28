@@ -1,5 +1,9 @@
 export type SavageMode = 'attack' | 'stunned' | 'dead' | 'flee';
 
+/** Tiny Dungeon red warrior frame. */
+export const SAVAGE_TEXTURE = 'dungeon';
+export const SAVAGE_FRAME = 88;
+
 export interface SavageState {
   id: string;
   x: number;
@@ -28,5 +32,3 @@ export function createSavage(id: string, x: number, y: number, hp = 60): SavageS
     mode: 'attack',
   };
 }
-
-export const SAVAGE_TEXTURE = 'savage';

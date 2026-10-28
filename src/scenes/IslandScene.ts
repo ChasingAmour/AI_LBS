@@ -5,8 +5,10 @@ import { EventBus } from '../core/eventBus';
 import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
 import { BuildingSprite } from '../entities/building';
-import { LABORER_TEXTURE } from '../entities/laborer';
+import { LABORER_TEXTURE, LABORER_FRAME } from '../entities/laborer';
+import { SAVAGE_TEXTURE, SAVAGE_FRAME } from '../entities/savage';
 import { LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
+import { bobOffset, lowHealthVignette, nightAlpha } from '../world/lighting';
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
 import { CHUNK_PX, CHUNK_TILES, chunkKey, visibleChunks } from '../world/chunks';
@@ -73,6 +75,8 @@ export class IslandScene extends Phaser.Scene {
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
   private nightOverlay!: Phaser.GameObjects.Rectangle;
   private light!: Phaser.GameObjects.Image;
+  private vignette!: Phaser.GameObjects.Image;
+  private buildingLights = new Map<string, Phaser.GameObjects.Image>();
   private state!: GameState;
   private bus = new EventBus();
   private rng!: Rng;
@@ -272,25 +276,10 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private makeTextures(): void {
-    if (this.textures.exists('player') && this.textures.exists('hut')) return;
+    if (this.textures.exists('palm') && this.textures.exists('hut')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
-    g.fillStyle(0x2f2a26).fillRect(2, 8, 8, 8);
-    g.fillStyle(0xe0b080).fillRect(3, 2, 6, 6);
-    g.generateTexture('player', 12, 16);
-    g.clear();
-
     this.drawPalm(g);
-    g.clear();
-
-    g.fillStyle(0x8a3b2a).fillRect(2, 6, 8, 10);
-    g.fillStyle(0xd9a06a).fillRect(3, 1, 6, 6);
-    g.generateTexture('savage', 12, 16);
-    g.clear();
-
-    g.fillStyle(0x2f5f6b).fillRect(2, 6, 8, 10);
-    g.fillStyle(0xd9a06a).fillRect(3, 1, 6, 6);
-    g.generateTexture(LABORER_TEXTURE, 12, 16);
     g.clear();
 
     this.drawHut(g);
@@ -305,6 +294,18 @@ export class IslandScene extends Phaser.Scene {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 256, 256);
       canvas.refresh();
+    }
+
+    const vignette = this.textures.createCanvas('vignette', 320, 180);
+    if (vignette) {
+      const ctx = vignette.context;
+      const gradient = ctx.createRadialGradient(160, 90, 40, 160, 90, 175);
+      gradient.addColorStop(0, 'rgba(120, 12, 12, 0)');
+      gradient.addColorStop(0.65, 'rgba(120, 12, 12, 0.12)');
+      gradient.addColorStop(1, 'rgba(90, 6, 6, 0.85)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 320, 180);
+      vignette.refresh();
     }
   }
 
@@ -399,11 +400,22 @@ export class IslandScene extends Phaser.Scene {
       if (!ids.has(id)) {
         sprite.destroy();
         this.buildingSprites.delete(id);
+        this.buildingLights.get(id)?.destroy();
+        this.buildingLights.delete(id);
       }
     }
     for (const building of this.state.buildings) {
       if (this.buildingSprites.has(building.id)) continue;
       this.buildingSprites.set(building.id, new BuildingSprite(this, building));
+      if (building.type === 'campfire') {
+        const light = this.add
+          .image(building.x * 16 + 8, building.y * 16 + 8, 'light')
+          .setDisplaySize(96, 96)
+          .setDepth(LIGHT_DEPTH)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setVisible(false);
+        this.buildingLights.set(building.id, light);
+      }
     }
   }
 
@@ -415,15 +427,21 @@ export class IslandScene extends Phaser.Scene {
         this.savageSprites.delete(id);
       }
     }
+    const bob = bobOffset(this.time.now);
     for (const savage of this.state.savages) {
       let sprite = this.savageSprites.get(savage.id);
       if (!sprite) {
-        sprite = this.add.image(savage.x, savage.y, 'savage').setOrigin(0.5, 1);
+        sprite = this.add
+          .image(savage.x, savage.y, SAVAGE_TEXTURE, SAVAGE_FRAME)
+          .setOrigin(0.5, 1);
         this.savageSprites.set(savage.id, sprite);
       }
-      sprite.setPosition(savage.x, savage.y).setDepth(depthFor(savage.y));
-      sprite.setAlpha(savage.mode === 'dead' ? 0.25 : 1);
-      if (savage.mode === 'stunned') sprite.setTint(0x8fd4ff);
+      sprite.setPosition(savage.x, savage.y - (savage.mode === 'dead' ? 0 : bob));
+      sprite.setDepth(depthFor(savage.y));
+      sprite.setAlpha(savage.mode === 'dead' ? 0.35 : 1);
+      sprite.setFlipX(savage.x < this.state.player.x);
+      if (savage.lastHitAgo < 0.08) sprite.setTintFill(0xffffff);
+      else if (savage.mode === 'stunned') sprite.setTint(0x8fd4ff);
       else sprite.clearTint();
     }
   }
@@ -436,31 +454,39 @@ export class IslandScene extends Phaser.Scene {
         this.laborerSprites.delete(id);
       }
     }
+    const bob = bobOffset(this.time.now);
     for (const laborer of this.state.laborers) {
       let sprite = this.laborerSprites.get(laborer.id);
       if (!sprite) {
         sprite = this.add
-          .image(laborer.x, laborer.y, LABORER_TEXTURE)
+          .image(laborer.x, laborer.y, LABORER_TEXTURE, LABORER_FRAME)
           .setOrigin(0.5, 1);
         this.laborerSprites.set(laborer.id, sprite);
       }
-      sprite.setPosition(laborer.x, laborer.y).setDepth(depthFor(laborer.y));
+      sprite.setPosition(laborer.x, laborer.y - bob).setDepth(depthFor(laborer.y));
     }
   }
 
   private createNightLayer(): void {
     const cam = this.cameras.main;
     this.nightOverlay = this.add
-      .rectangle(0, 0, cam.width, cam.height, 0x081a33, 0.55)
+      .rectangle(0, 0, cam.width, cam.height, 0x081a33, 1)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(NIGHT_DEPTH)
       .setVisible(false);
     this.light = this.add
       .image(this.player.x, this.player.y, 'light')
+      .setDisplaySize(48, 48)
       .setDepth(LIGHT_DEPTH)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setVisible(false);
+    this.vignette = this.add
+      .image(0, 0, 'vignette')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(NIGHT_DEPTH + 1)
+      .setAlpha(0);
   }
 
   private bindInput(): void {
@@ -694,7 +720,9 @@ export class IslandScene extends Phaser.Scene {
       if (this.keys.SHIFT.isDown) spendEnergy(this.state, 0.4 * dt);
     }
     this.player.setDepth(depthFor(this.player.y));
+    this.player.setDisplayOrigin(8, 16 - bobOffset(this.time.now));
     this.light.setPosition(this.player.x, this.player.y - 8);
+    this.light.setDepth(depthFor(this.player.y) - 1);
     this.state.player.x = this.player.x;
     this.state.player.y = this.player.y;
     this.registry.set('nearStation', this.isNearStation());
@@ -718,9 +746,14 @@ export class IslandScene extends Phaser.Scene {
     this.syncBuildings();
     this.syncNodes();
 
-    const isNight = this.state.time.phase === 'night';
-    this.nightOverlay.setVisible(isNight);
+    const night = nightAlpha(this.state.time.clockMin);
+    const isNight = night > 0.02;
+    this.nightOverlay.setAlpha(night).setVisible(isNight);
     this.light.setVisible(isNight);
+    const lightSize = this.torchLightSize();
+    this.light.setDisplaySize(lightSize, lightSize);
+    for (const light of this.buildingLights.values()) light.setVisible(isNight);
+    this.vignette.setAlpha(lowHealthVignette(this.state.player.hp));
 
     this.accumulator += dt;
     while (this.accumulator >= STEP) {
@@ -823,8 +856,15 @@ export class IslandScene extends Phaser.Scene {
     };
   }
 
-  private gatherEnergyCost(nodeType: string): number {
-    if (nodeType === 'tree') return 5;
+  /** Torches widen the night light from 48px to 64px. */
+  private torchLightSize(): number {
+    const lit = this.state.inventory.some(
+      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
+    );
+    return lit ? 64 : 48;
+  }
+
+  private gatherEnergyCost(nodeType: string): number {    if (nodeType === 'tree') return 5;
     if (nodeType === 'rock' || nodeType === 'clay') return 6;
     return 1;
   }
