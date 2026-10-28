@@ -10,21 +10,34 @@ import {
 } from '../../src/systems/resourceSystem';
 
 describe('resource system', () => {
-  it('depletes a tree after four hits and respawns after three days', () => {
+  it('depletes a tree after four hits and respawns the next day', () => {
     const s = createNewGame(7);
     for (let i = 0; i < 4; i++) gatherNode(s, 'tree_001', createRng(7));
     expect(s.world.nodeStates['tree_001'].remaining).toBe(0);
-    s.time.day = 4;
+    s.time.day = 8;
     respawnNodes(s);
     expect(s.world.nodeStates['tree_001'].remaining).toBe(4);
   });
 
   it('does not respawn before the respawn day', () => {
     const s = createNewGame(7);
+    s.time.day = 7;
     for (let i = 0; i < 4; i++) gatherNode(s, 'tree_001', createRng(7));
-    s.time.day = 3;
+    s.time.day = 7;
     respawnNodes(s);
     expect(s.world.nodeStates['tree_001'].remaining).toBe(0);
+  });
+
+  it('rocks take two days to come back', () => {
+    const s = createNewGame(7);
+    s.time.day = 7;
+    for (let i = 0; i < 4; i++) gatherNode(s, 'rock_001', createRng(7));
+    s.time.day = 8;
+    respawnNodes(s);
+    expect(s.world.nodeStates['rock_001'].remaining).toBe(0);
+    s.time.day = 9;
+    respawnNodes(s);
+    expect(s.world.nodeStates['rock_001'].remaining).toBe(4);
   });
 
   it('unique chest can only be opened once', () => {

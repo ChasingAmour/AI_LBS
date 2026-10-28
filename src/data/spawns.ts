@@ -20,11 +20,11 @@ export interface ResourceNodeDef {
 }
 
 export const RESOURCE_NODES: Record<string, ResourceNodeDef> = {
-  tree: {
+      tree: {
     type: 'tree',
     name: '树',
     maxHits: 4,
-    respawnDays: 3,
+    respawnDays: 1,
     tool: 'stone_axe',
     drops: [{ baseId: 'wood', min: 1, max: 1 }],
     depleteDrops: [{ baseId: 'wood', min: 1, max: 2 }],
@@ -33,7 +33,7 @@ export const RESOURCE_NODES: Record<string, ResourceNodeDef> = {
     type: 'rock',
     name: '岩石',
     maxHits: 4,
-    respawnDays: 5,
+    respawnDays: 2,
     tool: 'stone_pick',
     drops: [{ baseId: 'stone', min: 1, max: 1 }],
     depleteDrops: [
