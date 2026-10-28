@@ -66,6 +66,7 @@ export interface GameState {
   equipmentInstances: EquipInstance[];
   world: {
     nodeStates: Record<string, ResourceNodeState>;
+    nodes: Record<string, { x: number; y: number; type: string }>;
     uniqueLoot: string[];
     wreckSpawn: { x: number; y: number };
     groundLoot: ItemStack[];
@@ -108,6 +109,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
     equipmentInstances: [],
     world: {
       nodeStates: {},
+      nodes: {},
       uniqueLoot: [],
       wreckSpawn,
       groundLoot: [],
