@@ -3,6 +3,9 @@
  * and the walk bob. No Phaser import so the curves stay unit-testable.
  */
 
+import { ITEMS } from '../data/items';
+import type { ItemStack } from '../core/gameState';
+
 export const NIGHT_MAX_ALPHA = 0.55;
 export const LOW_HEALTH_THRESHOLD = 30;
 export const VIGNETTE_MAX_ALPHA = 0.2;
@@ -34,4 +37,19 @@ export function lowHealthVignette(hp: number): number {
 /** One-pixel walk bob, switching every 160 ms. */
 export function bobOffset(elapsedMs: number): number {
   return Math.floor(elapsedMs / 160) % 2;
+}
+
+/**
+ * The light the player carries, taken from the strongest lit item in the pack.
+ * No light item means no light at all.
+ */
+export function carriedLight(items: ItemStack[]): { radius: number; brightness: number } | null {
+  let best: { radius: number; brightness: number } | null = null;
+  for (const item of items) {
+    const light = ITEMS[item.baseId]?.light;
+    if (!light) continue;
+    if ((item.durability ?? 0) <= 0) continue;
+    if (!best || light.radius > best.radius) best = { ...light };
+  }
+  return best;
 }

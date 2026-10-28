@@ -49,6 +49,13 @@ export class Hud {
   private promptText: Phaser.GameObjects.Text;
   private progressRing: Phaser.GameObjects.Graphics;
   private rows!: Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
+  private statusChrome!: Phaser.GameObjects.Graphics;
+  private goalChrome!: Phaser.GameObjects.Graphics;
+  private compactChrome!: Phaser.GameObjects.Graphics;
+  private compactBars: Phaser.GameObjects.Rectangle[] = [];
+  private rowObjects: Phaser.GameObjects.GameObject[] = [];
+  private compactToggle!: Phaser.GameObjects.Text;
+  private compact = false;
   private slots: HotbarSlot[] = [];
   private lastTextAt = 0;
   private lastHotbarIndex = -1;
@@ -62,9 +69,15 @@ export class Hud {
     this.chrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
     this.slotChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
 
-    for (const rect of [HUD.clock, HUD.camp, HUD.status, HUD.goal]) {
+    for (const rect of [HUD.clock, HUD.camp]) {
       drawPanel(this.chrome, rect);
     }
+    this.statusChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
+    drawPanel(this.statusChrome, HUD.status);
+    this.goalChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
+    drawPanel(this.goalChrome, HUD.goal);
+    this.compactChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
+    drawPanel(this.compactChrome, HUD.statusCompact);
     this.bannerChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
     drawPanel(this.bannerChrome, HUD.banner);
     this.promptChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
@@ -154,17 +167,17 @@ export class Hud {
     this.rows = {} as Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
     rows.forEach(([key, icon, label], index) => {
       const top = HUD.status.y + 8 + index * ROW_H;
-      this.scene.add
+      const iconImage = this.scene.add
         .image(HUD.status.x + 12, top + 5, iconTexture(icon))
         .setDepth(8001)
         .setScrollFactor(0);
-      makeText(this.scene, HUD.status.x + 26, top + 5, label, {
+      const labelText = makeText(this.scene, HUD.status.x + 26, top + 5, label, {
         origin: [0, 0.5],
         color: COLORS.ink,
       })
         .setDepth(8001)
         .setScrollFactor(0);
-      drawBarTrack(this.chrome, {
+      drawBarTrack(this.statusChrome, {
         x: HUD.status.x + 66,
         y: top + 1,
         w: BAR_W,
@@ -183,7 +196,61 @@ export class Hud {
         .setDepth(8001)
         .setScrollFactor(0);
       this.rows[key] = { fill, value };
+      this.rowObjects.push(iconImage, labelText, fill, value);
+
+      const compactBar = this.scene.add
+        .rectangle(
+          HUD.statusCompact.x + 26,
+          HUD.statusCompact.y + 4 + index * 6,
+          120,
+          3,
+          iconColor(icon),
+          1,
+        )
+        .setOrigin(0, 0)
+        .setDepth(8001)
+        .setScrollFactor(0)
+        .setVisible(false);
+      this.compactBars.push(compactBar);
     });
+
+    this.compactToggle = makeText(
+      this.scene,
+      HUD.status.x + HUD.status.w - 12,
+      HUD.status.y + HUD.status.h - 14,
+      '▾',
+      { color: COLORS.inkSoft },
+    )
+      .setDepth(8003)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+    this.compactToggle.on('pointerdown', () => {
+      this.setCompact(!this.compact);
+      this.scene.game.events.emit('ui:hudCompact', this.compact);
+    });
+  }
+
+  /** Collapses the four status rows into thin coloured lines. */
+  setCompact(compact: boolean): void {
+    this.compact = compact;
+    this.statusChrome.setVisible(!compact);
+    for (const object of this.rowObjects) {
+      (object as unknown as { setVisible: (v: boolean) => void }).setVisible(!compact);
+    }
+    this.compactChrome.setVisible(compact);
+    for (const bar of this.compactBars) bar.setVisible(compact);
+    const rect = compact ? HUD.goalCompact : HUD.goal;
+    this.goalChrome.clear();
+    drawPanel(this.goalChrome, rect);
+    this.goalText.setPosition(rect.x + 8, rect.y + 13);
+    this.compactToggle
+      .setText(compact ? '▸' : '▾')
+      .setPosition(
+        (compact ? HUD.statusCompact.x + HUD.statusCompact.w : HUD.status.x + HUD.status.w) - 12,
+        (compact
+          ? HUD.statusCompact.y + HUD.statusCompact.h
+          : HUD.status.y + HUD.status.h) - 14,
+      );
   }
 
   private createHotbar(): void {
@@ -315,6 +382,8 @@ export class Hud {
     const clamped = Math.max(0, Math.min(100, value));
     row.fill.setSize(barWidth(clamped, 100, BAR_W), BAR_H);
     this.setIfChanged(row.value, String(Math.round(clamped)));
+    const index = (['hp', 'hunger', 'thirst', 'energy'] as const).indexOf(key);
+    this.compactBars[index]?.setSize(Math.max(1, barWidth(clamped, 100, 120)), 3);
   }
 
   private setIfChanged(text: Phaser.GameObjects.Text, value: string): void {

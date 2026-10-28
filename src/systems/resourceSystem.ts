@@ -63,8 +63,9 @@ export function openUniqueChest(state: GameState, chestId: string): ItemStack[] 
   return def.items.map((item) => ({ ...item }));
 }
 
-export function gatherChannelMs(baseMs: number, hasTool: boolean): number {
-  return hasTool ? baseMs : baseMs * 3;
+export function gatherChannelMs(baseMs: number, hasTool: boolean, slow = false): number {
+  const base = hasTool ? baseMs : baseMs * 3;
+  return slow ? base * 2 : base;
 }
 
 export function hasToolFor(state: GameState, nodeId: string): boolean {

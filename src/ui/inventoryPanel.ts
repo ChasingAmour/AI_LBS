@@ -1,19 +1,19 @@
 import Phaser from 'phaser';
 import type { EquipInstance, GameState } from '../core/gameState';
 import { AFFIXES, EQUIPMENT, RARITY } from '../data/equipment';
-import { ITEMS } from '../data/items';
+import { ITEMS, isEdible } from '../data/items';
 import { consumeFood } from '../systems/needsSystem';
 import { compareEquipment, equipInstance, unequipSlot } from '../systems/equipmentSystem';
 import { sortInventory } from '../systems/inventorySystem';
 import { repairCost, repairEquipped } from '../systems/statsSystem';
 import { makeText } from './text';
+import { foodEffectLines } from './format';
 import { COLORS, TINTS } from './theme';
 import { ensureHudIcons, iconColor, iconTexture, type HudIcon } from './icons';
 import { itemIcon } from './itemIcons';
 import { panelRect } from './widgets/layout';
 import { clampTooltip } from './widgets/tooltip';
 
-const EDIBLE = new Set(['coconut', 'berries', 'cooked_fish', 'dried_fish', 'bandage']);
 const GRID = { x: 248, y: 56, cols: 6, rows: 4, size: 48, gap: 6 };
 const KIND_LABEL: Record<string, string> = {
   material: '材料',
@@ -305,13 +305,13 @@ export class InventoryOverlay {
         }
         const zone = this.scene.add
           .zone(x + GRID.size / 2, y + GRID.size / 2, GRID.size, GRID.size)
-          .setInteractive({ useHandCursor: EDIBLE.has(item.baseId) });
+          .setInteractive({ useHandCursor: isEdible(item.baseId) });
         zone.on('pointerover', (pointer: Phaser.Input.Pointer) =>
           this.showStackTooltip(item.baseId, pointer.x, pointer.y),
         );
         zone.on('pointerout', () => this.hideTooltip());
         zone.on('pointerdown', () => {
-          if (!EDIBLE.has(item.baseId)) return;
+          if (!isEdible(item.baseId)) return;
           consumeFood(state, item.baseId);
           this.rebuild();
         });
@@ -369,7 +369,8 @@ export class InventoryOverlay {
     const stack = this.state?.inventory.find((item) => item.baseId === baseId);
     const lines = [`${def.name} · ${KIND_LABEL[def.kind] ?? def.kind}`];
     if (stack?.durability !== undefined) lines.push(`耐久 ${stack.durability}/${def.maxDurability ?? '?'}`);
-    if (EDIBLE.has(baseId)) lines.push('点击食用');
+    lines.push(...foodEffectLines(baseId));
+    if (isEdible(baseId)) lines.push('点击食用');
     this.buildTooltip(lines, px, py);
   }
 

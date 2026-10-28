@@ -78,6 +78,18 @@ export class Minimap {
       }
     }
 
+    const flag = state.buildings.find((b) => b.type === 'flag');
+    if (flag) {
+      const p = worldToMap(flag.x * 16 + 8, flag.y * 16 + 8, MINI_RECT);
+      g.fillStyle(0xb03a2e, 1).fillRect(Math.round(p.x) - 1, Math.round(p.y) - 2, 3, 3);
+    }
+
+    const entrance = state.world.wreckEntrance;
+    if (entrance && entrance.x > 0 && state.world.discovered.includes('wreck')) {
+      const p = worldToMap(entrance.x, entrance.y, MINI_RECT);
+      g.fillStyle(0x2b2118, 1).fillRect(Math.round(p.x) - 1, Math.round(p.y) - 1, 3, 2);
+    }
+
     if (state.world.waypoint) {
       const p = worldToMap(state.world.waypoint.x, state.world.waypoint.y, MINI_RECT);
       g.lineStyle(1, TINTS.gold, 1);

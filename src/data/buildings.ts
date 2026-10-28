@@ -11,9 +11,23 @@ export interface BuildingDef {
   unlockLevel: 0 | 1 | 2 | 3;
   /** blocks savage movement */
   blocks: boolean;
+  /** only one may exist; placing it founds the camp */
+  unique?: boolean;
+  /** cannot be demolished or destroyed */
+  indestructible?: boolean;
 }
 
 export const BUILDINGS: Record<string, BuildingDef> = {
+  flag: {
+    id: 'flag',
+    name: '据点旗',
+    cost: [{ baseId: 'wood', count: 1 }],
+    hp: 999,
+    unlockLevel: 0,
+    blocks: false,
+    unique: true,
+    indestructible: true,
+  },
   campfire: {
     id: 'campfire',
     name: '营火',

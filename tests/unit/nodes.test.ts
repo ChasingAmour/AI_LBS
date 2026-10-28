@@ -28,4 +28,13 @@ describe('generateNodes', () => {
       expect(tile).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('森林里的树占绝大多数', () => {
+    const trees = nodes.filter((node) => node.type === 'tree').length;
+    expect(trees).toBeGreaterThan(nodes.length * 0.4);
+  });
+
+  it('网格加密后节点总数上升', () => {
+    expect(nodes.length).toBeGreaterThan(800);
+  });
 });

@@ -2,6 +2,7 @@ import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
 import { BUILDINGS } from '../data/buildings';
 import { CAMP_LEVELS, CAMP_MAX_LEVEL, type CampLevelDef } from '../data/campLevels';
+import { hasCampFlag } from './buildingSystem';
 
 export { CAMP_LEVELS } from '../data/campLevels';
 
@@ -31,6 +32,7 @@ export function getNextCampLevel(state: GameState): CampLevelDef | null {
 }
 
 export function checkCampUpgrade(state: GameState, bus: EventBus): 0 | 1 | 2 | 3 {
+  if (!hasCampFlag(state)) return state.camp.level;
   let changed = false;
   for (const def of CAMP_LEVELS) {
     if (def.level <= state.camp.level) continue;

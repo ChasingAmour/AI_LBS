@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { TILE } from '../../src/world/terrain';
 import { generateIsland } from '../../src/world/generate';
+import { WRECK_ENTRANCE_OFFSET_PX } from '../../src/world/landmarks';
 
 const island = generateIsland(42);
 const tileAt = (x: number, y: number) =>
@@ -53,5 +54,9 @@ describe('generateIsland', () => {
 
   it('is deterministic', () => {
     expect(generateIsland(42).hash).toBe(island.hash);
+  });
+
+  it('沉船入口偏移为 24px', () => {
+    expect(WRECK_ENTRANCE_OFFSET_PX).toBe(24);
   });
 });

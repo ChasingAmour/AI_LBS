@@ -28,6 +28,22 @@ export interface InteractOptions {
   onWater: boolean;
 }
 
+/** Panels that can be open while the player is gathering. */
+export type UiPanel =
+  | 'inventory'
+  | 'build'
+  | 'craft'
+  | 'labor'
+  | 'map'
+  | 'adventure'
+  | 'pause'
+  | null;
+
+/** The inventory can stay open during a gather channel; everything else cancels it. */
+export function shouldCancelChannel(panel: UiPanel): boolean {
+  return panel !== null && panel !== 'inventory';
+}
+
 const PICKUP_RADIUS = 26;
 const BUILDING_RADIUS = 34;
 const NODE_RADIUS = 34;
@@ -127,7 +143,7 @@ export function findInteractTarget(
         y: entrance.y,
         durationSec: 0,
       },
-      3.5,
+      2.5,
     );
   }
 

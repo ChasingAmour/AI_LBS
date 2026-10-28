@@ -11,6 +11,7 @@ import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
 import type { EventBus } from '../core/eventBus';
 import { playSfx } from '../systems/audio';
+import type { UiPanel } from '../systems/interactionSystem';
 
 export class UIScene extends Phaser.Scene {
   private hud!: Hud;
@@ -21,6 +22,14 @@ export class UIScene extends Phaser.Scene {
   private adventure!: AdventurePanel;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
+  private hudCompactHandler = (compact: boolean): void => {
+    const state = this.state();
+    if (!state) return;
+    state.settings.hudCompact = compact;
+    const bus = this.registry.get('bus') as EventBus | undefined;
+    bus?.emit('save:requested', { reason: 'settings' });
+  };
+  private panelKind: 'build' | 'craft' | 'labor' | null = null;
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
 
   constructor() {
@@ -41,6 +50,7 @@ export class UIScene extends Phaser.Scene {
       this.toggleMap();
     });
     this.adventure = new AdventurePanel(this);
+    this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -88,17 +98,18 @@ export class UIScene extends Phaser.Scene {
 
     this.game.events.on('ui:banner', this.bannerHandler);
     this.game.events.on('ui:panel', this.panelHandler);
+    this.game.events.on('ui:hudCompact', this.hudCompactHandler);
     this.input.on('pointerdown', () => {
       if (this.registry.get('uiOpen')) playSfx(this, this.state(), 'click');
     });
     this.events.once('shutdown', () => {
       this.game.events.off('ui:banner', this.bannerHandler);
       this.game.events.off('ui:panel', this.panelHandler);
+      this.game.events.off('ui:hudCompact', this.hudCompactHandler);
     });
 
     const bus = this.registry.get('bus') as EventBus | undefined;
-    if (bus) {
-      this.listen(bus, 'raid:warning', () => {
+    if (bus) {      this.listen(bus, 'raid:warning', () => {
         playSfx(this, this.state(), 'warning');
         this.hud.showBanner('周五 17:00：野人将在 18:00 来袭！');
       });
@@ -120,6 +131,16 @@ export class UIScene extends Phaser.Scene {
       'uiOpen',
       this.panel.isOpen || this.inventory.isOpen || this.map.isOpen || this.adventure.isOpen,
     );
+    const uiPanel: UiPanel = this.inventory.isOpen
+      ? 'inventory'
+      : this.map.isOpen
+        ? 'map'
+        : this.adventure.isOpen
+          ? 'adventure'
+          : this.panel.isOpen
+            ? (this.panelKind ?? 'build')
+            : null;
+    this.registry.set('uiPanel', uiPanel);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
     const progress = this.registry.get('interactProgress');
@@ -153,6 +174,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'craft';
     openCraftPanel(this.panel, state, this.nearStation());
   }
 
@@ -160,6 +182,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'build';
     openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
   }
 
@@ -167,6 +190,7 @@ export class UIScene extends Phaser.Scene {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
+    this.panelKind = 'labor';
     openLaborPanel(this.panel, state);
   }
 

@@ -42,6 +42,7 @@ const DEPLETED_SPRITES: Record<string, NodeSpriteSpec> = {
 };
 
 const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
+  flag: { texture: 'flag', w: 14, h: 20 },
   shelter: { texture: 'hut', w: 64, h: 64 },
   tent: { texture: 'hut', w: 64, h: 64 },
   campfire: { texture: TEXTURE.dungeon, frame: 29, w: 16, h: 16 },
@@ -55,6 +56,24 @@ const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
 
 const FALLBACK_NODE: NodeSpriteSpec = { texture: TEXTURE.farm, frame: 78 };
 const FALLBACK_BUILDING: BuildingSpriteSpec = { texture: TEXTURE.dungeon, frame: 101, w: 16, h: 16 };
+
+/** Hand-drawn animal textures created in IslandScene.makeWorldTextures. */
+const ANIMAL_SPRITES: Record<string, { texture: string }> = {
+  chicken: { texture: 'animal-chicken' },
+  rabbit: { texture: 'animal-rabbit' },
+  boar: { texture: 'animal-boar' },
+};
+
+export function animalSprite(type: string): { texture: string } {
+  return ANIMAL_SPRITES[type] ?? { texture: 'animal-chicken' };
+}
+
+/** Procedural hatch drawn in IslandScene, deliberately not the campfire frame. */
+export const ENTRANCE_TEXTURE = 'wreck-hatch';
+
+export function entranceSprite(): { texture: string } {
+  return { texture: ENTRANCE_TEXTURE };
+}
 
 export function nodeSprite(type: string, depleted = false): NodeSpriteSpec {
   if (depleted && DEPLETED_SPRITES[type]) return DEPLETED_SPRITES[type];

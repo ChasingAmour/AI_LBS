@@ -4,6 +4,9 @@ import type { TerrainData } from './generate';
 
 export type LandmarkKind = 'camp' | 'wreck' | 'spring' | 'lookout' | 'ruins' | 'cave' | 'oldcamp';
 
+/** The shipwreck hatch sits this far right of the wreck chest, in world pixels. */
+export const WRECK_ENTRANCE_OFFSET_PX = 24;
+
 export const LANDMARK_NAMES: Record<LandmarkKind, string> = {
   camp: '营地',
   wreck: '破船',

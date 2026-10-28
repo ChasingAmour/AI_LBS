@@ -1,4 +1,5 @@
 import type { SavageState } from '../entities/savage';
+import type { AnimalState } from '../entities/animal';
 import { SAVE_VERSION } from './saveVersion';
 
 export interface ItemStack {
@@ -51,7 +52,7 @@ export interface ResourceNodeState {
 
 export interface GameState {
   version: number;
-  settings: { muted: boolean; sfxVolume: number };
+  settings: { muted: boolean; sfxVolume: number; hudCompact: boolean };
   lootSeed: number;
   lootRolls: number;
   /** pixels moved since the last boot durability tick */
@@ -110,13 +111,14 @@ export interface GameState {
   flags: { tutorialStep: number; raidWarnedDay: number; firstRaidDone: boolean };
   raid: { active: boolean; day: number } | null;
   savages: SavageState[];
+  animals: AnimalState[];
 }
 
 export function createNewGame(seed: number = Date.now()): GameState {
   const wreckSpawn = { x: 12 * 16, y: 48 * 16 };
   return {
     version: SAVE_VERSION,
-    settings: { muted: false, sfxVolume: 0.7 },
+    settings: { muted: false, sfxVolume: 0.7, hudCompact: false },
     lootSeed: seed,
     lootRolls: 0,
     bootWear: 0,
@@ -166,5 +168,6 @@ export function createNewGame(seed: number = Date.now()): GameState {
     flags: { tutorialStep: 0, raidWarnedDay: 0, firstRaidDone: false },
     raid: null,
     savages: [],
+    animals: [],
   };
 }

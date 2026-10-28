@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings';
+import { ANIMALS } from '../data/animals';
 import { CAMP_LEVELS, CAMP_MAX_LEVEL } from '../data/campLevels';
 import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
@@ -86,6 +87,17 @@ export function validateGameData(): string[] {
   for (const weapon of Object.values(WEAPONS)) {
     if (weapon.damage < 0 || weapon.stun < 0) {
       errors.push(`武器 ${weapon.id} 的数值无效`);
+    }
+  }
+
+  for (const animal of Object.values(ANIMALS)) {
+    if (animal.hp <= 0) errors.push(`动物 ${animal.id} 的生命无效`);
+    if (animal.habitat.length === 0) errors.push(`动物 ${animal.id} 没有栖息地`);
+    for (const drop of animal.drops) {
+      if (!hasItem(drop.baseId)) errors.push(`动物 ${animal.id} 的产出 ${drop.baseId} 不存在`);
+      if (drop.min < 0 || drop.max < drop.min) {
+        errors.push(`动物 ${animal.id} 的产出数量无效`);
+      }
     }
   }
 

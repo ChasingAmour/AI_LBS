@@ -107,4 +107,13 @@ describe('needs system', () => {
     expect(s.player.hp).toBe(0);
     expect(s.player.dead).toBe(true);
   });
+
+  it('consumeFood 按物品数据生效', () => {
+    const s = createNewGame(1);
+    s.inventory = [{ baseId: 'cooked_meat', count: 1 }];
+    s.player.hunger = 50;
+    expect(consumeFood(s, 'cooked_meat')).toBe(true);
+    expect(s.player.hunger).toBe(90);
+    expect(s.inventory).toHaveLength(0);
+  });
 });

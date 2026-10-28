@@ -11,17 +11,17 @@ export interface GeneratedNode {
   y: number;
 }
 
-const STRIDE = 12;
+const STRIDE = 6;
 
 function pickType(tile: number, roll: number): string | null {
   switch (tile) {
     case TILE.forest:
-      return roll < 0.7 ? 'tree' : roll < 0.88 ? 'vine' : 'berry';
+      return roll < 0.92 ? 'tree' : roll < 0.97 ? 'vine' : 'berry';
     case TILE.grass:
-      if (roll < 0.42) return 'tree';
-      if (roll < 0.62) return 'berry';
-      if (roll < 0.78) return 'vine';
-      if (roll < 0.92) return 'rock';
+      if (roll < 0.68) return 'tree';
+      if (roll < 0.78) return 'berry';
+      if (roll < 0.87) return 'vine';
+      if (roll < 0.95) return 'rock';
       return 'clay';
     case TILE.sand:
       return roll < 0.72 ? 'palm' : 'clay';
@@ -67,3 +67,4 @@ export function generateNodes(island: IslandData, seed: number): GeneratedNode[]
 
   return nodes;
 }
+

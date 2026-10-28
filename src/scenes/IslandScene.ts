@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createNewGame, type GameState } from '../core/gameState';
-import { WORLD } from '../core/config';
+import { CONFIG, WORLD } from '../core/config';
 import { EventBus } from '../core/eventBus';
 import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
@@ -8,25 +8,34 @@ import { BuildingSprite } from '../entities/building';
 import { LABORER_TEXTURE, LABORER_FRAME } from '../entities/laborer';
 import { SAVAGE_TEXTURE, SAVAGE_FRAME } from '../entities/savage';
 import { LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
-import { bobOffset, lowHealthVignette, nightAlpha } from '../world/lighting';
+import { bobOffset, carriedLight, lowHealthVignette, nightAlpha } from '../world/lighting';
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
 import { CHUNK_PX, CHUNK_TILES, chunkKey, chunkOf, visibleChunks } from '../world/chunks';
-import { isWalkableTile, tileAt, LANDMARK_NAMES } from '../world/landmarks';
+import { isWalkableTile, tileAt, LANDMARK_NAMES, WRECK_ENTRANCE_OFFSET_PX } from '../world/landmarks';
 import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
-import { buildingSprite, nodeSprite } from '../ui/assets';
+import { buildingSprite, animalSprite, entranceSprite, nodeSprite } from '../ui/assets';
 import { makeText } from '../ui/text';
 import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
+import { ANIMALS, ANIMAL_SPAWN } from '../data/animals';
+import {
+  applyHitToAnimal,
+  pruneAnimals,
+  spawnAnimals,
+  updateAnimalAi,
+  type AnimalWorld,
+} from '../systems/animalSystem';
 import { WEAPONS, weaponFor } from '../data/weapons';
 import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
 import {
   applySleepRecovery,
   drinkFreshWater,
   spendEnergy,
+  tickEnergyRegen,
   tickNeeds,
 } from '../systems/needsSystem';
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
@@ -39,7 +48,7 @@ import {
   respawnNodes,
   tickTorchFuel,
 } from '../systems/resourceSystem';
-import { canPlace, placeBuilding } from '../systems/buildingSystem';
+import { BUILDINGS, campRingBounds, canPlace, hasCampFlag, placeBuilding, placementBanner } from '../systems/buildingSystem';
 import { checkCampUpgrade } from '../systems/campSystem';
 import { captureSavage } from '../systems/captureSystem';
 import { settleLaborRations, tickLabor } from '../systems/laborSystem';
@@ -53,7 +62,9 @@ import {
   collectLoot,
   findInteractTarget,
   pickUpGroundLoot,
+  shouldCancelChannel,
   type InteractTarget,
+  type UiPanel,
 } from '../systems/interactionSystem';
 import { refreshTutorial } from '../systems/tutorialSystem';
 import { saveGame } from '../systems/saveSystem';
@@ -97,9 +108,13 @@ export class IslandScene extends Phaser.Scene {
   >();
   private buildingSprites = new Map<string, BuildingSprite>();
   private savageSprites = new Map<string, Phaser.GameObjects.Image>();
+  private animalSprites = new Map<string, Phaser.GameObjects.Image>();
+  private animalDeadAt = new Map<string, number>();
+  private animalRefillAt = 0;
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
   private buildGhost?: Phaser.GameObjects.Image;
   private buildMarker?: Phaser.GameObjects.Graphics;
+  private campRing?: Phaser.GameObjects.Graphics;
   private buildReason?: Phaser.GameObjects.Text;
   private slashes: Phaser.GameObjects.Image[] = [];
   private channel: { target: InteractTarget; elapsed: number } | null = null;
@@ -148,9 +163,19 @@ export class IslandScene extends Phaser.Scene {
 
     this.registerWorldObjects();
     this.syncNodes(true);
+    this.ensureEntranceSprite();
     this.syncBuildings();
     this.syncSavages();
     this.syncLaborers();
+    this.syncAnimals();
+    if (
+      this.state.animals.length === 0 &&
+      this.state.time.clockMin >= 360 &&
+      this.state.time.clockMin < 1200
+    ) {
+      spawnAnimals(this.state, this.animalWorld(), this.rng);
+      this.syncAnimals();
+    }
     this.createNightLayer();
     this.bindInput();
     this.bindGameEvents();
@@ -168,10 +193,12 @@ export class IslandScene extends Phaser.Scene {
     this.terrain = this.island.terrain;
     this.registry.set('island', this.island);
     this.state.world.hash = this.island.hash;
-    this.state.camp.center = {
-      x: Math.floor(this.island.campCenter.x / WORLD.tile),
-      y: Math.floor(this.island.campCenter.y / WORLD.tile),
-    };
+    if (!hasCampFlag(this.state)) {
+      this.state.camp.center = {
+        x: Math.floor(this.island.campCenter.x / WORLD.tile),
+        y: Math.floor(this.island.campCenter.y / WORLD.tile),
+      };
+    }
     this.state.world.wreckSpawn = { x: this.island.spawn.x, y: this.island.spawn.y };
   }
 
@@ -333,13 +360,22 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private makeWorldTextures(): void {
-    if (this.textures.exists('palm') && this.textures.exists('hut')) return;
+    if (this.textures.exists('palm') && this.textures.exists('hut') && this.textures.exists('flag')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     this.drawPalm(g);
     g.clear();
 
     this.drawHut(g);
+    g.clear();
+
+    this.drawFlag(g);
+    g.clear();
+
+    this.drawHatch(g);
+    g.clear();
+
+    this.drawAnimals(g);
     g.destroy();
 
     const canvas = this.textures.createCanvas('light', 256, 256);
@@ -364,6 +400,61 @@ export class IslandScene extends Phaser.Scene {
       ctx.fillRect(0, 0, 320, 180);
       vignette.refresh();
     }
+  }
+
+  /** 16×16 shipwreck hatch: planked trapdoor with an iron ring. */
+  private drawHatch(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x4a3320).fillRect(1, 6, 14, 10);
+    g.fillStyle(0x6b4a2c).fillRect(2, 7, 12, 3);
+    g.fillRect(2, 12, 12, 3);
+    g.fillStyle(0x2b1d12).fillRect(2, 10, 12, 2);
+    g.fillStyle(0x8a6a3c).fillRect(7, 9, 2, 4);
+    g.fillStyle(0xc9c2b0).fillRect(7, 10, 2, 1);
+    g.generateTexture('wreck-hatch', 16, 16);
+  }
+
+  /** Three 16×16 wildlife sprites drawn in code: fowl, hare and boar. */
+  private drawAnimals(g: Phaser.GameObjects.Graphics): void {
+    // chicken
+    g.fillStyle(0xf2e6c8).fillRect(6, 8, 6, 6);
+    g.fillStyle(0xe0d0aa).fillRect(6, 12, 6, 2);
+    g.fillStyle(0xf7f0dc).fillRect(10, 5, 3, 4);
+    g.fillStyle(0xd8452f).fillRect(12, 5, 2, 2);
+    g.fillStyle(0x3a2a18).fillRect(11, 6, 1, 1);
+    g.fillStyle(0xc9a227).fillRect(8, 14, 1, 2);
+    g.fillRect(10, 14, 1, 2);
+    g.generateTexture('animal-chicken', 16, 16);
+    g.clear();
+
+    // rabbit
+    g.fillStyle(0xb9b3a8).fillRect(5, 10, 7, 5);
+    g.fillStyle(0xd6d0c4).fillRect(6, 8, 4, 3);
+    g.fillStyle(0xd6d0c4).fillRect(6, 3, 2, 6);
+    g.fillRect(9, 4, 2, 5);
+    g.fillStyle(0x3a2a18).fillRect(10, 8, 1, 1);
+    g.fillStyle(0xf0ece0).fillRect(4, 12, 2, 2);
+    g.generateTexture('animal-rabbit', 16, 16);
+    g.clear();
+
+    // boar
+    g.fillStyle(0x5c4030).fillRect(3, 7, 10, 7);
+    g.fillStyle(0x6f4e3a).fillRect(4, 5, 7, 4);
+    g.fillStyle(0x3d2a1e).fillRect(11, 8, 4, 4);
+    g.fillStyle(0xf0e0c0).fillRect(13, 9, 1, 1);
+    g.fillStyle(0x2b1d14).fillRect(4, 14, 2, 2);
+    g.fillRect(9, 14, 2, 2);
+    g.fillStyle(0xe8dcc0).fillRect(15, 9, 1, 2);
+    g.generateTexture('animal-boar', 16, 16);
+  }
+
+  /** 12×20 camp flag: wooden pole with a red pennant. */
+  private drawFlag(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x5a3a1c).fillRect(4, 4, 2, 16);
+    g.fillStyle(0x7a5024).fillRect(4, 4, 1, 16);
+    g.fillStyle(0xb03a2e).fillTriangle(6, 4, 12, 7, 6, 11);
+    g.fillStyle(0xd4533f).fillTriangle(6, 5, 10, 7, 6, 10);
+    g.fillStyle(0x3a2a18).fillRect(2, 19, 6, 1);
+    g.generateTexture('flag', 14, 20);
   }
 
   /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
@@ -417,15 +508,30 @@ export class IslandScene extends Phaser.Scene {
     for (const landmark of this.island.landmarks) {
       if (landmark.kind === 'wreck') {
         this.state.world.nodes.chest_wreck = { x: landmark.x, y: landmark.y, type: 'chest' };
-        this.state.world.wreckEntrance = { x: landmark.x + 24, y: landmark.y };
+        this.state.world.wreckEntrance = {
+          x: landmark.x + WRECK_ENTRANCE_OFFSET_PX,
+          y: landmark.y,
+        };
       } else if (landmark.kind === 'cave') {
         this.state.world.nodes.chest_cave = { x: landmark.x, y: landmark.y, type: 'chest' };
       }
     }
   }
 
-  private syncNodes(initial = false): void {
-    if (initial) {
+  /** Visible hatch beside the wreck chest so the dungeon entrance can be found. */
+  private ensureEntranceSprite(): void {
+    const entrance = this.state.world.wreckEntrance;
+    if (!entrance || entrance.x <= 0) return;
+    this.add
+      .ellipse(entrance.x, entrance.y - 2, 14, 5, 0x000000, 0.25)
+      .setDepth(depthFor(entrance.y) - 1);
+    this.add
+      .image(entrance.x, entrance.y, entranceSprite().texture)
+      .setOrigin(0.5, 1)
+      .setDepth(depthFor(entrance.y));
+  }
+
+  private syncNodes(initial = false): void {    if (initial) {
       for (const [id, node] of Object.entries(this.state.world.nodes)) {
         const spec = nodeSprite(node.type, false);
         const shadow = this.add
@@ -477,8 +583,46 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private syncSavages(): void {
-    const ids = new Set(this.state.savages.map((s) => s.id));
+  private syncAnimals(): void {
+    const ids = new Set(this.state.animals.map((a) => a.id));
+    for (const [id, sprite] of this.animalSprites) {
+      if (!ids.has(id)) {
+        sprite.destroy();
+        this.animalSprites.delete(id);
+      }
+    }
+    const bob = bobOffset(this.time.now);
+    for (const animal of this.state.animals) {
+      if (animal.mode === 'dead') {
+        const since = this.animalDeadAt.get(animal.id);
+        if (since === undefined) this.animalDeadAt.set(animal.id, this.time.now);
+        else if (this.time.now - since > 1200) {
+          this.state.animals = this.state.animals.filter((entry) => entry.id !== animal.id);
+          this.animalDeadAt.delete(animal.id);
+          continue;
+        }
+      }
+      let sprite = this.animalSprites.get(animal.id);
+      if (!sprite) {
+        sprite = this.add
+          .image(animal.x, animal.y, animalSprite(animal.type).texture)
+          .setOrigin(0.5, 1);
+        this.animalSprites.set(animal.id, sprite);
+      }
+      sprite.setPosition(animal.x, animal.y - (animal.mode === 'dead' ? 0 : bob));
+      sprite.setDepth(depthFor(animal.y));
+      sprite.setAlpha(animal.mode === 'dead' ? 0.35 : 1);
+      sprite.setFlipX(animal.x < this.state.player.x);
+      if (animal.mode === 'retaliate') sprite.setTint(0xffb4a0);
+      else sprite.clearTint();
+    }
+  }
+
+  private animalWorld(): AnimalWorld {
+    return { tileAt: (tx, ty) => this.terrainAt(tx, ty) };
+  }
+
+  private syncSavages(): void {    const ids = new Set(this.state.savages.map((s) => s.id));
     for (const [id, sprite] of this.savageSprites) {
       if (!ids.has(id)) {
         sprite.destroy();
@@ -637,24 +781,11 @@ export class IslandScene extends Phaser.Scene {
     this.syncBuildings();
     this.registry.set('buildSelection', null);
     this.clearBuildPreview();
-    this.game.events.emit('ui:banner', `建成了${this.buildingName(type)}`);
+    this.game.events.emit('ui:banner', placementBanner(type));
+    if (type === 'flag') this.bus.emit('camp:flagPlaced', { x: building.x, y: building.y });
     checkCampUpgrade(this.state, this.bus);
     refreshTutorial(this.state, this.bus);
     this.bus.emit('save:requested', { reason: 'build' });
-  }
-
-  private buildingName(type: string): string {
-    const names: Record<string, string> = {
-      campfire: '营火',
-      workbench: '工作台',
-      cage: '囚笼',
-      tent: '帐篷',
-      storage: '储物箱',
-      fence: '木栅栏',
-      stone_wall: '石墙',
-      drying_rack: '晾肉架',
-    };
-    return names[type] ?? type;
   }
 
   private placementWorld() {
@@ -684,6 +815,7 @@ export class IslandScene extends Phaser.Scene {
     if (!this.buildGhost) {
       this.buildGhost = this.add.image(0, 0, spec.texture, spec.frame).setOrigin(0.5, 1).setAlpha(0.65).setDepth(9000);
       this.buildMarker = this.add.graphics().setDepth(9001);
+      this.campRing = this.add.graphics().setDepth(8999);
       this.buildReason = makeText(this, 0, 0, '', {
         origin: [0.5, 1],
         color: '#ff8f8f',
@@ -692,6 +824,7 @@ export class IslandScene extends Phaser.Scene {
         .setDepth(9002)
         .setVisible(false);
     }
+    this.drawCampRing(type);
     const tileX = Math.floor(pointer.worldX / 16);
     const tileY = Math.floor(pointer.worldY / 16);
     this.buildGhost.setTexture(spec.texture, spec.frame).setDisplaySize(spec.w, spec.h);
@@ -736,11 +869,36 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  /** Dashed camp radius ring around the flag, only while placing a building. */
+  private drawCampRing(type: string): void {
+    const ring = this.campRing;
+    if (!ring) return;
+    ring.clear();
+    if (BUILDINGS[type]?.unique) return;
+    const flag = this.state.buildings.find((b) => b.type === 'flag');
+    if (!flag) return;
+    const bounds = campRingBounds({ x: flag.x, y: flag.y }, CONFIG.campRadiusTiles);
+    const cx = bounds.x + bounds.w / 2;
+    const cy = bounds.y + bounds.h / 2;
+    const r = bounds.w / 2;
+    ring.fillStyle(0xd8f7b0, 0.08).fillCircle(cx, cy, r);
+    ring.lineStyle(1, 0xd8f7b0, 0.6);
+    for (let i = 0; i < 48; i += 2) {
+      const from = (i / 48) * Math.PI * 2;
+      const to = ((i + 1) / 48) * Math.PI * 2;
+      ring.beginPath();
+      ring.arc(cx, cy, r, from, to);
+      ring.strokePath();
+    }
+  }
+
   private clearBuildPreview(): void {
     this.buildGhost?.destroy();
     this.buildGhost = undefined;
     this.buildMarker?.destroy();
     this.buildMarker = undefined;
+    this.campRing?.destroy();
+    this.campRing = undefined;
     this.buildReason?.destroy();
     this.buildReason = undefined;
   }
@@ -761,15 +919,33 @@ export class IslandScene extends Phaser.Scene {
     this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
 
     const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
-    const targets = this.state.savages
-      .filter((savage) => savage.mode !== 'dead')
-      .map((savage) => ({ id: savage.id, x: savage.x, y: savage.y }));
+    const targets = [
+      ...this.state.savages
+        .filter((savage) => savage.mode !== 'dead')
+        .map((savage) => ({ id: savage.id, x: savage.x, y: savage.y })),
+      ...this.state.animals
+        .filter((animal) => animal.mode !== 'dead')
+        .map((animal) => ({ id: animal.id, x: animal.x, y: animal.y })),
+    ];
     const hitIds = computeHitTargets(
       { x: this.player.x, y: this.player.y, angle },
       weapon.pattern,
       targets,
     );
     for (const id of hitIds) {
+      const animal = this.state.animals.find((entry) => entry.id === id);
+      if (animal) {
+        const result = applyHitToAnimal(this.state, animal, weapon, this.rng, {
+          attack: stats.attack,
+          savageMul: stats.savageMul,
+        });
+        if (result === 'dead') {
+          this.game.events.emit('ui:banner', `猎到了${ANIMALS[animal.type]?.name ?? '野兽'}`);
+          playSfx(this, this.state, 'enemy_die');
+          if (stats.killHaste) this.hasteUntil = now + 2000;
+        }
+        continue;
+      }
       const savage = this.state.savages.find((entry) => entry.id === id);
       if (!savage) continue;
       const result = applyHitToSavage(savage, weapon, 0, {
@@ -793,6 +969,7 @@ export class IslandScene extends Phaser.Scene {
     }
     this.drawSwing(angle, weapon.pattern.range);
     this.syncSavages();
+    this.syncAnimals();
   }
 
   private selectedWeaponBaseId(): string | null {
@@ -843,8 +1020,9 @@ export class IslandScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.1);
     this.updateChunks();
     const uiOpen = Boolean(this.registry.get('uiOpen'));
+    const uiPanel = (this.registry.get('uiPanel') ?? null) as UiPanel;
     const buildSelection = Boolean(this.registry.get('buildSelection'));
-    if (uiOpen && this.channel) this.cancelChannel();
+    if (this.channel && shouldCancelChannel(uiPanel)) this.cancelChannel();
 
     const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
     const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
@@ -880,6 +1058,9 @@ export class IslandScene extends Phaser.Scene {
     }
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     tickBootWear(this.state, Math.hypot(body.deltaX(), body.deltaY()));
+    const idle =
+      Math.hypot(body.velocity.x, body.velocity.y) < 1 && !this.channel && !uiOpen && !buildSelection;
+    tickEnergyRegen(this.state, dt, idle);
     this.player.setDepth(depthFor(this.player.y));
     const velocity = this.player.body as Phaser.Physics.Arcade.Body;
     this.player.setWalking(Math.hypot(velocity.velocity.x, velocity.velocity.y) > 1, this.time.now);
@@ -910,6 +1091,25 @@ export class IslandScene extends Phaser.Scene {
     this.syncSavages();
     this.syncLaborers();
     this.syncBuildings();
+    for (const animal of this.state.animals) {
+      updateAnimalAi(
+        this.state,
+        animal,
+        dt,
+        this.animalWorld(),
+        uiOpen || Boolean(buildSelection),
+      );
+    }
+    pruneAnimals(this.state, this.state.time.clockMin);
+    if (
+      this.time.now >= this.animalRefillAt &&
+      this.state.time.clockMin >= 360 &&
+      this.state.time.clockMin < 1200
+    ) {
+      this.animalRefillAt = this.time.now + ANIMAL_SPAWN.refillSec * 1000;
+      spawnAnimals(this.state, this.animalWorld(), this.rng);
+    }
+    this.syncAnimals();
     if (this.time.now - this.lastNodeSync >= 250) {
       this.lastNodeSync = this.time.now;
       this.syncNodes();
@@ -918,9 +1118,12 @@ export class IslandScene extends Phaser.Scene {
     const night = nightAlpha(this.state.time.clockMin);
     const isNight = night > 0.02;
     this.nightOverlay.setAlpha(night).setVisible(isNight);
-    this.light.setVisible(isNight);
-    const lightSize = this.torchLightSize();
-    this.light.setDisplaySize(lightSize, lightSize);
+    const carried = carriedLight(this.state.inventory);
+    this.light.setVisible(isNight && carried !== null);
+    if (carried) {
+      this.light.setDisplaySize(carried.radius, carried.radius);
+      this.light.setAlpha(carried.brightness);
+    }
     for (const light of this.buildingLights.values()) light.setVisible(isNight);
     this.vignette.setAlpha(lowHealthVignette(this.state.player.hp));
 
@@ -987,13 +1190,6 @@ export class IslandScene extends Phaser.Scene {
       this.game.events.emit('ui:banner', '野人入侵中，不能进入沉船');
       return;
     }
-    const hasTorch = this.state.inventory.some(
-      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
-    );
-    if (!hasTorch) {
-      this.game.events.emit('ui:banner', '里面太黑了，需要一支点燃的火把');
-      return;
-    }
     this.state.scene = 'dungeon';
     this.state.dungeonFloor = 1;
     this.registry.set('inDungeon', true);
@@ -1043,8 +1239,7 @@ export class IslandScene extends Phaser.Scene {
       const node = this.state.world.nodes[target.id];
       const cost = this.gatherEnergyCost(node?.type ?? '');
       if (this.state.player.energy < cost) {
-        this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
-        return;
+        this.game.events.emit('ui:banner', '精力不足，采集变慢');
       }
     }
     if (target.kind === 'building' && this.state.player.energy < 10) {
@@ -1054,19 +1249,16 @@ export class IslandScene extends Phaser.Scene {
         return;
       }
     }
-    const slow = this.state.player.energy < 10 && (target.kind === 'node' || target.kind === 'building');
+    const nodeCost =
+      target.kind === 'node'
+        ? this.gatherEnergyCost(this.state.world.nodes[target.id]?.type ?? '')
+        : 10;
+    const slow =
+      this.state.player.energy < nodeCost && (target.kind === 'node' || target.kind === 'building');
     this.channel = {
       target: slow ? { ...target, durationSec: target.durationSec * 2 } : target,
       elapsed: 0,
     };
-  }
-
-  /** Torches widen the night light from 48px to 64px. */
-  private torchLightSize(): number {
-    const lit = this.state.inventory.some(
-      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
-    );
-    return lit ? 64 : 48;
   }
 
   private gatherEnergyCost(nodeType: string): number {    if (nodeType === 'tree') return 5;
@@ -1132,10 +1324,7 @@ export class IslandScene extends Phaser.Scene {
     if (!node) return;
     const def = RESOURCE_NODES[node.type];
     if (!def) return;
-    if (!spendEnergy(this.state, this.gatherEnergyCost(node.type))) {
-      this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
-      return;
-    }
+    spendEnergy(this.state, this.gatherEnergyCost(node.type));
     const result = gatherNode(this.state, target.id, this.rng);
     this.state.rngState = this.rng.state();
     if (result.items.length > 0) {

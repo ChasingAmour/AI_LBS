@@ -74,4 +74,23 @@ describe('interaction system', () => {
     expect(pickUpGroundLoot(s, 'stone')).toBe(true);
     expect(s.world.groundLoot).toHaveLength(0);
   });
+
+  it('沉船入口不需要火把也能交互', () => {
+    const s = createNewGame(1);
+    s.world.wreckEntrance = { x: 100, y: 100 };
+    s.player.x = 100;
+    s.player.y = 100;
+    const target = findInteractTarget(s, 100, 100, { onWater: false });
+    expect(target?.kind).toBe('dungeon');
+  });
+
+  it('入口与宝箱重叠时优先提示进入沉船', () => {
+    const s = createNewGame(1);
+    s.world.nodes.chest_wreck = { x: 100, y: 100, type: 'chest' };
+    s.world.wreckEntrance = { x: 124, y: 100 };
+    s.player.x = 110;
+    s.player.y = 100;
+    const target = findInteractTarget(s, 110, 100, { onWater: false });
+    expect(target?.kind).toBe('dungeon');
+  });
 });

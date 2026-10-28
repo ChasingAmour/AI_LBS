@@ -8,7 +8,7 @@ describe('save v3', () => {
   it('creates v3 defaults', () => {
     const state = createNewGame(7);
     expect(state.version).toBe(SAVE_VERSION);
-    expect(state.settings).toEqual({ muted: false, sfxVolume: 0.7 });
+    expect(state.settings).toEqual({ muted: false, sfxVolume: 0.7, hudCompact: false });
     expect(state.lootSeed).toBe(7);
     expect(state.lootRolls).toBe(0);
     expect(state.bootWear).toBe(0);
@@ -34,7 +34,7 @@ describe('save v3', () => {
     (old.hotbar as (string | null)[])[0] = 'club';
 
     const migrated = validateSave(old);
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.inventory).toHaveLength(0);
     expect(migrated.equipmentInstances.filter((item) => item.baseId === 'club')).toHaveLength(2);
     expect(migrated.equipmentInstances[0].durability).toBe(12);
@@ -48,7 +48,7 @@ describe('save v3', () => {
     old.version = 1;
     delete (old.world as Record<string, unknown>).seed;
     const migrated = validateSave(old);
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.world.seed).toBeTypeOf('number');
   });
 

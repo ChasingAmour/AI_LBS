@@ -191,4 +191,22 @@ export const RECIPES: Record<string, Recipe> = {
     durationSec: 900,
     inputs: [{ baseId: 'raw_fish', count: 1 }],
   },
+  cooked_meat: {
+    id: 'cooked_meat',
+    output: 'cooked_meat',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 0,
+    durationSec: 2,
+    inputs: [{ baseId: 'raw_meat', count: 1 }],
+  },
+  dried_meat: {
+    id: 'dried_meat',
+    output: 'dried_meat',
+    count: 1,
+    station: 'dryingRack',
+    unlockLevel: 2,
+    durationSec: 900,
+    inputs: [{ baseId: 'raw_meat', count: 1 }],
+  },
 };
