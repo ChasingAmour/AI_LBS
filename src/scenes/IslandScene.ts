@@ -12,7 +12,7 @@ import { bobOffset, carriedLight, lowHealthVignette, nightAlpha } from '../world
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
 import { CHUNK_PX, CHUNK_TILES, chunkKey, chunkOf, visibleChunks } from '../world/chunks';
-import { isWalkableTile, tileAt, LANDMARK_NAMES } from '../world/landmarks';
+import { isWalkableTile, tileAt, LANDMARK_NAMES, WRECK_ENTRANCE_OFFSET_PX } from '../world/landmarks';
 import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
@@ -152,6 +152,7 @@ export class IslandScene extends Phaser.Scene {
 
     this.registerWorldObjects();
     this.syncNodes(true);
+    this.ensureEntranceSprite();
     this.syncBuildings();
     this.syncSavages();
     this.syncLaborers();
@@ -429,15 +430,30 @@ export class IslandScene extends Phaser.Scene {
     for (const landmark of this.island.landmarks) {
       if (landmark.kind === 'wreck') {
         this.state.world.nodes.chest_wreck = { x: landmark.x, y: landmark.y, type: 'chest' };
-        this.state.world.wreckEntrance = { x: landmark.x + 24, y: landmark.y };
+        this.state.world.wreckEntrance = {
+          x: landmark.x + WRECK_ENTRANCE_OFFSET_PX,
+          y: landmark.y,
+        };
       } else if (landmark.kind === 'cave') {
         this.state.world.nodes.chest_cave = { x: landmark.x, y: landmark.y, type: 'chest' };
       }
     }
   }
 
-  private syncNodes(initial = false): void {
-    if (initial) {
+  /** Visible hatch beside the wreck chest so the dungeon entrance can be found. */
+  private ensureEntranceSprite(): void {
+    const entrance = this.state.world.wreckEntrance;
+    if (!entrance || entrance.x <= 0) return;
+    this.add
+      .ellipse(entrance.x, entrance.y - 2, 14, 5, 0x000000, 0.25)
+      .setDepth(depthFor(entrance.y) - 1);
+    this.add
+      .image(entrance.x, entrance.y, 'dungeon', 29)
+      .setOrigin(0.5, 1)
+      .setDepth(depthFor(entrance.y));
+  }
+
+  private syncNodes(initial = false): void {    if (initial) {
       for (const [id, node] of Object.entries(this.state.world.nodes)) {
         const spec = nodeSprite(node.type, false);
         const shadow = this.add
@@ -1031,13 +1047,6 @@ export class IslandScene extends Phaser.Scene {
   private enterDungeon(): void {
     if (this.state.raid?.active) {
       this.game.events.emit('ui:banner', '野人入侵中，不能进入沉船');
-      return;
-    }
-    const hasTorch = this.state.inventory.some(
-      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
-    );
-    if (!hasTorch) {
-      this.game.events.emit('ui:banner', '里面太黑了，需要一支点燃的火把');
       return;
     }
     this.state.scene = 'dungeon';

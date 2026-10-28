@@ -74,4 +74,13 @@ describe('interaction system', () => {
     expect(pickUpGroundLoot(s, 'stone')).toBe(true);
     expect(s.world.groundLoot).toHaveLength(0);
   });
+
+  it('沉船入口不需要火把也能交互', () => {
+    const s = createNewGame(1);
+    s.world.wreckEntrance = { x: 100, y: 100 };
+    s.player.x = 100;
+    s.player.y = 100;
+    const target = findInteractTarget(s, 100, 100, { onWater: false });
+    expect(target?.kind).toBe('dungeon');
+  });
 });

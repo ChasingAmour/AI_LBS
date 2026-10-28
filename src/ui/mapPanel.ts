@@ -135,8 +135,7 @@ export class MapPanel {
     const g = this.scene.add.graphics();
     const flag = state.buildings.find((b) => b.type === 'flag');
     if (flag) {
-      const point = worldToMap(flag.x * 16 + 8, flag.y * 16 + 8, MAP_RECT);
-      g.fillStyle(0xb03a2e, 1).fillTriangle(point.x - 4, point.y - 4, point.x + 4, point.y - 4, point.x - 4, point.y + 3);
+      const point = worldToMap(flag.x * 16 + 8, flag.y * 16 + 8, MAP_RECT);      g.fillStyle(0xb03a2e, 1).fillTriangle(point.x - 4, point.y - 4, point.x + 4, point.y - 4, point.x - 4, point.y + 3);
       g.lineStyle(1, TINTS.woodDark, 1).strokeTriangle(
         point.x - 4,
         point.y - 4,
@@ -145,6 +144,12 @@ export class MapPanel {
         point.x - 4,
         point.y + 3,
       );
+    }
+    const entrance = state.world.wreckEntrance;
+    if (entrance && entrance.x > 0 && state.world.discovered.includes('wreck')) {
+      const p = worldToMap(entrance.x, entrance.y, MAP_RECT);
+      g.fillStyle(TINTS.woodDark, 1).fillRect(p.x - 3, p.y - 2, 6, 4);
+      g.lineStyle(1, TINTS.gold, 1).strokeRect(p.x - 3, p.y - 2, 6, 4);
     }
     for (const landmark of island.landmarks) {
       const point = worldToMap(landmark.x, landmark.y, MAP_RECT);
