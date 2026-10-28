@@ -1,18 +1,14 @@
 import type { GameState } from '../core/gameState';
 import { createNewGame } from '../core/gameState';
+import { decodeExplored } from '../core/explored';
 import { SAVE_VERSION } from '../core/saveVersion';
 import { generateIsland } from '../world/generate';
+import { SaveError } from './saveError';
 
 export { SAVE_VERSION };
+export { SaveError };
 export const SAVE_KEY = 'robinson.save.v1';
 export const BACKUP_KEY = 'robinson.save.v1.bak';
-
-export class SaveError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SaveError';
-  }
-}
 
 function fail(message: string): never {
   throw new SaveError(message);
@@ -98,19 +94,35 @@ export function migrateV1(old: unknown): GameState {
     };
   }
 
-  if (Array.isArray(data.inventory)) state.inventory = data.inventory as GameState['inventory'];
+  if (Array.isArray(data.inventory)) {
+    state.inventory = data.inventory.filter(
+      (item): item is GameState['inventory'][number] =>
+        isRecord(item) && typeof item.baseId === 'string' && optionalNumber(item.count, 0) > 0,
+    );
+  }
   if (Array.isArray(data.hotbar) && data.hotbar.length === 8) {
-    state.hotbar = data.hotbar as GameState['hotbar'];
+    state.hotbar = data.hotbar.map((entry) =>
+      typeof entry === 'string' ? entry : null,
+    );
   }
   if (isRecord(data.equipment)) {
     state.equipment = {
       weapon: typeof data.equipment.weapon === 'string' ? data.equipment.weapon : null,
       armor: typeof data.equipment.armor === 'string' ? data.equipment.armor : null,
       boots: typeof data.equipment.boots === 'string' ? data.equipment.boots : null,
-      };
+    };
   }
   if (Array.isArray(data.equipmentInstances)) {
-    state.equipmentInstances = data.equipmentInstances as GameState['equipmentInstances'];
+    state.equipmentInstances = data.equipmentInstances.filter(
+      (item): item is GameState['equipmentInstances'][number] =>
+        isRecord(item) && typeof item.instanceId === 'string',
+    );
+  }
+  const instanceIds = new Set(state.equipmentInstances.map((item) => item.instanceId));
+  for (const slot of ['weapon', 'armor', 'boots'] as const) {
+    if (state.equipment[slot] && !instanceIds.has(state.equipment[slot]!)) {
+      state.equipment[slot] = null;
+    }
   }
 
   state.world.hash = island.hash;
@@ -119,10 +131,13 @@ export function migrateV1(old: unknown): GameState {
   state.world.nodeStates = {};
   state.world.nodes = {};
   state.world.groundLoot = Array.isArray(oldWorld.groundLoot)
-    ? (oldWorld.groundLoot as GameState['world']['groundLoot'])
+    ? oldWorld.groundLoot.filter(
+        (item): item is GameState['world']['groundLoot'][number] =>
+          isRecord(item) && typeof item.baseId === 'string' && optionalNumber(item.count, 0) > 0,
+      )
     : [];
   state.world.uniqueLoot = Array.isArray(oldWorld.uniqueLoot)
-    ? (oldWorld.uniqueLoot as string[])
+    ? oldWorld.uniqueLoot.filter((id): id is string => typeof id === 'string')
     : [];
 
   const campCenter = {
@@ -165,8 +180,13 @@ export function migrateV1(old: unknown): GameState {
       state.laborers.push({
         ...(raw as unknown as GameState['laborers'][number]),
         id: typeof raw.id === 'string' ? raw.id : `migrated_laborer_${state.laborers.length}`,
+        name: typeof raw.name === 'string' ? raw.name : '劳工',
         x: campPx.x + relX,
         y: campPx.y + relY,
+        loyalty: clampNumber(Math.floor(optionalNumber(raw.loyalty, 1)), 0, 3) as 0 | 1 | 2 | 3,
+        task: null,
+        carrying: 0,
+        carryingType: null,
       });
     }
   }
@@ -214,6 +234,7 @@ export function validateSave(data: unknown): GameState {
   requireArray(data.inventory, 'inventory');
   const hotbar = requireArray(data.hotbar, 'hotbar');
   if (hotbar.length !== 8) fail('hotbar 长度必须是 8');
+  requireNumber(data.hotbarIndex, 'hotbarIndex', 0, 7);
 
   const equipment = requireObject(data.equipment, 'equipment');
   const instances = requireArray(data.equipmentInstances, 'equipmentInstances');
@@ -235,6 +256,11 @@ export function validateSave(data: unknown): GameState {
   requireNumber(world.seed, 'world.seed', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(world.hash, 'world.hash', 0, Number.MAX_SAFE_INTEGER);
   if (typeof world.explored !== 'string') fail('world.explored 必须是字符串');
+  try {
+    decodeExplored(world.explored);
+  } catch {
+    fail('world.explored 数据损坏');
+  }
   requireArray(world.discovered, 'world.discovered');
   if (world.waypoint !== null) {
     const waypoint = requireObject(world.waypoint, 'world.waypoint');
@@ -249,7 +275,9 @@ export function validateSave(data: unknown): GameState {
 
   const camp = requireObject(data.camp, 'camp');
   requireNumber(camp.level, 'camp.level', 0, 3);
-  requireObject(camp.center, 'camp.center');
+  const campCenter = requireObject(camp.center, 'camp.center');
+  requireNumber(campCenter.x, 'camp.center.x', 0, 10_000);
+  requireNumber(campCenter.y, 'camp.center.y', 0, 10_000);
 
   requireArray(data.buildings, 'buildings');
   requireArray(data.laborers, 'laborers');

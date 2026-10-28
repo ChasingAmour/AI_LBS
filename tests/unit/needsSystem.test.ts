@@ -97,8 +97,8 @@ describe('needs system', () => {
     const s = createNewGame(1);
     s.buildings.push({ id: 'tent', type: 'tent', x: 100, y: 200, hp: 80 });
     respawnAfterDeath(s, new EventBus());
-    expect(s.player.x).toBe(100);
-    expect(s.player.y).toBe(200);
+    expect(s.player.x).toBe(100 * 16 + 8);
+    expect(s.player.y).toBe(200 * 16 + 16);
   });
 
   it('lethal damage marks the player dead', () => {

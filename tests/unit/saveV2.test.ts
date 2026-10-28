@@ -21,6 +21,12 @@ describe('save v2', () => {
     expect(() => decodeExplored('not-base64!!')).toThrow();
   });
 
+  it('rejects a v2 save with corrupt exploration data', () => {
+    const s = createNewGame(3);
+    s.world.explored = 'not-base64!!';
+    expect(() => validateSave(JSON.parse(serializeSave(s)))).toThrow();
+  });
+
   it('round-trips a v2 save', () => {
     const s = createNewGame(11);
     s.world.explored = encodeExplored(['0,0']);

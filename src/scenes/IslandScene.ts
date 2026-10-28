@@ -71,6 +71,8 @@ export class IslandScene extends Phaser.Scene {
   private island!: IslandData;
   private terrain!: Uint8Array;
   private chunkLayers = new Map<string, Phaser.GameObjects.Image>();
+  private exploredSet = new Set<string>();
+  private lastNodeSync = 0;
   private player!: PlayerEntity;
   private keys!: Keys;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -112,6 +114,8 @@ export class IslandScene extends Phaser.Scene {
     this.rng = createRng(this.state.rngState);
     this.deathLaunched = false;
     this.chunkLayers.clear();
+    this.exploredSet = decodeExplored(this.state.world.explored);
+    this.lastNodeSync = 0;
 
     this.makeWorldTextures();
     this.setupTerrain();
@@ -160,7 +164,7 @@ export class IslandScene extends Phaser.Scene {
 
   private startPosition(): { x: number; y: number } {
     const { x, y } = this.state.player;
-    if (x > 0 && y > 0 && this.isWalkableWorld(x, y)) return { x, y };
+    if (x > 0 && y > 0 && this.terrainAtWorld(x, y) !== TILE.deepWater) return { x, y };
     return { x: this.island.spawn.x, y: this.island.spawn.y };
   }
 
@@ -239,7 +243,7 @@ export class IslandScene extends Phaser.Scene {
         decor.texture,
         decor.frame,
         decor.x - cx * CHUNK_PX - WORLD.tile / 2,
-        decor.y - cy * CHUNK_PX - WORLD.tile,
+        decor.y - cy * CHUNK_PX - WORLD.tile / 2,
       );
     }
 
@@ -280,11 +284,10 @@ export class IslandScene extends Phaser.Scene {
       const tileX = Math.floor(this.player.x / WORLD.tile);
       const tileY = Math.floor(this.player.y / WORLD.tile);
       const { cx, cy } = chunkOf(tileX, tileY);
-      const explored = decodeExplored(this.state.world.explored);
       const key = `${cx},${cy}`;
-      if (!explored.has(key)) {
-        explored.add(key);
-        this.state.world.explored = encodeExplored(explored);
+      if (!this.exploredSet.has(key)) {
+        this.exploredSet.add(key);
+        this.state.world.explored = encodeExplored(this.exploredSet);
       }
     }
   }
@@ -734,9 +737,8 @@ export class IslandScene extends Phaser.Scene {
       if (this.keys.SHIFT.isDown) spendEnergy(this.state, 0.4 * dt);
     }
     this.player.setDepth(depthFor(this.player.y));
-    this.player.setDisplayOrigin(8, 16 - bobOffset(this.time.now));
     this.light.setPosition(this.player.x, this.player.y - 8);
-    this.light.setDepth(depthFor(this.player.y) - 1);
+    this.light.setDepth(LIGHT_DEPTH);
     this.state.player.x = this.player.x;
     this.state.player.y = this.player.y;
     this.registry.set('nearStation', this.isNearStation());
@@ -758,7 +760,10 @@ export class IslandScene extends Phaser.Scene {
     this.syncSavages();
     this.syncLaborers();
     this.syncBuildings();
-    this.syncNodes();
+    if (this.time.now - this.lastNodeSync >= 250) {
+      this.lastNodeSync = this.time.now;
+      this.syncNodes();
+    }
 
     const night = nightAlpha(this.state.time.clockMin);
     const isNight = night > 0.02;

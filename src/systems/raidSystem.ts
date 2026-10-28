@@ -1,4 +1,5 @@
 import type { GameState } from '../core/gameState';
+import { WORLD } from '../core/config';
 import { createSavage, type SavageState } from '../entities/savage';
 import { damageBuilding, getStorage } from './buildingSystem';
 
@@ -7,10 +8,17 @@ export interface RaidDawnResult {
   damagedBuildingId?: string;
 }
 
-const RAID_LANDING = { x: 72 * 16 + 8, y: 50 * 16 + 8 };
 const SAVAGE_COUNT_BY_LEVEL = [2, 2, 3, 4];
 const FOOD_PRIORITY = ['dried_fish', 'cooked_fish', 'coconut', 'berries', 'raw_fish'];
 const DESTRUCTIBLE = ['fence', 'stone_wall', 'storage', 'drying_rack'];
+
+/** Raiders come ashore 10 tiles east and 6 south of the camp, inside the world. */
+function raidLanding(state: GameState): { x: number; y: number } {
+  return {
+    x: Math.max(0, Math.min(WORLD.widthPx - 1, state.camp.center.x * 16 + 8 + 160)),
+    y: Math.max(0, Math.min(WORLD.heightPx - 1, state.camp.center.y * 16 + 16 + 96)),
+  };
+}
 
 export function savageCountForLevel(level: number): number {
   return SAVAGE_COUNT_BY_LEVEL[level] ?? 2;
@@ -18,14 +26,15 @@ export function savageCountForLevel(level: number): number {
 
 export function spawnRaid(state: GameState): SavageState[] {
   const count = savageCountForLevel(state.camp.level);
+  const landing = raidLanding(state);
   state.savages = [];
   for (let i = 0; i < count; i++) {
     const angle = (Math.PI * 2 * i) / count;
     state.savages.push(
       createSavage(
         `savage_${state.time.day}_${i + 1}`,
-        RAID_LANDING.x + Math.cos(angle) * 28,
-        RAID_LANDING.y + Math.sin(angle) * 28,
+        landing.x + Math.cos(angle) * 28,
+        landing.y + Math.sin(angle) * 28,
       ),
     );
   }

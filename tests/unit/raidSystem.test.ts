@@ -25,6 +25,15 @@ describe('raid system', () => {
     expect(s.savages).toHaveLength(spawned.length);
   });
 
+  it('lands the raid near the camp instead of the old map coordinates', () => {
+    const s = createNewGame(1);
+    s.camp.center = { x: 100, y: 100 };
+    const spawned = spawnRaid(s);
+    for (const savage of spawned) {
+      expect(Math.hypot(savage.x - (100 * 16 + 8), savage.y - (100 * 16 + 16))).toBeLessThan(400);
+    }
+  });
+
   it('dawn takes five food per survivor and damages a building when food is short', () => {
     const s = createNewGame(1);
     const box = {

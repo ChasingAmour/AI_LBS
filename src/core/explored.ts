@@ -1,4 +1,4 @@
-import { SaveError } from '../systems/saveSystem';
+import { SaveError } from '../systems/saveError';
 
 /** 625/32 = 19.5 and 375/32 = 11.7, so the world is 20×12 chunks. */
 export const EXPLORED_COLS = 20;

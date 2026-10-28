@@ -87,8 +87,8 @@ export function respawnAfterDeath(state: GameState, bus: EventBus): void {
   const respawn = state.buildings.find((b) => b.type === 'tent')
     ?? state.buildings.find((b) => b.type === 'campfire');
   if (respawn) {
-    p.x = respawn.x;
-    p.y = respawn.y;
+    p.x = respawn.x * 16 + 8;
+    p.y = respawn.y * 16 + 16;
   } else {
     p.x = state.world.wreckSpawn.x;
     p.y = state.world.wreckSpawn.y;
