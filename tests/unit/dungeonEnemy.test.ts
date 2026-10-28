@@ -72,4 +72,35 @@ describe('dungeon enemies', () => {
     for (let i = 0; i < 120; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1, walkable);
     expect(enemy.x).toBeLessThan(48);
   });
+
+  it('视野外不会发现玩家', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
+    const player = { x: 400, y: 0 };
+    for (let i = 0; i < 60; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1);
+    expect(enemy.alerted).toBe(false);
+    expect(enemy.x).toBe(0);
+  });
+
+  it('走进视野才会追', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
+    const player = { x: 60, y: 0 };
+    for (let i = 0; i < 10; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1);
+    expect(enemy.alerted).toBe(true);
+    expect(enemy.x).toBeGreaterThan(0);
+  });
+
+  it('墙挡住视线时不追', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
+    const player = { x: 60, y: 0 };
+    const blocked = () => false;
+    for (let i = 0; i < 20; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1, undefined, blocked);
+    expect(enemy.alerted).toBe(false);
+    expect(enemy.x).toBe(0);
+  });
+
+  it('挨打后会立刻警觉', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
+    damageDungeonEnemy(enemy, 1, 0);
+    expect(enemy.alerted).toBe(true);
+  });
 });

@@ -12,6 +12,12 @@ export interface DungeonEnemy {
   defense: number;
   dead: boolean;
   attackCooldown: number;
+  /** how far it can spot the player, in pixels */
+  sightRange: number;
+  /** false until the player walks into view or hits it */
+  alerted: boolean;
+  /** seconds the player has been out of sight while alerted */
+  lostSightSec: number;
   shellUntil: number;
   nextShellAt: number;
   lungeUntil: number;
@@ -22,10 +28,13 @@ export interface DungeonEnemy {
   poisonUntil: number;
 }
 
-const DEFS: Record<DungeonEnemyType, { hp: number; damage: number; speed: number; defense: number }> = {
-  crab: { hp: 15, damage: 5, speed: 45, defense: 0 },
-  hermit: { hp: 80, damage: 12, speed: 30, defense: 2 },
-  snake: { hp: 40, damage: 10, speed: 80, defense: 1 },
+const DEFS: Record<
+  DungeonEnemyType,
+  { hp: number; damage: number; speed: number; defense: number; sight: number }
+> = {
+  crab: { hp: 15, damage: 5, speed: 45, defense: 0, sight: 96 },
+  hermit: { hp: 80, damage: 12, speed: 30, defense: 2, sight: 112 },
+  snake: { hp: 40, damage: 10, speed: 80, defense: 1, sight: 150 },
 };
 
 export function createDungeonEnemy(type: DungeonEnemyType, x: number, y: number, id: string): DungeonEnemy {
@@ -42,6 +51,9 @@ export function createDungeonEnemy(type: DungeonEnemyType, x: number, y: number,
     defense: def.defense,
     dead: false,
     attackCooldown: 0,
+    sightRange: def.sight,
+    alerted: false,
+    lostSightSec: 0,
     shellUntil: 0,
     nextShellAt: 6,
     lungeUntil: 0,
@@ -73,29 +85,48 @@ export function tickDungeonEnemy(
   dtSec: number,
   now: number,
   walkable?: (tileX: number, tileY: number) => boolean,
+  canSee?: (fromX: number, fromY: number, toX: number, toY: number) => boolean,
 ): void {
   if (enemy.dead) return;
-
-  if (enemy.type === 'hermit' && now >= enemy.nextShellAt && !isShelled(enemy, now)) {
-    enemy.shellUntil = now + 2;
-    enemy.nextShellAt = now + 6;
-  }
-
-  if (
-    enemy.type === 'snake' &&
-    now >= enemy.nextLungeAt &&
-    Math.hypot(player.x - enemy.x, player.y - enemy.y) < 60
-  ) {
-    enemy.lungeUntil = now + 0.3;
-    enemy.retreatUntil = now + 0.9;
-    enemy.nextLungeAt = now + 2;
-  }
 
   const dx = player.x - enemy.x;
   const dy = player.y - enemy.y;
   const distance = Math.hypot(dx, dy) || 1;
   // Cool down every frame, including while pressed against the player.
   enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dtSec);
+
+  const inSight =
+    distance <= enemy.sightRange &&
+    (!canSee || canSee(enemy.x, enemy.y, player.x, player.y));
+
+  if (!enemy.alerted) {
+    if (!inSight) return;
+    enemy.alerted = true;
+    enemy.lostSightSec = 0;
+  }
+
+  if (inSight) {
+    enemy.lostSightSec = 0;
+  } else {
+    enemy.lostSightSec += dtSec;
+    if (enemy.lostSightSec > 3) {
+      enemy.alerted = false;
+      enemy.lostSightSec = 0;
+      return;
+    }
+  }
+
+  if (enemy.type === 'hermit' && now >= enemy.nextShellAt && !isShelled(enemy, now)) {
+    enemy.shellUntil = now + 2;
+    enemy.nextShellAt = now + 6;
+  }
+
+  if (enemy.type === 'snake' && now >= enemy.nextLungeAt && distance < 60) {
+    enemy.lungeUntil = now + 0.3;
+    enemy.retreatUntil = now + 0.9;
+    enemy.nextLungeAt = now + 2;
+  }
+
   if (distance <= 16) return;
 
   const dir = now < enemy.retreatUntil ? -1 : 1;
@@ -128,6 +159,7 @@ export function damageDungeonEnemy(
   armorPierce = false,
 ): 'hit' | 'dead' {
   if (enemy.dead) return 'dead';
+  enemy.alerted = true;
   const shelled = isShelled(enemy, now);
   const defense = armorPierce ? 0 : enemy.defense;
   let damage = Math.max(1, amount - defense);

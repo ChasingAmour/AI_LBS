@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DUNGEON_TILE,
   generateDungeonFloor,
+  hasLineOfSight,
   isDungeonWalkable,
   type DungeonFloor,
 } from '../../src/world/dungeonGen';
@@ -81,5 +82,27 @@ describe('dungeon generation', () => {
       expect(floor.tiles[floor.entry.y * floor.width + floor.entry.x]).toBe(DUNGEON_TILE.exit);
       expect(isDungeonWalkable(DUNGEON_TILE.exit)).toBe(true);
     }
+  });
+
+  it('墙会挡住视线', () => {
+    const floor: DungeonFloor = {
+      floor: 1,
+      width: 5,
+      height: 3,
+      // open corridor with a single wall column at tile x = 2
+      tiles: new Uint8Array([
+        1, 1, 2, 1, 1,
+        1, 1, 2, 1, 1,
+        1, 1, 2, 1, 1,
+      ]),
+      rooms: [],
+      entry: { x: 0, y: 0 },
+      stairs: { x: 0, y: 0 },
+      chests: [],
+      hazards: [],
+      enemies: [],
+    };
+    expect(hasLineOfSight(floor, { x: 8, y: 24 }, { x: 24, y: 24 })).toBe(true);
+    expect(hasLineOfSight(floor, { x: 8, y: 24 }, { x: 72, y: 24 })).toBe(false);
   });
 });

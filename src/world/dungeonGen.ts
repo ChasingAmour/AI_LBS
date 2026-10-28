@@ -200,3 +200,21 @@ export function isDungeonWalkable(tile: number): boolean {
     tile === DUNGEON_TILE.exit
   );
 }
+
+/** Walks the tile line between two points; walls and void block sight. */
+export function hasLineOfSight(
+  floor: DungeonFloor,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): boolean {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const steps = Math.max(1, Math.ceil(length / 8));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = Math.floor((from.x + (to.x - from.x) * t) / 16);
+    const y = Math.floor((from.y + (to.y - from.y) * t) / 16);
+    const tile = at(floor, x, y);
+    if (tile === DUNGEON_TILE.wall || tile === DUNGEON_TILE.void) return false;
+  }
+  return true;
+}

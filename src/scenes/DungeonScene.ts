@@ -19,6 +19,7 @@ import { depthFor } from '../world/depthSort';
 import {
   DUNGEON_TILE,
   generateDungeonFloor,
+  hasLineOfSight,
   isDungeonWalkable,
   type DungeonChest,
   type DungeonFloor,
@@ -402,6 +403,8 @@ export class DungeonScene extends Phaser.Scene {
         dt,
         this.time.now / 1000,
         (tx, ty) => isDungeonWalkable(this.tileAtWorld(tx * TILE + 8, ty * TILE + 8)),
+        (fx, fy, tx, ty) =>
+          hasLineOfSight(this.floorData, { x: fx, y: fy }, { x: tx, y: ty }),
       );
       tickPoison(enemy, this.time.now / 1000, dt);
       view.sprite.setPosition(enemy.x, enemy.y).setDepth(depthFor(enemy.y));
