@@ -112,7 +112,7 @@ export class DungeonScene extends Phaser.Scene {
     this.createLighting();
     this.telegraph = this.add.graphics().setDepth(9004);
     this.bossBar = this.add.graphics().setDepth(9600).setScrollFactor(0).setVisible(false);
-    this.bossLabel = makeText(this, 320, 20, '', { origin: [0.5, 0], color: '#f0d9a0' })
+    this.bossLabel = makeText(this, 320, 40, '', { origin: [0.5, 0], color: '#f0d9a0' })
       .setDepth(9601)
       .setScrollFactor(0)
       .setVisible(false);
@@ -199,8 +199,11 @@ export class DungeonScene extends Phaser.Scene {
           continue;
         }
         draw(60, x, y);
-        ctx.fillStyle = 'rgba(138,90,43,0.45)';
+        ctx.fillStyle = 'rgba(150,101,54,0.62)';
         ctx.fillRect(x, y, TILE, TILE);
+        // plank seam at the bottom of every tile row
+        ctx.fillStyle = 'rgba(58,36,18,0.35)';
+        ctx.fillRect(x, y + TILE - 1, TILE, 1);
         if (tile === DUNGEON_TILE.hazard) {
           const hazard = this.floorData.hazards.find((item) => item.x === tx && item.y === ty);
           ctx.fillStyle =
@@ -457,9 +460,9 @@ export class DungeonScene extends Phaser.Scene {
     const width = 280;
     const ratio = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
     this.bossBar.clear();
-    this.bossBar.fillStyle(0x1b120b, 0.88).fillRect(180, 34, width, 12);
-    this.bossBar.lineStyle(1, 0xd8b25a, 1).strokeRect(180, 34, width, 12);
-    this.bossBar.fillStyle(0xb03a2e, 1).fillRect(182, 36, (width - 4) * ratio, 8);
+    this.bossBar.fillStyle(0x1b120b, 0.88).fillRect(180, 54, width, 12);
+    this.bossBar.lineStyle(1, 0xd8b25a, 1).strokeRect(180, 54, width, 12);
+    this.bossBar.fillStyle(0xb03a2e, 1).fillRect(182, 56, (width - 4) * ratio, 8);
     this.bossLabel.setText(BOSS_NAMES[this.floorData.floor]);
   }
 
