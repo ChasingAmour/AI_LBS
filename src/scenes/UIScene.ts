@@ -5,10 +5,12 @@ import { Panel } from '../ui/panel';
 import { InventoryOverlay } from '../ui/inventoryPanel';
 import { MapPanel } from '../ui/mapPanel';
 import { Minimap } from '../ui/minimap';
+import { AdventurePanel } from '../ui/adventurePanel';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
 import type { EventBus } from '../core/eventBus';
+import { playSfx } from '../systems/audio';
 
 export class UIScene extends Phaser.Scene {
   private hud!: Hud;
@@ -16,6 +18,7 @@ export class UIScene extends Phaser.Scene {
   private inventory!: InventoryOverlay;
   private map!: MapPanel;
   private minimap!: Minimap;
+  private adventure!: AdventurePanel;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
@@ -29,10 +32,15 @@ export class UIScene extends Phaser.Scene {
     this.panel = new Panel(this);
     this.inventory = new InventoryOverlay(this);
     this.map = new MapPanel(this);
+    this.map.onTeleport = (x, y) => {
+      this.map.close();
+      this.game.events.emit('ui:teleport', { x, y });
+    };
     this.minimap = new Minimap(this, () => {
       if (this.panel.isOpen || this.inventory.isOpen || this.map.isOpen) return;
       this.toggleMap();
     });
+    this.adventure = new AdventurePanel(this);
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -50,7 +58,18 @@ export class UIScene extends Phaser.Scene {
       keyboard.on('keydown-C', () => this.withState((state) => this.openCraft(state)));
       keyboard.on('keydown-B', () => this.withState((state) => this.openBuild(state)));
       keyboard.on('keydown-L', () => this.withState((state) => this.openLabor(state)));
-      keyboard.on('keydown-M', () => this.toggleMap());      keyboard.on('keydown-ESC', () => {
+      keyboard.on('keydown-M', () => this.toggleMap());
+      keyboard.on('keydown-R', () => {
+        this.panel.close();
+        this.inventory.close();
+        this.map.close();
+        this.withState((state) => this.adventure.toggle(state));
+      });
+      keyboard.on('keydown-ESC', () => {
+        if (this.adventure.isOpen) {
+          this.adventure.close();
+          return;
+        }
         if (this.map.isOpen) {
           this.map.close();
           return;
@@ -69,6 +88,9 @@ export class UIScene extends Phaser.Scene {
 
     this.game.events.on('ui:banner', this.bannerHandler);
     this.game.events.on('ui:panel', this.panelHandler);
+    this.input.on('pointerdown', () => {
+      if (this.registry.get('uiOpen')) playSfx(this, this.state(), 'click');
+    });
     this.events.once('shutdown', () => {
       this.game.events.off('ui:banner', this.bannerHandler);
       this.game.events.off('ui:panel', this.panelHandler);
@@ -76,7 +98,10 @@ export class UIScene extends Phaser.Scene {
 
     const bus = this.registry.get('bus') as EventBus | undefined;
     if (bus) {
-      this.listen(bus, 'raid:warning', () => this.hud.showBanner('周五 17:00：野人将在 18:00 来袭！'));
+      this.listen(bus, 'raid:warning', () => {
+        playSfx(this, this.state(), 'warning');
+        this.hud.showBanner('周五 17:00：野人将在 18:00 来袭！');
+      });
       this.listen(bus, 'raid:started', () => this.hud.showBanner('野人入侵！击晕后用藤蔓捆绑'));
       this.listen(bus, 'labor:fled', () => this.hud.showBanner('有劳工因断粮逃跑了'));
       this.listen(bus, 'camp:levelUp', (payload) => this.hud.showBanner(`营地升级到 Lv${payload.level}`));
@@ -91,7 +116,10 @@ export class UIScene extends Phaser.Scene {
       this.minimap.setVisible(!this.registry.get('inDungeon'));
       this.minimap.update(state);
     }
-    this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen || this.map.isOpen);
+    this.registry.set(
+      'uiOpen',
+      this.panel.isOpen || this.inventory.isOpen || this.map.isOpen || this.adventure.isOpen,
+    );
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
     const progress = this.registry.get('interactProgress');
@@ -115,24 +143,28 @@ export class UIScene extends Phaser.Scene {
 
   /** M key and minimap click: close other modals, then toggle the map. */
   private toggleMap(): void {
+    playSfx(this, this.state(), 'open');
     this.panel.close();
     this.inventory.close();
     this.withState((state) => this.map.toggle(state));
   }
 
   private openCraft(state: GameState): void {
+    playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
     openCraftPanel(this.panel, state, this.nearStation());
   }
 
   private openBuild(state: GameState): void {
+    playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
     openBuildMenu(this.panel, state, (type) => this.selectBuild(type));
   }
 
   private openLabor(state: GameState): void {
+    playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
     openLaborPanel(this.panel, state);

@@ -30,6 +30,7 @@ import {
   tickNeeds,
 } from '../systems/needsSystem';
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
+import { playSfx } from '../systems/audio';
 import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
   gatherNode,
@@ -74,6 +75,9 @@ export class IslandScene extends Phaser.Scene {
   private island!: IslandData;
   private terrain!: Uint8Array;
   private chunkLayers = new Map<string, Phaser.GameObjects.Image>();
+  private chunkTextures = new Map<string, string[]>();
+  private waterFrame = 0;
+  private nextWaterAt = 0;
   private exploredSet = new Set<string>();
   private lastNodeSync = 0;
   private player!: PlayerEntity;
@@ -102,6 +106,7 @@ export class IslandScene extends Phaser.Scene {
   private accumulator = 0;
   private nextAttackAt = 0;
   private hasteUntil = 0;
+  private lastHp = 100;
   private deathLaunched = false;
 
   constructor() {
@@ -121,6 +126,7 @@ export class IslandScene extends Phaser.Scene {
     this.rng = createRng(this.state.rngState);
     this.deathLaunched = false;
     this.chunkLayers.clear();
+    this.chunkTextures.clear();
     this.exploredSet = decodeExplored(this.state.world.explored);
     this.lastNodeSync = 0;
 
@@ -192,10 +198,25 @@ export class IslandScene extends Phaser.Scene {
     const key = chunkKey(cx, cy);
     if (this.chunkLayers.has(key)) return;
 
-    const textureKey = `chunk-${key}`;
+    const textures: string[] = [];
+    for (let variant = 0; variant < 3; variant++) {
+      textures.push(this.bakeChunkTexture(cx, cy, variant));
+    }
+    const layer = this.add
+      .image(cx * CHUNK_PX, cy * CHUNK_PX, textures[0])
+      .setOrigin(0, 0)
+      .setDepth(DEPTH.world);
+    this.chunkLayers.set(key, layer);
+    this.chunkTextures.set(key, textures);
+  }
+
+  /** Bakes one water-animation variant of a chunk into a canvas texture. */
+  private bakeChunkTexture(cx: number, cy: number, variant: number): string {
+    const key = chunkKey(cx, cy);
+    const textureKey = `chunk-${key}-${variant}`;
     if (this.textures.exists(textureKey)) this.textures.remove(textureKey);
     const canvasTexture = this.textures.createCanvas(textureKey, CHUNK_PX, CHUNK_PX);
-    if (!canvasTexture) return;
+    if (!canvasTexture) return textureKey;
     const ctx = canvasTexture.context;
     ctx.imageSmoothingEnabled = false;
 
@@ -205,6 +226,7 @@ export class IslandScene extends Phaser.Scene {
       battle: this.textures.get('battle').getSourceImage() as CanvasImageSource,
       farm: this.textures.get('farm').getSourceImage() as CanvasImageSource,
     };
+    const water = this.textures.get(`water-${variant}`).getSourceImage() as CanvasImageSource;
     const drawFrame = (texture: string, frame: number, x: number, y: number): void => {
       const source = sources[texture] ?? sources.town;
       const offset = this.textures.get(texture).get(frame);
@@ -229,7 +251,11 @@ export class IslandScene extends Phaser.Scene {
           w: !isWater(this.terrainAt(worldTx - 1, worldTy)),
         };
         const sprite = terrainSprite(tile, neighbors, variantFor(worldTx, worldTy, seed));
-        drawFrame(sprite.texture, sprite.frame, x, y);
+        if (sprite.texture === 'battle') {
+          ctx.drawImage(water, 0, 0, WORLD.tile, WORLD.tile, x, y, WORLD.tile, WORLD.tile);
+        } else {
+          drawFrame(sprite.texture, sprite.frame, x, y);
+        }
         if (sprite.shade) {
           ctx.fillStyle = rgba(sprite.shade.color, sprite.shade.alpha);
           ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
@@ -255,15 +281,19 @@ export class IslandScene extends Phaser.Scene {
     }
 
     canvasTexture.refresh();
-    const layer = this.add
-      .image(cx * CHUNK_PX, cy * CHUNK_PX, textureKey)
-      .setOrigin(0, 0)
-      .setDepth(DEPTH.world);
-    this.chunkLayers.set(key, layer);
+    return textureKey;
   }
 
   /** Bakes at most one chunk per frame, and frees chunks that left the view. */
   private updateChunks(initial = false): void {
+    if (this.time.now >= this.nextWaterAt) {
+      this.nextWaterAt = this.time.now + 450;
+      this.waterFrame = (this.waterFrame + 1) % 3;
+      for (const [key, layer] of this.chunkLayers) {
+        const textures = this.chunkTextures.get(key);
+        if (textures) layer.setTexture(textures[this.waterFrame]);
+      }
+    }
     const view = this.cameras.main.worldView;
     const wanted = visibleChunks(view.x, view.y, view.width, view.height);
     const wantedKeys = new Set(wanted.map((chunk) => chunkKey(chunk.cx, chunk.cy)));
@@ -271,7 +301,10 @@ export class IslandScene extends Phaser.Scene {
     for (const [key, layer] of this.chunkLayers) {
       if (wantedKeys.has(key)) continue;
       layer.destroy();
-      if (this.textures.exists(`chunk-${key}`)) this.textures.remove(`chunk-${key}`);
+      for (const texture of this.chunkTextures.get(key) ?? []) {
+        if (this.textures.exists(texture)) this.textures.remove(texture);
+      }
+      this.chunkTextures.delete(key);
       this.chunkLayers.delete(key);
     }
 
@@ -542,6 +575,20 @@ export class IslandScene extends Phaser.Scene {
 
   private bindGameEvents(): void {
     this.bus.on('save:requested', () => this.persist());
+    const teleport = (payload: { x: number; y: number }): void => {
+      if (this.state.raid?.active) {
+        this.game.events.emit('ui:banner', '野人入侵中，不能传送');
+        return;
+      }
+      this.player.setPosition(payload.x, payload.y);
+      this.cameras.main.centerOn(payload.x, payload.y);
+      this.state.player.x = payload.x;
+      this.state.player.y = payload.y;
+      this.game.events.emit('ui:banner', '已传送');
+      this.persist();
+    };
+    this.game.events.on('ui:teleport', teleport);
+    this.events.once('shutdown', () => this.game.events.off('ui:teleport', teleport));
     this.bus.on('raid:started', () => {
       spawnRaid(this.state);
       this.syncSavages();
@@ -736,10 +783,14 @@ export class IslandScene extends Phaser.Scene {
         this.game.events.emit('ui:banner', '野人眩晕了！靠近按 E 用藤蔓捆绑');
       } else if (result === 'dead') {
         this.game.events.emit('ui:banner', '野人倒下了');
+        playSfx(this, this.state, 'enemy_die');
         if (stats.killHaste) this.hasteUntil = now + 2000;
       }
     }
-    if (hitIds.length > 0) this.damageWeapon();
+    if (hitIds.length > 0) {
+      playSfx(this, this.state, 'hit');
+      this.damageWeapon();
+    }
     this.drawSwing(angle, weapon.pattern.range);
     this.syncSavages();
   }
@@ -748,7 +799,7 @@ export class IslandScene extends Phaser.Scene {
     const equipped = this.state.equipment.weapon
       ? this.state.equipmentInstances.find((i) => i.instanceId === this.state.equipment.weapon)
       : null;
-    if (equipped) return equipped.baseId;
+    if (equipped) return equipped.durability > 0 ? equipped.baseId : null;
     const hot = this.state.hotbar[this.state.hotbarIndex];
     return hot && WEAPONS[hot] ? hot : null;
   }
@@ -759,6 +810,9 @@ export class IslandScene extends Phaser.Scene {
       : null;
     if (equipped) {
       equipped.durability = Math.max(0, equipped.durability - 1);
+      if (equipped.durability === 0) {
+        this.game.events.emit('ui:banner', '武器耐久耗尽，攻击力下降');
+      }
       return;
     }
     const hot = this.state.hotbar[this.state.hotbarIndex];
@@ -897,6 +951,8 @@ export class IslandScene extends Phaser.Scene {
     this.state.player.y = this.player.y;
     advanceTime(this.state, dt, this.bus);
     tickNeeds(this.state, dt);
+    if (this.state.player.hp < this.lastHp - 0.01) playSfx(this, this.state, 'hurt');
+    this.lastHp = this.state.player.hp;
     tickLabor(this.state, dt);
     respawnNodes(this.state);
     for (const savage of this.state.savages) {
@@ -1083,6 +1139,7 @@ export class IslandScene extends Phaser.Scene {
     const result = gatherNode(this.state, target.id, this.rng);
     this.state.rngState = this.rng.state();
     if (result.items.length > 0) {
+      playSfx(this, this.state, node.type === 'tree' ? 'chop' : node.type === 'rock' || node.type === 'clay' ? 'mine' : 'pickup');
       const leftover = collectLoot(this.state, result.items, node.x, node.y);
       const names = result.items
         .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
@@ -1114,6 +1171,7 @@ export class IslandScene extends Phaser.Scene {
       );
       return;
     }
+    playSfx(this, this.state, 'chest');
     const node = this.state.world.nodes[target.id];
     const leftover = collectLoot(this.state, items, node?.x ?? this.player.x, node?.y ?? this.player.y);
     const names = items

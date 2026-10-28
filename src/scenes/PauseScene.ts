@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { exportSave, importSave, saveGame } from '../systems/saveSystem';
+import { playSfx } from '../systems/audio';
 import { makeText } from '../ui/text';
 import { COLORS, TINTS } from '../ui/theme';
 import { drawPanel } from '../ui/widgets/panel';
@@ -27,13 +28,32 @@ export class PauseScene extends Phaser.Scene {
     this.button(152, '保存进度', () => this.save());
     this.button(192, '导出存档', () => this.exportFile());
     this.button(232, '导入存档', () => this.importFile());
+    this.soundButton();
 
     makeText(this, 320, PANEL.y + PANEL.h - 18, 'Esc 继续 · 存档保存在浏览器 localStorage', {
       color: COLORS.muted,
       align: 'center',
     }).setOrigin(0.5, 0.5);
 
+    playSfx(this, this.state(), 'open');
     this.input.keyboard?.on('keydown-ESC', () => this.resumeGame());
+  }
+
+  private soundButton(): void {
+    const state = this.state();
+    const label = (): string => `音效：${state?.settings.muted ? '关' : '开'}（点击切换）`;
+    const text = makeText(this, 320, 266, label(), {
+      color: COLORS.inkSoft,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => {
+      if (!state) return;
+      state.settings.muted = !state.settings.muted;
+      saveGame(state);
+      text.setText(label());
+      playSfx(this, state, 'click');
+    });
   }
 
   private button(centerY: number, label: string, onClick: () => void): void {

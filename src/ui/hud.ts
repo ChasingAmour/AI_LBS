@@ -7,6 +7,7 @@ import { formatClock, formatDay, getInteractPrompt } from './format';
 import { makeText } from './text';
 import { COLORS, TINTS } from './theme';
 import { ensureHudIcons, iconColor, iconTexture, type HudIcon } from './icons';
+import { itemIcon } from './itemIcons';
 import { HUD, barWidth, hotbarSlotRect } from './widgets/layout';
 import { drawPanel } from './widgets/panel';
 import { drawBarTrack } from './widgets/bar';
@@ -25,6 +26,7 @@ interface StatusRow {
 interface HotbarSlot {
   number: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
+  icon: Phaser.GameObjects.Image;
   count: Phaser.GameObjects.Text;
   durability: Phaser.GameObjects.Rectangle;
 }
@@ -198,6 +200,12 @@ export class Hud {
       })
         .setDepth(8002)
         .setScrollFactor(0);
+      const icon = this.scene.add
+        .image(rect.x + rect.size / 2, rect.y + rect.size / 2, 'icon-stick')
+        .setDisplaySize(32, 32)
+        .setDepth(8002)
+        .setScrollFactor(0)
+        .setVisible(false);
       const count = makeText(this.scene, rect.x + rect.size - 3, rect.y + rect.size - 1, '', {
         origin: [1, 1],
         color: COLORS.gold,
@@ -210,7 +218,7 @@ export class Hud {
         .setDepth(8002)
         .setScrollFactor(0)
         .setVisible(false);
-      this.slots.push({ number, label, count, durability });
+      this.slots.push({ number, label, icon, count, durability });
     }
   }
 
@@ -270,7 +278,14 @@ export class Hud {
     const slot = this.slots[index];
     const baseId = state.hotbar[index];
     const name = baseId ? (ITEMS[baseId]?.name ?? baseId) : '';
-    this.setIfChanged(slot.label, name ? name.slice(0, 1) : '');
+    const icon = itemIcon(baseId);
+    if (icon) {
+      slot.icon.setTexture(icon.texture, icon.frame).setVisible(true);
+      this.setIfChanged(slot.label, '');
+    } else {
+      slot.icon.setVisible(false);
+      this.setIfChanged(slot.label, name ? name.slice(0, 1) : '');
+    }
     this.setIfChanged(slot.number, String(index + 1));
 
     const stack = baseId

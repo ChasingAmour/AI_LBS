@@ -24,6 +24,7 @@
 | `public/assets/tiles/farm.png` | [Kenney Tiny Farm](https://kenney.nl/assets/tiny-farm) | 角色、作物、资源节点 |
 | `public/assets/ui/ui-large.png` | [Kenney UI Pack: Pixel Adventure](https://kenney.nl/assets/ui-pack-pixel-adventure) | 面板与进度条 |
 | `public/assets/ui/ui-small.png` | [Kenney UI Pack: Pixel Adventure](https://kenney.nl/assets/ui-pack-pixel-adventure) | 小图标与按钮 |
+| `public/assets/audio/*.ogg` | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) / [Kenney UI Audio](https://kenney.nl/assets/ui-audio) | 13 个短音效（采集、受击、开箱、UI 等） |
 
 岛屿地形、帐篷（棚屋）、棕榈树、HUD 图标等由项目代码程序化绘制，无外部来源。
 

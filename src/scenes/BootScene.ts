@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { createNewGame } from '../core/gameState';
 import { ensurePlayerFrames } from '../entities/playerFrames';
+import { ensureItemIcons } from '../ui/itemIcons';
+import { loadAudio } from '../systems/audio';
+import { ensureWaterFrames } from '../world/waterFrames';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
 
@@ -17,11 +20,14 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('farm', 'assets/tiles/farm.png', frame);
     this.load.spritesheet('ui-large', 'assets/ui/ui-large.png', frame);
     this.load.spritesheet('ui-small', 'assets/ui/ui-small.png', frame);
+    loadAudio(this);
   }
 
   create(): void {
     this.input.mouse?.disableContextMenu();
     ensurePlayerFrames(this);
+    ensureItemIcons(this);
+    ensureWaterFrames(this);
     const errors = validateGameData();
     if (errors.length > 0) {
       console.error('游戏数据校验失败：', errors);

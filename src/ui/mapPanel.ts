@@ -21,6 +21,8 @@ export class MapPanel {
   private root: Phaser.GameObjects.Container;
   private open = false;
   private waypointGfx?: Phaser.GameObjects.Graphics;
+  /** Discovered-landmark click: fast travel. */
+  onTeleport?: (x: number, y: number) => void;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -83,7 +85,7 @@ export class MapPanel {
     this.drawPlayer(state);
     this.drawWaypoint(state);
     this.drawSidebar(state, island, explored);
-    this.drawClickZone(state);
+    this.drawClickZone(state, island);
   }
 
   private drawTerrain(
@@ -239,20 +241,31 @@ export class MapPanel {
     );
   }
 
-  private drawClickZone(state: GameState): void {
+  private drawClickZone(state: GameState, island: IslandData | undefined): void {
     const zone = this.scene.add
       .zone(MAP_RECT.x + MAP_RECT.w / 2, MAP_RECT.y + MAP_RECT.h / 2, MAP_RECT.w, MAP_RECT.h)
       .setInteractive();
     zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown()) {
         state.world.waypoint = null;
-      } else {
-        const point = mapToWorld(pointer.x, pointer.y, MAP_RECT);
-        state.world.waypoint = {
-          x: Phaser.Math.Clamp(point.x, 0, WORLD.widthPx),
-          y: Phaser.Math.Clamp(point.y, 0, WORLD.heightPx),
-        };
+        this.drawWaypoint(state);
+        return;
       }
+      const point = mapToWorld(pointer.x, pointer.y, MAP_RECT);
+      const landmark = island?.landmarks.find(
+        (entry) =>
+          state.world.discovered.includes(entry.id) &&
+          Math.hypot(entry.x - point.x, entry.y - point.y) < 220,
+      );
+      if (landmark && this.onTeleport) {
+        this.onTeleport(landmark.x, landmark.y);
+        this.close();
+        return;
+      }
+      state.world.waypoint = {
+        x: Phaser.Math.Clamp(point.x, 0, WORLD.widthPx),
+        y: Phaser.Math.Clamp(point.y, 0, WORLD.heightPx),
+      };
       this.drawWaypoint(state);
     });
     this.root.add(zone);

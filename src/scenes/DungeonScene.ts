@@ -26,6 +26,7 @@ import {
 } from '../world/dungeonGen';
 import { rollChestLoot } from '../systems/lootSystem';
 import { addItem } from '../systems/inventorySystem';
+import { EQUIPMENT } from '../data/equipment';
 import { deriveStats, damageEquipped, tickBootWear } from '../systems/statsSystem';
 import { applyDamage, tickNeeds } from '../systems/needsSystem';
 import { tickTorchFuel } from '../systems/resourceSystem';
@@ -34,6 +35,7 @@ import { tickLabor, settleLaborRations } from '../systems/laborSystem';
 import { tickWeekReset } from '../systems/dungeonReset';
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
+import { playSfx } from '../systems/audio';
 
 const STEP = 1 / 60;
 const TILE = 16;
@@ -57,6 +59,7 @@ export class DungeonScene extends Phaser.Scene {
   private light!: Phaser.GameObjects.Image;
   private closed = false;
   private bus = new EventBus();
+  private lastHp = 100;
 
   constructor() {
     super('DungeonScene');
@@ -112,6 +115,7 @@ export class DungeonScene extends Phaser.Scene {
     });
     this.bus.on('raid:started', () => {
       this.state.raid = { active: true, day: this.state.time.day };
+      playSfx(this, this.state, 'warning');
       this.game.events.emit('ui:banner', '野人入侵了营地！你在沉船里，黎明结算');
     });
     this.bus.on('raid:dawn', () => {
@@ -336,6 +340,8 @@ export class DungeonScene extends Phaser.Scene {
 
     tickTorchFuel(this.state, dt);
     tickNeeds(this.state, dt);
+    if (this.state.player.hp < this.lastHp - 0.01) playSfx(this, this.state, 'hurt');
+    this.lastHp = this.state.player.hp;
     advanceTime(this.state, dt, this.bus);
     tickLabor(this.state, dt);
 
@@ -417,7 +423,11 @@ export class DungeonScene extends Phaser.Scene {
       const result = damageDungeonEnemy(enemy, weapon.damage + stats.attack, now, stats.armorPierce);
       if (stats.slowOnHit) applySlow(enemy, now);
       if (stats.poisonStacks > 0) applyPoison(enemy, now, stats.poisonStacks);
-      if (result === 'dead') this.game.events.emit('ui:banner', '敌人倒下了');
+      playSfx(this, this.state, 'hit');
+      if (result === 'dead') {
+        playSfx(this, this.state, 'enemy_die');
+        this.game.events.emit('ui:banner', '敌人倒下了');
+      }
     }
     damageEquipped(this.state, 'weapon', 1);
   }
@@ -476,8 +486,10 @@ export class DungeonScene extends Phaser.Scene {
     sprite?.setAlpha(0.35);
     this.game.events.emit(
       'ui:banner',
-      `获得${loot.equipment.rarity === 'legendary' ? '传说' : ''}装备：${loot.equipment.baseId}`,
+      `获得${loot.equipment.rarity === 'legendary' ? '传说' : ''}装备：${EQUIPMENT[loot.equipment.baseId]?.name ?? loot.equipment.baseId}（背包中点击穿戴）`,
     );
+    playSfx(this, this.state, 'chest');
+    if (loot.equipment.rarity === 'legendary') playSfx(this, this.state, 'legendary');
     this.game.events.emit('ui:panel', 'inventory');
     this.save();
   }

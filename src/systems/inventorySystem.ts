@@ -1,6 +1,51 @@
 import type { GameState, ItemStack } from '../core/gameState';
 import { CONFIG } from '../core/config';
-import { ITEMS } from '../data/items';
+import { RARITY } from '../data/equipment';
+import { ITEMS, type ItemKind } from '../data/items';
+
+const KIND_ORDER: Record<ItemKind, number> = {
+  food: 0,
+  material: 1,
+  consumable: 2,
+  tool: 3,
+  weapon: 4,
+};
+
+/** Merges stackable items, orders them by kind/name and sorts gear by rarity. */
+export function sortInventory(state: GameState): void {
+  const stacks = new Map<string, number>();
+  const singles: ItemStack[] = [];
+  for (const item of state.inventory) {
+    if (item.durability !== undefined || !ITEMS[item.baseId]) {
+      singles.push(item);
+      continue;
+    }
+    stacks.set(item.baseId, (stacks.get(item.baseId) ?? 0) + item.count);
+  }
+
+  const merged: ItemStack[] = [];
+  for (const [baseId, total] of stacks) {
+    let left = total;
+    while (left > 0) {
+      const take = Math.min(CONFIG.stackMax, left);
+      merged.push({ baseId, count: take });
+      left -= take;
+    }
+  }
+  merged.push(...singles);
+  merged.sort((a, b) => {
+    const ka = ITEMS[a.baseId]?.kind ?? 'material';
+    const kb = ITEMS[b.baseId]?.kind ?? 'material';
+    const order = (KIND_ORDER[ka] ?? 9) - (KIND_ORDER[kb] ?? 9);
+    if (order !== 0) return order;
+    return (ITEMS[a.baseId]?.name ?? a.baseId).localeCompare(ITEMS[b.baseId]?.name ?? b.baseId);
+  });
+  state.inventory = merged;
+  state.equipmentInstances.sort(
+    (a, b) =>
+      RARITY[b.rarity].tier - RARITY[a.rarity].tier || a.baseId.localeCompare(b.baseId),
+  );
+}
 
 export function addItem(state: GameState, baseId: string, count: number): { added: number; leftover: number } {
   const def = ITEMS[baseId];
