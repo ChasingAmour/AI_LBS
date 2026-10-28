@@ -8,7 +8,7 @@ import { BuildingSprite } from '../entities/building';
 import { LABORER_TEXTURE, LABORER_FRAME } from '../entities/laborer';
 import { SAVAGE_TEXTURE, SAVAGE_FRAME } from '../entities/savage';
 import { LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
-import { bobOffset, lowHealthVignette, nightAlpha } from '../world/lighting';
+import { bobOffset, carriedLight, lowHealthVignette, nightAlpha } from '../world/lighting';
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
 import { CHUNK_PX, CHUNK_TILES, chunkKey, chunkOf, visibleChunks } from '../world/chunks';
@@ -925,9 +925,12 @@ export class IslandScene extends Phaser.Scene {
     const night = nightAlpha(this.state.time.clockMin);
     const isNight = night > 0.02;
     this.nightOverlay.setAlpha(night).setVisible(isNight);
-    this.light.setVisible(isNight);
-    const lightSize = this.torchLightSize();
-    this.light.setDisplaySize(lightSize, lightSize);
+    const carried = carriedLight(this.state.inventory);
+    this.light.setVisible(isNight && carried !== null);
+    if (carried) {
+      this.light.setDisplaySize(carried.radius, carried.radius);
+      this.light.setAlpha(carried.brightness);
+    }
     for (const light of this.buildingLights.values()) light.setVisible(isNight);
     this.vignette.setAlpha(lowHealthVignette(this.state.player.hp));
 
@@ -1070,14 +1073,6 @@ export class IslandScene extends Phaser.Scene {
       target: slow ? { ...target, durationSec: target.durationSec * 2 } : target,
       elapsed: 0,
     };
-  }
-
-  /** Torches widen the night light from 48px to 64px. */
-  private torchLightSize(): number {
-    const lit = this.state.inventory.some(
-      (item) => item.baseId === 'torch' && (item.durability ?? 0) > 0,
-    );
-    return lit ? 64 : 48;
   }
 
   private gatherEnergyCost(nodeType: string): number {    if (nodeType === 'tree') return 5;
