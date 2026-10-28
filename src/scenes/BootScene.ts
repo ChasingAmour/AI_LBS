@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { createNewGame } from '../core/gameState';
+import { ensurePlayerFrames } from '../entities/playerFrames';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
 
@@ -20,6 +21,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.input.mouse?.disableContextMenu();
+    ensurePlayerFrames(this);
     const errors = validateGameData();
     if (errors.length > 0) {
       console.error('游戏数据校验失败：', errors);

@@ -96,6 +96,7 @@ export class IslandScene extends Phaser.Scene {
   private buildGhost?: Phaser.GameObjects.Image;
   private buildMarker?: Phaser.GameObjects.Graphics;
   private buildReason?: Phaser.GameObjects.Text;
+  private slashes: Phaser.GameObjects.Image[] = [];
   private channel: { target: InteractTarget; elapsed: number } | null = null;
   private accumulator = 0;
   private nextAttackAt = 0;
@@ -762,12 +763,23 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private drawSwing(angle: number, range: number): void {
-    const g = this.add.graphics().setDepth(depthFor(this.player.y) + 1);
-    g.lineStyle(2, 0xffe9a8, 0.9);
-    g.beginPath();
-    g.arc(this.player.x, this.player.y - 8, range, angle - 0.6, angle + 0.6);
-    g.strokePath();
-    this.tweens.add({ targets: g, alpha: 0, duration: 160, onComplete: () => g.destroy() });
+    const slash = this.add
+      .image(this.player.x, this.player.y - 8, 'slash')
+      .setRotation(angle)
+      .setDepth(depthFor(this.player.y) + 2)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    const size = Math.max(18, Math.round(range * 2 + 8));
+    slash.setDisplaySize(size, size);
+    this.slashes.push(slash);
+    this.tweens.add({
+      targets: slash,
+      alpha: 0,
+      duration: 160,
+      onComplete: () => {
+        this.slashes = this.slashes.filter((item) => item !== slash);
+        slash.destroy();
+      },
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -812,6 +824,12 @@ export class IslandScene extends Phaser.Scene {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     tickBootWear(this.state, Math.hypot(body.deltaX(), body.deltaY()));
     this.player.setDepth(depthFor(this.player.y));
+    const velocity = this.player.body as Phaser.Physics.Arcade.Body;
+    this.player.setWalking(Math.hypot(velocity.velocity.x, velocity.velocity.y) > 1, this.time.now);
+    for (const slash of this.slashes) {
+      slash.setPosition(this.player.x, this.player.y - 8);
+      slash.setDepth(depthFor(this.player.y) + 2);
+    }
     this.light.setPosition(this.player.x, this.player.y - 8);
     this.light.setDepth(LIGHT_DEPTH);
     this.state.player.x = this.player.x;
