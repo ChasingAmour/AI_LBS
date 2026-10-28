@@ -16,6 +16,17 @@ export interface PlacementCheck {
   reason?: string;
 }
 
+/** Bounding box in world pixels of the camp radius ring, centred on the flag tile. */
+export function campRingBounds(
+  center: { x: number; y: number },
+  radiusTiles: number,
+): { x: number; y: number; w: number; h: number } {
+  const cx = center.x * 16 + 8;
+  const cy = center.y * 16 + 8;
+  const r = radiusTiles * 16;
+  return { x: cx - r, y: cy - r, w: r * 2, h: r * 2 };
+}
+
 /** The camp only exists once the player has planted the flag. */
 export function hasCampFlag(state: GameState): boolean {
   return state.buildings.some((b) => b.type === 'flag');

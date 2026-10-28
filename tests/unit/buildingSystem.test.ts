@@ -3,6 +3,7 @@ import { createNewGame } from '../../src/core/gameState';
 import { addItem, countItem } from '../../src/systems/inventorySystem';
 import {
   BUILDINGS,
+  campRingBounds,
   canPlace,
   damageBuilding,
   demolishBuilding,
@@ -138,5 +139,14 @@ describe('building system', () => {
     placeBuilding(s, 'flag', 100, 100);
     expect(canPlace(s, 'campfire', 108, 100).ok).toBe(true);
     expect(canPlace(s, 'campfire', 120, 100).reason).toBe('超出营地范围');
+  });
+
+  it('范围圈包围盒以旗子格中心为圆心', () => {
+    expect(campRingBounds({ x: 100, y: 100 }, 12)).toEqual({
+      x: 100 * 16 + 8 - 192,
+      y: 100 * 16 + 8 - 192,
+      w: 384,
+      h: 384,
+    });
   });
 });

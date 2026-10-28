@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createNewGame, type GameState } from '../core/gameState';
-import { WORLD } from '../core/config';
+import { CONFIG, WORLD } from '../core/config';
 import { EventBus } from '../core/eventBus';
 import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
@@ -40,7 +40,7 @@ import {
   respawnNodes,
   tickTorchFuel,
 } from '../systems/resourceSystem';
-import { canPlace, placeBuilding } from '../systems/buildingSystem';
+import { BUILDINGS, campRingBounds, canPlace, placeBuilding } from '../systems/buildingSystem';
 import { checkCampUpgrade } from '../systems/campSystem';
 import { captureSavage } from '../systems/captureSystem';
 import { settleLaborRations, tickLabor } from '../systems/laborSystem';
@@ -103,6 +103,7 @@ export class IslandScene extends Phaser.Scene {
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
   private buildGhost?: Phaser.GameObjects.Image;
   private buildMarker?: Phaser.GameObjects.Graphics;
+  private campRing?: Phaser.GameObjects.Graphics;
   private buildReason?: Phaser.GameObjects.Text;
   private slashes: Phaser.GameObjects.Image[] = [];
   private channel: { target: InteractTarget; elapsed: number } | null = null;
@@ -695,6 +696,7 @@ export class IslandScene extends Phaser.Scene {
     if (!this.buildGhost) {
       this.buildGhost = this.add.image(0, 0, spec.texture, spec.frame).setOrigin(0.5, 1).setAlpha(0.65).setDepth(9000);
       this.buildMarker = this.add.graphics().setDepth(9001);
+      this.campRing = this.add.graphics().setDepth(8999);
       this.buildReason = makeText(this, 0, 0, '', {
         origin: [0.5, 1],
         color: '#ff8f8f',
@@ -703,6 +705,7 @@ export class IslandScene extends Phaser.Scene {
         .setDepth(9002)
         .setVisible(false);
     }
+    this.drawCampRing(type);
     const tileX = Math.floor(pointer.worldX / 16);
     const tileY = Math.floor(pointer.worldY / 16);
     this.buildGhost.setTexture(spec.texture, spec.frame).setDisplaySize(spec.w, spec.h);
@@ -747,11 +750,36 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  /** Dashed camp radius ring around the flag, only while placing a building. */
+  private drawCampRing(type: string): void {
+    const ring = this.campRing;
+    if (!ring) return;
+    ring.clear();
+    if (BUILDINGS[type]?.unique) return;
+    const flag = this.state.buildings.find((b) => b.type === 'flag');
+    if (!flag) return;
+    const bounds = campRingBounds({ x: flag.x, y: flag.y }, CONFIG.campRadiusTiles);
+    const cx = bounds.x + bounds.w / 2;
+    const cy = bounds.y + bounds.h / 2;
+    const r = bounds.w / 2;
+    ring.fillStyle(0xd8f7b0, 0.08).fillCircle(cx, cy, r);
+    ring.lineStyle(1, 0xd8f7b0, 0.6);
+    for (let i = 0; i < 48; i += 2) {
+      const from = (i / 48) * Math.PI * 2;
+      const to = ((i + 1) / 48) * Math.PI * 2;
+      ring.beginPath();
+      ring.arc(cx, cy, r, from, to);
+      ring.strokePath();
+    }
+  }
+
   private clearBuildPreview(): void {
     this.buildGhost?.destroy();
     this.buildGhost = undefined;
     this.buildMarker?.destroy();
     this.buildMarker = undefined;
+    this.campRing?.destroy();
+    this.campRing = undefined;
     this.buildReason?.destroy();
     this.buildReason = undefined;
   }
