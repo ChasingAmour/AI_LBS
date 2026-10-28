@@ -4,6 +4,16 @@ import type { TerrainData } from './generate';
 
 export type LandmarkKind = 'camp' | 'wreck' | 'spring' | 'lookout' | 'ruins' | 'cave' | 'oldcamp';
 
+export const LANDMARK_NAMES: Record<LandmarkKind, string> = {
+  camp: '营地',
+  wreck: '破船',
+  spring: '淡水泉',
+  lookout: '瞭望岩',
+  ruins: '石阵',
+  cave: '海蚀洞',
+  oldcamp: '旧营地',
+};
+
 export interface Vec2 {
   x: number;
   y: number;

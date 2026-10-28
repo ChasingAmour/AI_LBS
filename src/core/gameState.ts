@@ -1,4 +1,5 @@
 import type { SavageState } from '../entities/savage';
+import { SAVE_VERSION } from './saveVersion';
 
 export interface ItemStack {
   baseId: string;
@@ -49,7 +50,7 @@ export interface ResourceNodeState {
 }
 
 export interface GameState {
-  version: 1;
+  version: number;
   savedAt: number;
   playtimeSec: number;
   rngState: number;
@@ -77,6 +78,12 @@ export interface GameState {
     seed: number;
     /** FNV-1a checksum of the generated terrain (0 until first generation). */
     hash: number;
+    /** Base64 bitmap of explored 32×32 chunks (see core/explored). */
+    explored: string;
+    /** Landmark ids the player has discovered, for the map panel. */
+    discovered: string[];
+    /** Player-placed map waypoint in world pixels. */
+    waypoint: { x: number; y: number } | null;
     nodeStates: Record<string, ResourceNodeState>;
     nodes: Record<string, { x: number; y: number; type: string }>;
     uniqueLoot: string[];
@@ -100,7 +107,7 @@ export interface GameState {
 export function createNewGame(seed: number = Date.now()): GameState {
   const wreckSpawn = { x: 12 * 16, y: 48 * 16 };
   return {
-    version: 1,
+    version: SAVE_VERSION,
     savedAt: Date.now(),
     playtimeSec: 0,
     rngState: seed,
@@ -124,6 +131,9 @@ export function createNewGame(seed: number = Date.now()): GameState {
     world: {
       seed,
       hash: 0,
+      explored: '',
+      discovered: [],
+      waypoint: null,
       nodeStates: {},
       nodes: {},
       uniqueLoot: [],

@@ -11,13 +11,14 @@ import { LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
 import { bobOffset, lowHealthVignette, nightAlpha } from '../world/lighting';
 import { TILE, terrainSpeedAt } from '../world/terrain';
 import { generateIsland, type IslandData } from '../world/generate';
-import { CHUNK_PX, CHUNK_TILES, chunkKey, visibleChunks } from '../world/chunks';
-import { isWalkableTile, tileAt } from '../world/landmarks';
+import { CHUNK_PX, CHUNK_TILES, chunkKey, chunkOf, visibleChunks } from '../world/chunks';
+import { isWalkableTile, tileAt, LANDMARK_NAMES } from '../world/landmarks';
 import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
 import { buildingSprite, nodeSprite } from '../ui/assets';
+import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
 import { WEAPONS, weaponFor } from '../data/weapons';
 import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
@@ -272,6 +273,18 @@ export class IslandScene extends Phaser.Scene {
     const budget = initial ? missing.length : 1;
     for (const chunk of missing.slice(0, budget)) {
       this.bakeChunk(chunk.cx, chunk.cy);
+    }
+
+    if (this.player) {
+      const tileX = Math.floor(this.player.x / WORLD.tile);
+      const tileY = Math.floor(this.player.y / WORLD.tile);
+      const { cx, cy } = chunkOf(tileX, tileY);
+      const explored = decodeExplored(this.state.world.explored);
+      const key = `${cx},${cy}`;
+      if (!explored.has(key)) {
+        explored.add(key);
+        this.state.world.explored = encodeExplored(explored);
+      }
     }
   }
 
@@ -789,6 +802,7 @@ export class IslandScene extends Phaser.Scene {
       updateSavageAi(this.state, savage, dt);
     }
     tickTorchFuel(this.state, dt);
+    this.discoverLandmarks();
     refreshTutorial(this.state, this.bus);
     checkCampUpgrade(this.state, this.bus);
 
@@ -797,6 +811,16 @@ export class IslandScene extends Phaser.Scene {
       this.scene.pause();
       this.scene.pause('UIScene');
       this.scene.launch('DeathScene');
+    }
+  }
+
+  /** Walking within 120px of a landmark reveals it on the map for good. */
+  private discoverLandmarks(): void {
+    for (const landmark of this.island.landmarks) {
+      if (this.state.world.discovered.includes(landmark.id)) continue;
+      if (Math.hypot(this.player.x - landmark.x, this.player.y - landmark.y) > 120) continue;
+      this.state.world.discovered.push(landmark.id);
+      this.game.events.emit('ui:banner', `发现了${LANDMARK_NAMES[landmark.kind]}`);
     }
   }
 

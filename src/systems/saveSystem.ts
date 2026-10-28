@@ -1,5 +1,9 @@
 import type { GameState } from '../core/gameState';
+import { createNewGame } from '../core/gameState';
+import { SAVE_VERSION } from '../core/saveVersion';
+import { generateIsland } from '../world/generate';
 
+export { SAVE_VERSION };
 export const SAVE_KEY = 'robinson.save.v1';
 export const BACKUP_KEY = 'robinson.save.v1.bak';
 
@@ -35,13 +39,159 @@ function requireObject(value: unknown, name: string): Record<string, unknown> {
   return value;
 }
 
+function optionalNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Rebuilds a far larger world around a v1 save: keeps the character, time,
+ * inventory and camp level, drops world-space data that no longer has a place
+ * (node states) and pulls buildings/labourers within 320px of the new camp.
+ */
+export function migrateV1(old: unknown): GameState {
+  const data = requireObject(old, '存档');
+  if (data.version !== 1) fail('不是 v1 存档');
+
+  const oldWorld = isRecord(data.world) ? data.world : {};
+  const seed = optionalNumber(oldWorld.seed, optionalNumber(data.rngState, Date.now()));
+  const island = generateIsland(seed);
+  const state = createNewGame(seed);
+
+  state.savedAt = optionalNumber(data.savedAt, Date.now());
+  state.playtimeSec = optionalNumber(data.playtimeSec, 0);
+  state.rngState = optionalNumber(data.rngState, seed);
+  state.scene = data.scene === 'dungeon' ? 'dungeon' : 'island';
+  state.dungeonFloor =
+    data.dungeonFloor === 1 || data.dungeonFloor === 2 || data.dungeonFloor === 3
+      ? data.dungeonFloor
+      : null;
+
+  if (isRecord(data.time)) {
+    state.time = {
+      day: Math.max(1, Math.floor(optionalNumber(data.time.day, 1))),
+      clockMin: clampNumber(optionalNumber(data.time.clockMin, 360), 0, 1440),
+      phase: data.time.phase === 'night' ? 'night' : 'day',
+    };
+  }
+
+  if (isRecord(data.player)) {
+    const player = data.player;
+    const facing = player.facing;
+    state.player = {
+      ...state.player,
+      x: island.spawn.x,
+      y: island.spawn.y,
+      hp: clampNumber(optionalNumber(player.hp, 100), 0, 100),
+      hunger: clampNumber(optionalNumber(player.hunger, 100), 0, 100),
+      thirst: clampNumber(optionalNumber(player.thirst, 100), 0, 100),
+      energy: clampNumber(optionalNumber(player.energy, 100), 0, 100),
+      facing:
+        facing === 'up' || facing === 'down' || facing === 'left' || facing === 'right'
+          ? facing
+          : 'down',
+      dead: player.dead === true,
+      healing: null,
+    };
+  }
+
+  if (Array.isArray(data.inventory)) state.inventory = data.inventory as GameState['inventory'];
+  if (Array.isArray(data.hotbar) && data.hotbar.length === 8) {
+    state.hotbar = data.hotbar as GameState['hotbar'];
+  }
+  if (isRecord(data.equipment)) {
+    state.equipment = {
+      weapon: typeof data.equipment.weapon === 'string' ? data.equipment.weapon : null,
+      armor: typeof data.equipment.armor === 'string' ? data.equipment.armor : null,
+      boots: typeof data.equipment.boots === 'string' ? data.equipment.boots : null,
+      };
+  }
+  if (Array.isArray(data.equipmentInstances)) {
+    state.equipmentInstances = data.equipmentInstances as GameState['equipmentInstances'];
+  }
+
+  state.world.hash = island.hash;
+  state.world.seed = seed;
+  state.world.wreckSpawn = { x: island.spawn.x, y: island.spawn.y };
+  state.world.nodeStates = {};
+  state.world.nodes = {};
+  state.world.groundLoot = Array.isArray(oldWorld.groundLoot)
+    ? (oldWorld.groundLoot as GameState['world']['groundLoot'])
+    : [];
+  state.world.uniqueLoot = Array.isArray(oldWorld.uniqueLoot)
+    ? (oldWorld.uniqueLoot as string[])
+    : [];
+
+  const campCenter = {
+    x: Math.floor(island.campCenter.x / 16),
+    y: Math.floor(island.campCenter.y / 16),
+  };
+  const oldCamp = isRecord(data.camp) && isRecord(data.camp.center) ? data.camp.center : null;
+  state.camp = {
+    level: clampNumber(Math.floor(optionalNumber(isRecord(data.camp) ? data.camp.level : 0, 0)), 0, 3) as
+      | 0
+      | 1
+      | 2
+      | 3,
+    center: campCenter,
+  };
+
+  if (Array.isArray(data.buildings)) {
+    for (const raw of data.buildings) {
+      if (!isRecord(raw) || typeof raw.type !== 'string') continue;
+      const oldX = optionalNumber(raw.x, campCenter.x);
+      const oldY = optionalNumber(raw.y, campCenter.y);
+      const relX = clampNumber(oldX - optionalNumber(oldCamp?.x, campCenter.x), -8, 8);
+      const relY = clampNumber(oldY - optionalNumber(oldCamp?.y, campCenter.y), -8, 8);
+      state.buildings.push({
+        ...(raw as unknown as GameState['buildings'][number]),
+        id: typeof raw.id === 'string' ? raw.id : `migrated_building_${state.buildings.length}`,
+        x: campCenter.x + Math.round(relX),
+        y: campCenter.y + Math.round(relY),
+        hp: clampNumber(optionalNumber(raw.hp, 100), 0, 1000),
+      });
+    }
+  }
+
+  if (Array.isArray(data.laborers)) {
+    const campPx = { x: campCenter.x * 16 + 8, y: campCenter.y * 16 + 16 };
+    for (const raw of data.laborers) {
+      if (!isRecord(raw)) continue;
+      const relX = clampNumber(optionalNumber(raw.x, campPx.x) - campPx.x, -320, 320);
+      const relY = clampNumber(optionalNumber(raw.y, campPx.y) - campPx.y, -320, 320);
+      state.laborers.push({
+        ...(raw as unknown as GameState['laborers'][number]),
+        id: typeof raw.id === 'string' ? raw.id : `migrated_laborer_${state.laborers.length}`,
+        x: campPx.x + relX,
+        y: campPx.y + relY,
+      });
+    }
+  }
+
+  if (isRecord(data.dungeon)) {
+    state.dungeon = {
+      ...state.dungeon,
+      ...(data.dungeon as unknown as GameState['dungeon']),
+    };
+  }
+  if (isRecord(data.flags)) {
+    state.flags = { ...state.flags, ...(data.flags as unknown as GameState['flags']) };
+  }
+
+  return state;
+}
+
 export function serializeSave(state: GameState): string {
   return JSON.stringify(state);
 }
 
 export function validateSave(data: unknown): GameState {
   if (!isRecord(data)) fail('存档不是对象');
-  if (data.version !== 1) fail('存档版本不兼容');
+  if (data.version === 1) return migrateV1(data);
+  if (data.version !== SAVE_VERSION) fail('存档版本不兼容');
 
   requireNumber(data.savedAt, 'savedAt', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(data.playtimeSec, 'playtimeSec', 0, Number.MAX_SAFE_INTEGER);
@@ -82,6 +232,11 @@ export function validateSave(data: unknown): GameState {
   }
 
   const world = requireObject(data.world, 'world');
+  requireNumber(world.seed, 'world.seed', 0, Number.MAX_SAFE_INTEGER);
+  requireNumber(world.hash, 'world.hash', 0, Number.MAX_SAFE_INTEGER);
+  if (typeof world.explored !== 'string') fail('world.explored 必须是字符串');
+  requireArray(world.discovered, 'world.discovered');
+  if (world.waypoint !== null) requireObject(world.waypoint, 'world.waypoint');
   requireObject(world.nodeStates, 'world.nodeStates');
   requireObject(world.nodes, 'world.nodes');
   requireArray(world.uniqueLoot, 'world.uniqueLoot');
