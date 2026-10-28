@@ -118,6 +118,44 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x6b4420).fillRect(4, 10, 8, 3);
     g.fillStyle(0xc9a24a).fillRect(4, 6, 4, 1);
   });
+  make('icon-raw_meat', () => {
+    g.fillStyle(0xb04a3a).fillEllipse(8, 9, 11, 8);
+    g.fillStyle(0xd86a52).fillEllipse(7, 7, 7, 4);
+    g.fillStyle(0xf0e6d2).fillRect(11, 10, 4, 2);
+    g.fillStyle(0xf7f1e3).fillCircle(14, 11, 2);
+  });
+  make('icon-cooked_meat', () => {
+    g.fillStyle(0x8a4a24).fillEllipse(8, 9, 11, 8);
+    g.fillStyle(0xb8783a).fillEllipse(7, 7, 7, 4);
+    g.fillStyle(0x5a2e14).fillRect(4, 7, 8, 1).fillRect(4, 10, 8, 1);
+  });
+  make('icon-dried_meat', () => {
+    g.fillStyle(0x7a3a1e).fillRect(3, 5, 10, 3);
+    g.fillStyle(0x9a5a2e).fillRect(3, 9, 10, 3);
+    g.fillStyle(0x4a2410).fillRect(5, 6, 1, 5).fillRect(9, 6, 1, 5);
+  });
+  make('icon-copper_ore', () => {
+    g.fillStyle(0x8a8378).fillTriangle(8, 2, 2, 12, 14, 12);
+    g.fillStyle(0xc9793a).fillRect(6, 7, 2, 2).fillRect(9, 9, 2, 2);
+  });
+  make('icon-iron_ore', () => {
+    g.fillStyle(0x7d8188).fillTriangle(8, 2, 2, 12, 14, 12);
+    g.fillStyle(0xb9c2cc).fillRect(6, 7, 2, 2).fillRect(9, 9, 2, 2);
+  });
+  make('icon-coal', () => {
+    g.fillStyle(0x5c5a56).fillTriangle(8, 2, 2, 12, 14, 12);
+    g.fillStyle(0x24231f).fillRect(6, 7, 2, 2).fillRect(9, 9, 2, 2);
+  });
+  make('icon-copper_ingot', () => {
+    g.fillStyle(0xb87333).fillRect(3, 7, 10, 5);
+    g.fillStyle(0xd9975a).fillRect(4, 6, 8, 2);
+    g.fillStyle(0x8a4f1e).fillRect(3, 11, 10, 1);
+  });
+  make('icon-iron_ingot', () => {
+    g.fillStyle(0x8a97a8).fillRect(3, 7, 10, 5);
+    g.fillStyle(0xc9d4e0).fillRect(4, 6, 8, 2);
+    g.fillStyle(0x6a7480).fillRect(3, 11, 10, 1);
+  });
 
   for (const base of Object.values(EQUIPMENT)) {
     if (base.slot === 'weapon') {
