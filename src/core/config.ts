@@ -3,7 +3,6 @@ export const GAME_CONFIG = {
   parent: 'app',
   width: 640,
   height: 360,
-  zoom: 2,
   pixelArt: true,
   roundPixels: true,
   backgroundColor: '#101418',
