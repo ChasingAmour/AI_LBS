@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildingSprite, nodeSprite } from '../../src/ui/assets';
+import { animalSprite, buildingSprite, nodeSprite } from '../../src/ui/assets';
 
 describe('sprite mapping', () => {
   it('maps every resource node type', () => {
@@ -15,5 +15,12 @@ describe('sprite mapping', () => {
 
   it('falls back to a visible placeholder texture', () => {
     expect(nodeSprite('unknown', false).texture).toBe('farm');
+  });
+
+  it('每种动物都有精灵帧', () => {
+    for (const id of ['chicken', 'rabbit', 'boar']) {
+      expect(animalSprite(id).texture).toBeTruthy();
+    }
+    expect(animalSprite('chicken')).not.toEqual(animalSprite('boar'));
   });
 });

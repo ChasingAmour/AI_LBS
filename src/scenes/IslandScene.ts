@@ -17,10 +17,18 @@ import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
 import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
-import { buildingSprite, nodeSprite } from '../ui/assets';
+import { buildingSprite, animalSprite, nodeSprite } from '../ui/assets';
 import { makeText } from '../ui/text';
 import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
+import { ANIMALS, ANIMAL_SPAWN } from '../data/animals';
+import {
+  applyHitToAnimal,
+  pruneAnimals,
+  spawnAnimals,
+  updateAnimalAi,
+  type AnimalWorld,
+} from '../systems/animalSystem';
 import { WEAPONS, weaponFor } from '../data/weapons';
 import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
 import {
@@ -100,6 +108,9 @@ export class IslandScene extends Phaser.Scene {
   >();
   private buildingSprites = new Map<string, BuildingSprite>();
   private savageSprites = new Map<string, Phaser.GameObjects.Image>();
+  private animalSprites = new Map<string, Phaser.GameObjects.Image>();
+  private animalDeadAt = new Map<string, number>();
+  private animalRefillAt = 0;
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
   private buildGhost?: Phaser.GameObjects.Image;
   private buildMarker?: Phaser.GameObjects.Graphics;
@@ -156,6 +167,15 @@ export class IslandScene extends Phaser.Scene {
     this.syncBuildings();
     this.syncSavages();
     this.syncLaborers();
+    this.syncAnimals();
+    if (
+      this.state.animals.length === 0 &&
+      this.state.time.clockMin >= 360 &&
+      this.state.time.clockMin < 1200
+    ) {
+      spawnAnimals(this.state, this.animalWorld(), this.rng);
+      this.syncAnimals();
+    }
     this.createNightLayer();
     this.bindInput();
     this.bindGameEvents();
@@ -344,6 +364,9 @@ export class IslandScene extends Phaser.Scene {
     g.clear();
 
     this.drawFlag(g);
+    g.clear();
+
+    this.drawAnimals(g);
     g.destroy();
 
     const canvas = this.textures.createCanvas('light', 256, 256);
@@ -368,6 +391,40 @@ export class IslandScene extends Phaser.Scene {
       ctx.fillRect(0, 0, 320, 180);
       vignette.refresh();
     }
+  }
+
+  /** Three 16×16 wildlife sprites drawn in code: fowl, hare and boar. */
+  private drawAnimals(g: Phaser.GameObjects.Graphics): void {
+    // chicken
+    g.fillStyle(0xf2e6c8).fillRect(6, 8, 6, 6);
+    g.fillStyle(0xe0d0aa).fillRect(6, 12, 6, 2);
+    g.fillStyle(0xf7f0dc).fillRect(10, 5, 3, 4);
+    g.fillStyle(0xd8452f).fillRect(12, 5, 2, 2);
+    g.fillStyle(0x3a2a18).fillRect(11, 6, 1, 1);
+    g.fillStyle(0xc9a227).fillRect(8, 14, 1, 2);
+    g.fillRect(10, 14, 1, 2);
+    g.generateTexture('animal-chicken', 16, 16);
+    g.clear();
+
+    // rabbit
+    g.fillStyle(0xb9b3a8).fillRect(5, 10, 7, 5);
+    g.fillStyle(0xd6d0c4).fillRect(6, 8, 4, 3);
+    g.fillStyle(0xd6d0c4).fillRect(6, 3, 2, 6);
+    g.fillRect(9, 4, 2, 5);
+    g.fillStyle(0x3a2a18).fillRect(10, 8, 1, 1);
+    g.fillStyle(0xf0ece0).fillRect(4, 12, 2, 2);
+    g.generateTexture('animal-rabbit', 16, 16);
+    g.clear();
+
+    // boar
+    g.fillStyle(0x5c4030).fillRect(3, 7, 10, 7);
+    g.fillStyle(0x6f4e3a).fillRect(4, 5, 7, 4);
+    g.fillStyle(0x3d2a1e).fillRect(11, 8, 4, 4);
+    g.fillStyle(0xf0e0c0).fillRect(13, 9, 1, 1);
+    g.fillStyle(0x2b1d14).fillRect(4, 14, 2, 2);
+    g.fillRect(9, 14, 2, 2);
+    g.fillStyle(0xe8dcc0).fillRect(15, 9, 1, 2);
+    g.generateTexture('animal-boar', 16, 16);
   }
 
   /** 12×20 camp flag: wooden pole with a red pennant. */
@@ -505,8 +562,46 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private syncSavages(): void {
-    const ids = new Set(this.state.savages.map((s) => s.id));
+  private syncAnimals(): void {
+    const ids = new Set(this.state.animals.map((a) => a.id));
+    for (const [id, sprite] of this.animalSprites) {
+      if (!ids.has(id)) {
+        sprite.destroy();
+        this.animalSprites.delete(id);
+      }
+    }
+    const bob = bobOffset(this.time.now);
+    for (const animal of this.state.animals) {
+      if (animal.mode === 'dead') {
+        const since = this.animalDeadAt.get(animal.id);
+        if (since === undefined) this.animalDeadAt.set(animal.id, this.time.now);
+        else if (this.time.now - since > 1200) {
+          this.state.animals = this.state.animals.filter((entry) => entry.id !== animal.id);
+          this.animalDeadAt.delete(animal.id);
+          continue;
+        }
+      }
+      let sprite = this.animalSprites.get(animal.id);
+      if (!sprite) {
+        sprite = this.add
+          .image(animal.x, animal.y, animalSprite(animal.type).texture)
+          .setOrigin(0.5, 1);
+        this.animalSprites.set(animal.id, sprite);
+      }
+      sprite.setPosition(animal.x, animal.y - (animal.mode === 'dead' ? 0 : bob));
+      sprite.setDepth(depthFor(animal.y));
+      sprite.setAlpha(animal.mode === 'dead' ? 0.35 : 1);
+      sprite.setFlipX(animal.x < this.state.player.x);
+      if (animal.mode === 'retaliate') sprite.setTint(0xffb4a0);
+      else sprite.clearTint();
+    }
+  }
+
+  private animalWorld(): AnimalWorld {
+    return { tileAt: (tx, ty) => this.terrainAt(tx, ty) };
+  }
+
+  private syncSavages(): void {    const ids = new Set(this.state.savages.map((s) => s.id));
     for (const [id, sprite] of this.savageSprites) {
       if (!ids.has(id)) {
         sprite.destroy();
@@ -816,15 +911,33 @@ export class IslandScene extends Phaser.Scene {
     this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
 
     const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
-    const targets = this.state.savages
-      .filter((savage) => savage.mode !== 'dead')
-      .map((savage) => ({ id: savage.id, x: savage.x, y: savage.y }));
+    const targets = [
+      ...this.state.savages
+        .filter((savage) => savage.mode !== 'dead')
+        .map((savage) => ({ id: savage.id, x: savage.x, y: savage.y })),
+      ...this.state.animals
+        .filter((animal) => animal.mode !== 'dead')
+        .map((animal) => ({ id: animal.id, x: animal.x, y: animal.y })),
+    ];
     const hitIds = computeHitTargets(
       { x: this.player.x, y: this.player.y, angle },
       weapon.pattern,
       targets,
     );
     for (const id of hitIds) {
+      const animal = this.state.animals.find((entry) => entry.id === id);
+      if (animal) {
+        const result = applyHitToAnimal(this.state, animal, weapon, this.rng, {
+          attack: stats.attack,
+          savageMul: stats.savageMul,
+        });
+        if (result === 'dead') {
+          this.game.events.emit('ui:banner', `猎到了${ANIMALS[animal.type]?.name ?? '野兽'}`);
+          playSfx(this, this.state, 'enemy_die');
+          if (stats.killHaste) this.hasteUntil = now + 2000;
+        }
+        continue;
+      }
       const savage = this.state.savages.find((entry) => entry.id === id);
       if (!savage) continue;
       const result = applyHitToSavage(savage, weapon, 0, {
@@ -848,6 +961,7 @@ export class IslandScene extends Phaser.Scene {
     }
     this.drawSwing(angle, weapon.pattern.range);
     this.syncSavages();
+    this.syncAnimals();
   }
 
   private selectedWeaponBaseId(): string | null {
@@ -969,6 +1083,15 @@ export class IslandScene extends Phaser.Scene {
     this.syncSavages();
     this.syncLaborers();
     this.syncBuildings();
+    for (const animal of this.state.animals) {
+      updateAnimalAi(this.state, animal, dt, this.animalWorld());
+    }
+    pruneAnimals(this.state, this.state.time.clockMin);
+    if (this.time.now >= this.animalRefillAt) {
+      this.animalRefillAt = this.time.now + ANIMAL_SPAWN.refillSec * 1000;
+      spawnAnimals(this.state, this.animalWorld(), this.rng);
+    }
+    this.syncAnimals();
     if (this.time.now - this.lastNodeSync >= 250) {
       this.lastNodeSync = this.time.now;
       this.syncNodes();
