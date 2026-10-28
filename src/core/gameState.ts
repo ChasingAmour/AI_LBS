@@ -57,6 +57,8 @@ export interface GameState {
     thirst: number;
     energy: number;
     facing: 'up' | 'down' | 'left' | 'right';
+    dead?: boolean;
+    healing?: { timeLeft: number; perSecond: number } | null;
   };
   inventory: ItemStack[];
   hotbar: (string | null)[];
