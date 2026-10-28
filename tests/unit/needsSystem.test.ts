@@ -108,6 +108,17 @@ describe('needs system', () => {
     expect(s.player.dead).toBe(true);
   });
 
+  it('死在沉船里会在营地重生并退出副本状态', () => {
+    const s = createNewGame(1);
+    s.scene = 'dungeon';
+    s.dungeonFloor = 2;
+    s.buildings.push({ id: 'tent', type: 'tent', x: 100, y: 200, hp: 80 });
+    respawnAfterDeath(s, new EventBus());
+    expect(s.scene).toBe('island');
+    expect(s.dungeonFloor).toBeNull();
+    expect(s.player.x).toBe(100 * 16 + 8);
+  });
+
   it('consumeFood 按物品数据生效', () => {
     const s = createNewGame(1);
     s.inventory = [{ baseId: 'cooked_meat', count: 1 }];

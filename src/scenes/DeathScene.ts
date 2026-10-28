@@ -69,6 +69,7 @@ export class DeathScene extends Phaser.Scene {
       }
     }
     this.scene.stop('UIScene');
+    this.registry.set('inDungeon', false);
     this.scene.start('IslandScene');
   }
 }

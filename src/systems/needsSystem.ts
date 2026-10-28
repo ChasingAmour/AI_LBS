@@ -91,6 +91,9 @@ export function applySleepRecovery(state: GameState): void {
 export function respawnAfterDeath(state: GameState, bus: EventBus): void {
   state.inventory = [];
   state.hotbar = state.hotbar.map(() => null);
+  // Death always returns the player to the island, even when it happens in the wreck.
+  state.scene = 'island';
+  state.dungeonFloor = null;
   const p = state.player;
   p.hp = 50;
   p.hunger = 50;
