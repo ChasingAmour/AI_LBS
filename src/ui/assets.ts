@@ -62,6 +62,7 @@ const ANIMAL_SPRITES: Record<string, { texture: string }> = {
   chicken: { texture: 'animal-chicken' },
   rabbit: { texture: 'animal-rabbit' },
   boar: { texture: 'animal-boar' },
+  fish: { texture: 'animal-fish' },
 };
 
 export function animalSprite(type: string): { texture: string } {

@@ -8,8 +8,8 @@ describe('game data integrity', () => {
     expect(validateGameData()).toEqual([]);
   });
 
-  it('三种动物的数值与掉落合法', () => {
-    expect(Object.keys(ANIMALS).sort()).toEqual(['boar', 'chicken', 'rabbit']);
+  it('动物数值与掉落合法', () => {
+    expect(Object.keys(ANIMALS).sort()).toEqual(['boar', 'chicken', 'fish', 'rabbit']);
     for (const def of Object.values(ANIMALS)) {
       expect(def.hp).toBeGreaterThan(0);
       expect(def.habitat.length).toBeGreaterThan(0);
@@ -17,5 +17,7 @@ describe('game data integrity', () => {
     }
     expect(ANIMALS.boar.size).toBe('large');
     expect(ANIMALS.chicken.size).toBe('small');
+    expect(ANIMALS.fish.aquatic).toBe(true);
+    expect(ANIMALS.fish.flees).toBe(true);
   });
 });

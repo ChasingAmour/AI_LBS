@@ -72,6 +72,7 @@ export function tickDungeonEnemy(
   player: { x: number; y: number },
   dtSec: number,
   now: number,
+  walkable?: (tileX: number, tileY: number) => boolean,
 ): void {
   if (enemy.dead) return;
 
@@ -99,8 +100,18 @@ export function tickDungeonEnemy(
 
   const dir = now < enemy.retreatUntil ? -1 : 1;
   const speed = enemySpeed(enemy, now);
-  enemy.x += (dx / distance) * speed * dir * dtSec;
-  enemy.y += (dy / distance) * speed * dir * dtSec;
+  const nx = enemy.x + (dx / distance) * speed * dir * dtSec;
+  const ny = enemy.y + (dy / distance) * speed * dir * dtSec;
+  const free = (x: number, y: number): boolean =>
+    !walkable || walkable(Math.floor(x / 16), Math.floor(y / 16));
+  if (free(nx, ny)) {
+    enemy.x = nx;
+    enemy.y = ny;
+  } else if (free(nx, enemy.y)) {
+    enemy.x = nx;
+  } else if (free(enemy.x, ny)) {
+    enemy.y = ny;
+  }
 }
 
 export function enemyAttack(enemy: DungeonEnemy, distance: number): number {

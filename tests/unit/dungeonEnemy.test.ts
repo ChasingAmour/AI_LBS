@@ -63,4 +63,13 @@ describe('dungeon enemies', () => {
     for (let i = 0; i < 10; i++) tickDungeonEnemy(enemy, player, 0.1, 1 + i * 0.1);
     expect(enemyAttack(enemy, 10)).toBeGreaterThan(0);
   });
+
+  it('怪物不会穿墙', () => {
+    const enemy = createDungeonEnemy('crab', 40, 40, 'e1');
+    const player = { x: 200, y: 40 };
+    // wall column at tile x = 3 (pixels 48..64)
+    const walkable = (tx: number) => tx !== 3;
+    for (let i = 0; i < 120; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1, walkable);
+    expect(enemy.x).toBeLessThan(48);
+  });
 });

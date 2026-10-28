@@ -20,22 +20,24 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
-function pickSpecies(size: 'small' | 'large', roll: number): string {
-  const ids = Object.keys(ANIMALS).filter((id) => ANIMALS[id].size === size);
+function pickSpecies(kind: 'small' | 'large' | 'fish', roll: number): string {
+  const ids = Object.keys(ANIMALS).filter((id) =>
+    kind === 'fish' ? ANIMALS[id].aquatic === true : ANIMALS[id].size === kind && !ANIMALS[id].aquatic,
+  );
   return ids[Math.min(ids.length - 1, Math.floor(roll * ids.length))];
 }
 
 /** Slot-stable spawn point: same day, slot and seed always give the same spot. */
 function slotSpawn(
   state: GameState,
-  size: 'small' | 'large',
+  kind: 'small' | 'large' | 'fish',
   slot: number,
 ): { id: string; species: string; x: number; y: number } {
   const seed = state.world.seed;
   const day = state.time.day;
   const angle = hash2D(day, slot, seed + 1201) * Math.PI * 2;
   const spread = ANIMAL_SPAWN.minDist + hash2D(day, slot, seed + 1202) * (ANIMAL_SPAWN.maxDist - ANIMAL_SPAWN.minDist);
-  const species = pickSpecies(size, hash2D(day, slot, seed + 1203));
+  const species = pickSpecies(kind, hash2D(day, slot, seed + 1203));
   return {
     id: `animal_${species}_${day}_s${slot}`,
     species,
@@ -52,14 +54,15 @@ export function spawnAnimals(state: GameState, world: AnimalWorld, rng: Rng): An
   // Yesterday's wildlife leaves at dawn instead of piling up.
   state.animals = state.animals.filter((animal) => animal.id.includes(dayTag));
   const occupied = new Set(state.animals.map((a) => a.id));
-  const groups: Array<{ size: 'small' | 'large'; cap: number; offset: number }> = [
-    { size: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0 },
-    { size: 'large', cap: ANIMAL_SPAWN.largeCap, offset: 100 },
+  const groups: Array<{ kind: 'small' | 'large' | 'fish'; cap: number; offset: number }> = [
+    { kind: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0 },
+    { kind: 'large', cap: ANIMAL_SPAWN.largeCap, offset: 100 },
+    { kind: 'fish', cap: ANIMAL_SPAWN.fishCap, offset: 200 },
   ];
   for (const group of groups) {
     for (let i = 0; i < group.cap; i++) {
       const slot = group.offset + i;
-      const spot = slotSpawn(state, group.size, slot);
+      const spot = slotSpawn(state, group.kind, slot);
       if (occupied.has(spot.id)) continue;
       const def = ANIMALS[spot.species];
       if (!def.habitat.includes(world.tileAt(Math.floor(spot.x / TILE), Math.floor(spot.y / TILE)))) {
@@ -160,7 +163,14 @@ export function applyHitToAnimal(
   const raw = (weapon.damage + (mods.attack ?? 0)) * (mods.savageMul ?? 1);
   animal.hp -= Math.max(1, Math.round(raw));
   animal.disengageTimer = 0;
-  animal.mode = 'retaliate';
+  if (def?.flees) {
+    // Fish dart away from the player instead of fighting back.
+    animal.mode = 'wander';
+    animal.wanderDir = Math.atan2(animal.y - state.player.y, animal.x - state.player.x);
+    animal.wanderTimer = 4;
+  } else {
+    animal.mode = 'retaliate';
+  }
   if (animal.hp > 0) return 'hit';
 
   animal.hp = 0;

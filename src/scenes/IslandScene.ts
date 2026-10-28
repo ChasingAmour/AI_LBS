@@ -449,6 +449,15 @@ export class IslandScene extends Phaser.Scene {
     g.fillRect(9, 14, 2, 2);
     g.fillStyle(0xe8dcc0).fillRect(15, 9, 1, 2);
     g.generateTexture('animal-boar', 16, 16);
+    g.clear();
+
+    // fish
+    g.fillStyle(0x3f7f9a).fillEllipse(6, 4, 9, 5);
+    g.fillStyle(0x5fa8bf).fillEllipse(6, 3, 7, 3);
+    g.fillStyle(0x3f7f9a).fillTriangle(1, 4, 1, 8, 4, 4);
+    g.fillStyle(0xf0f0e0).fillRect(8, 3, 1, 1);
+    g.fillStyle(0x2b2118).fillRect(9, 3, 1, 1);
+    g.generateTexture('animal-fish', 12, 8);
   }
 
   /** 64×40 beached shipwreck: broken hull, ribs, snapped mast and torn sail. */

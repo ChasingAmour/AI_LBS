@@ -93,7 +93,7 @@ export function validateGameData(): string[] {
 
   for (const animal of Object.values(ANIMALS)) {
     if (animal.hp <= 0) errors.push(`动物 ${animal.id} 的生命无效`);
-    if (animal.damage <= 0) errors.push(`动物 ${animal.id} 的伤害无效`);
+    if (animal.damage < 0) errors.push(`动物 ${animal.id} 的伤害无效`);
     if (animal.attackCooldownSec <= 0) errors.push(`动物 ${animal.id} 的攻击间隔无效`);
     if (animal.habitat.length === 0) errors.push(`动物 ${animal.id} 没有栖息地`);
     for (const tile of animal.habitat) {

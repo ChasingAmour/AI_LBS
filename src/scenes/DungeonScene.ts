@@ -396,7 +396,13 @@ export class DungeonScene extends Phaser.Scene {
     for (const view of this.enemies) {
       const enemy = view.state;
       if (enemy.dead) continue;
-      tickDungeonEnemy(enemy, { x: this.player.x, y: this.player.y }, dt, this.time.now / 1000);
+      tickDungeonEnemy(
+        enemy,
+        { x: this.player.x, y: this.player.y },
+        dt,
+        this.time.now / 1000,
+        (tx, ty) => isDungeonWalkable(this.tileAtWorld(tx * TILE + 8, ty * TILE + 8)),
+      );
       tickPoison(enemy, this.time.now / 1000, dt);
       view.sprite.setPosition(enemy.x, enemy.y).setDepth(depthFor(enemy.y));
       view.sprite.setAlpha(enemy.dead ? 0.25 : 1);

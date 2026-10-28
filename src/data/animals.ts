@@ -20,6 +20,10 @@ export interface AnimalDef {
   drops: DropDef[];
   /** tile ids this species spawns on */
   habitat: number[];
+  /** lives in water instead of land */
+  aquatic?: boolean;
+  /** swims away when hit instead of fighting back */
+  flees?: boolean;
 }
 
 export const ANIMALS: Record<string, AnimalDef> = {
@@ -65,12 +69,29 @@ export const ANIMALS: Record<string, AnimalDef> = {
     drops: [{ baseId: 'raw_meat', min: 3, max: 4 }],
     habitat: [TILE.forest, TILE.rock],
   },
+  fish: {
+    id: 'fish',
+    name: '海鱼',
+    size: 'small',
+    hp: 6,
+    damage: 0,
+    attackCooldownSec: 2,
+    wanderSpeed: 22,
+    chaseSpeed: 48,
+    leashRange: 200,
+    disengageSec: 3,
+    drops: [{ baseId: 'raw_fish', min: 1, max: 1 }],
+    habitat: [TILE.shallowWater, TILE.stream, TILE.deepWater],
+    aquatic: true,
+    flees: true,
+  },
 };
 
 /** Population caps and spawn ring around the player, in world pixels. */
 export const ANIMAL_SPAWN = {
   smallCap: 6,
   largeCap: 3,
+  fishCap: 6,
   minDist: 200,
   maxDist: 500,
   despawnDist: 900,

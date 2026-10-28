@@ -59,7 +59,28 @@ describe('动物生成', () => {
     const state = createNewGame(11);
     const waterWorld = { tileAt: () => TILE.deepWater };
     spawnAnimals(state, waterWorld, createRng(11));
-    expect(state.animals).toEqual([]);
+    expect(state.animals.length).toBe(ANIMAL_SPAWN.fishCap);
+    expect(state.animals.every((a) => a.type === 'fish')).toBe(true);
+  });
+
+  it('陆地不会刷鱼', () => {
+    const state = createNewGame(12);
+    spawnAnimals(state, forestWorld, createRng(12));
+    expect(state.animals.some((a) => a.type === 'fish')).toBe(false);
+  });
+
+  it('打鱼它会游走而不是反击', () => {
+    const state = createNewGame(13);
+    const waterWorld = { tileAt: () => TILE.shallowWater };
+    spawnAnimals(state, waterWorld, createRng(13));
+    const fish = state.animals.find((a) => a.type === 'fish')!;
+    fish.x = state.player.x + 20;
+    fish.y = state.player.y;
+    applyHitToAnimal(state, fish, WEAPONS.fist, createRng(3));
+    expect(fish.mode).toBe('wander');
+    const before = Math.hypot(fish.x - state.player.x, fish.y - state.player.y);
+    for (let i = 0; i < 20; i++) updateAnimalAi(state, fish, 0.1, waterWorld);
+    expect(Math.hypot(fish.x - state.player.x, fish.y - state.player.y)).toBeGreaterThan(before);
   });
 });
 
