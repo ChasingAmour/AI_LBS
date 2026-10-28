@@ -46,6 +46,15 @@ describe('动物生成', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('换天后不会累积昨天的动物', () => {
+    const state = createNewGame(31);
+    spawnAnimals(state, forestWorld, createRng(31));
+    expect(state.animals.length).toBe(ANIMAL_SPAWN.smallCap + ANIMAL_SPAWN.largeCap);
+    state.time.day = 2;
+    spawnAnimals(state, forestWorld, createRng(32));
+    expect(state.animals.length).toBe(ANIMAL_SPAWN.smallCap + ANIMAL_SPAWN.largeCap);
+  });
+
   it('只落在栖息地上', () => {
     const state = createNewGame(11);
     const waterWorld = { tileAt: () => TILE.deepWater };

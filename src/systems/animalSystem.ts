@@ -48,6 +48,9 @@ function slotSpawn(
 export function spawnAnimals(state: GameState, world: AnimalWorld, rng: Rng): AnimalState[] {
   void rng;
   const spawned: AnimalState[] = [];
+  const dayTag = `_${state.time.day}_s`;
+  // Yesterday's wildlife leaves at dawn instead of piling up.
+  state.animals = state.animals.filter((animal) => animal.id.includes(dayTag));
   const occupied = new Set(state.animals.map((a) => a.id));
   const groups: Array<{ size: 'small' | 'large'; cap: number; offset: number }> = [
     { size: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0 },
