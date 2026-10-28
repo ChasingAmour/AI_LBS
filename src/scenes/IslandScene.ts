@@ -27,6 +27,7 @@ import {
   applySleepRecovery,
   drinkFreshWater,
   spendEnergy,
+  tickEnergyRegen,
   tickNeeds,
 } from '../systems/needsSystem';
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
@@ -880,6 +881,9 @@ export class IslandScene extends Phaser.Scene {
     }
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     tickBootWear(this.state, Math.hypot(body.deltaX(), body.deltaY()));
+    const idle =
+      Math.hypot(body.velocity.x, body.velocity.y) < 1 && !this.channel && !uiOpen && !buildSelection;
+    tickEnergyRegen(this.state, dt, idle);
     this.player.setDepth(depthFor(this.player.y));
     const velocity = this.player.body as Phaser.Physics.Arcade.Body;
     this.player.setWalking(Math.hypot(velocity.velocity.x, velocity.velocity.y) > 1, this.time.now);
@@ -1043,8 +1047,7 @@ export class IslandScene extends Phaser.Scene {
       const node = this.state.world.nodes[target.id];
       const cost = this.gatherEnergyCost(node?.type ?? '');
       if (this.state.player.energy < cost) {
-        this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
-        return;
+        this.game.events.emit('ui:banner', '精力不足，采集变慢');
       }
     }
     if (target.kind === 'building' && this.state.player.energy < 10) {
@@ -1054,7 +1057,12 @@ export class IslandScene extends Phaser.Scene {
         return;
       }
     }
-    const slow = this.state.player.energy < 10 && (target.kind === 'node' || target.kind === 'building');
+    const nodeCost =
+      target.kind === 'node'
+        ? this.gatherEnergyCost(this.state.world.nodes[target.id]?.type ?? '')
+        : 10;
+    const slow =
+      this.state.player.energy < nodeCost && (target.kind === 'node' || target.kind === 'building');
     this.channel = {
       target: slow ? { ...target, durationSec: target.durationSec * 2 } : target,
       elapsed: 0,
@@ -1132,10 +1140,7 @@ export class IslandScene extends Phaser.Scene {
     if (!node) return;
     const def = RESOURCE_NODES[node.type];
     if (!def) return;
-    if (!spendEnergy(this.state, this.gatherEnergyCost(node.type))) {
-      this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
-      return;
-    }
+    spendEnergy(this.state, this.gatherEnergyCost(node.type));
     const result = gatherNode(this.state, target.id, this.rng);
     this.state.rngState = this.rng.state();
     if (result.items.length > 0) {

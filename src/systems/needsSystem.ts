@@ -74,6 +74,15 @@ export function spendEnergy(state: GameState, amount: number): boolean {
   return true;
 }
 
+/** Idle recovery: 1.5 energy per second while standing still. */
+export const IDLE_ENERGY_PER_SEC = 1.5;
+
+export function tickEnergyRegen(state: GameState, dtSec: number, idle: boolean): void {
+  if (!idle || dtSec <= 0 || state.player.dead) return;
+  const max = deriveStats(state).energyMax;
+  state.player.energy = Math.max(0, Math.min(max, state.player.energy + IDLE_ENERGY_PER_SEC * dtSec));
+}
+
 export function applySleepRecovery(state: GameState): void {
   state.player.energy = deriveStats(state).energyMax;
   state.player.hp = clamp100(state.player.hp + 20);
