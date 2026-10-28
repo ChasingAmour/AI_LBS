@@ -32,7 +32,7 @@ import { applyDamage, tickNeeds } from '../systems/needsSystem';
 import { tickTorchFuel } from '../systems/resourceSystem';
 import { advanceTime } from '../systems/timeSystem';
 import { tickLabor, settleLaborRations } from '../systems/laborSystem';
-import { tickWeekReset } from '../systems/dungeonReset';
+import { isFloorCleared, markFloorCleared, tickWeekReset } from '../systems/dungeonReset';
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
@@ -58,6 +58,7 @@ export class DungeonScene extends Phaser.Scene {
   private darkness!: Phaser.GameObjects.Rectangle;
   private light!: Phaser.GameObjects.Image;
   private closed = false;
+  private beam?: Phaser.GameObjects.Rectangle;
   private bus = new EventBus();
   private lastHp = 100;
 
@@ -92,6 +93,7 @@ export class DungeonScene extends Phaser.Scene {
     this.spawnEnemies();
     this.spawnChests();
     this.createLighting();
+    this.checkFloorCleared();
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as unknown as Record<
       'W' | 'A' | 'S' | 'D',
@@ -192,6 +194,16 @@ export class DungeonScene extends Phaser.Scene {
           ctx.fillStyle = '#d8b25a';
           for (let r = 0; r < 4; r++) ctx.fillRect(x + 4, y + 4 + r * 3, 8, 1);
         }
+        if (tile === DUNGEON_TILE.exit) {
+          ctx.fillStyle = '#241a10';
+          ctx.fillRect(x + 2, y + 2, 12, 12);
+          ctx.fillStyle = '#8a6a3c';
+          ctx.fillRect(x + 3, y + 3, 10, 2);
+          ctx.fillRect(x + 3, y + 11, 10, 2);
+          ctx.fillStyle = '#c9c2b0';
+          ctx.fillRect(x + 7, y + 6, 2, 4);
+          ctx.fillRect(x + 5, y + 5, 6, 1);
+        }
       }
     }
     texture.refresh();
@@ -222,6 +234,7 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   private spawnEnemies(): void {
+    if (isFloorCleared(this.state, this.floorData.floor)) return;
     this.floorData.enemies.forEach((spawn, index) => {
       const enemy = createDungeonEnemy(spawn.type, spawn.x * TILE + 8, spawn.y * TILE + 8, `d${this.floorData.floor}_e${index}`);
       const sprite = this.add
@@ -278,6 +291,40 @@ export class DungeonScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(9002)
       .setScale(0.35);
+    this.updateExitMarker();
+  }
+
+  /** Cleared floors get a light beam over the stairs so the exit is obvious. */
+  private updateExitMarker(): void {
+    const cleared = isFloorCleared(this.state, this.floorData.floor);
+    const stair = this.tileCenter(this.floorData.stairs.x, this.floorData.stairs.y);
+    if (cleared && !this.beam) {
+      this.beam = this.add
+        .rectangle(stair.x, stair.y - 42, 10, 84, 0xffe6a0, 0.32)
+        .setDepth(9001)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets: this.beam,
+        alpha: { from: 0.18, to: 0.45 },
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+    if (!cleared && this.beam) {
+      this.beam.destroy();
+      this.beam = undefined;
+    }
+  }
+
+  /** Marks the floor cleared once every enemy is down. */
+  private checkFloorCleared(): void {
+    if (isFloorCleared(this.state, this.floorData.floor)) return;
+    if (this.enemies.some((view) => !view.state.dead)) return;
+    markFloorCleared(this.state, this.floorData.floor);
+    this.updateExitMarker();
+    this.game.events.emit('ui:banner', '本层已清空，出口已标记');
+    this.save();
   }
 
   private hasTorch(): boolean {
@@ -429,6 +476,7 @@ export class DungeonScene extends Phaser.Scene {
         this.game.events.emit('ui:banner', '敌人倒下了');
       }
     }
+    this.checkFloorCleared();
     damageEquipped(this.state, 'weapon', 1);
   }
 
@@ -452,6 +500,13 @@ export class DungeonScene extends Phaser.Scene {
     const px = this.player.x;
     const py = this.player.y;
 
+    const entry = this.tileCenter(this.floorData.entry.x, this.floorData.entry.y);
+    if (Math.hypot(entry.x - px, entry.y - py) <= 28) {
+      if (this.floorData.floor === 1) this.exitDungeon();
+      else this.previousFloor();
+      return;
+    }
+
     const stair = this.tileCenter(this.floorData.stairs.x, this.floorData.stairs.y);
     if (Math.hypot(stair.x - px, stair.y - py) <= 28) {
       this.nextFloor();
@@ -470,11 +525,17 @@ export class DungeonScene extends Phaser.Scene {
       this.channel = { chest, elapsed: 0 };
       return;
     }
+  }
 
-    if (this.floorData.floor === 1) {
-      const entry = this.tileCenter(this.floorData.entry.x, this.floorData.entry.y);
-      if (Math.hypot(entry.x - px, entry.y - py) <= 28) this.exitDungeon();
+  /** Stairs up: back to the previous floor, which keeps its cleared state. */
+  private previousFloor(): void {
+    if (this.floorData.floor <= 1) {
+      this.exitDungeon();
+      return;
     }
+    this.state.dungeonFloor = (this.floorData.floor - 1) as 1 | 2 | 3;
+    this.save();
+    this.scene.restart();
   }
 
   private openChest(chest: DungeonChest): void {
