@@ -249,16 +249,41 @@ export function upgradeToV3(state: GameState): GameState {
   return state;
 }
 
+/**
+ * v4: resource nodes are laid out on a denser grid, the tutorial starts with the
+ * camp flag, and animals plus the HUD setting are new state.
+ */
+export function upgradeToV4(state: GameState): GameState {
+  state.version = SAVE_VERSION;
+  state.world.nodeStates = {};
+  state.flags.tutorialStep = (state.flags.tutorialStep ?? 0) + 1;
+  state.animals = Array.isArray(state.animals) ? state.animals : [];
+  state.settings.hudCompact = state.settings.hudCompact === true;
+  if (state.buildings.length > 0 && !state.buildings.some((b) => b.type === 'flag')) {
+    state.buildings.push({
+      id: 'b_flag_migrated',
+      type: 'flag',
+      x: state.camp.center.x,
+      y: state.camp.center.y,
+      hp: 999,
+    });
+  }
+  return state;
+}
+
 export function validateSave(data: unknown): GameState {
   if (!isRecord(data)) fail('存档不是对象');
-  if (data.version === 1) return upgradeToV3(migrateV1(data));
-  if (data.version === 2) return upgradeToV3(validateCore(data));
+  if (data.version === 1) return upgradeToV4(upgradeToV3(migrateV1(data)));
+  if (data.version === 2) return upgradeToV4(upgradeToV3(validateCore(data)));
+  if (data.version === 3) return upgradeToV4(validateCore(data));
   if (data.version !== SAVE_VERSION) fail('存档版本不兼容');
 
   const state = validateCore(data);
   const settings = requireObject(state.settings, 'settings');
   if (typeof settings.muted !== 'boolean') fail('settings.muted 必须是布尔值');
   requireNumber(settings.sfxVolume, 'settings.sfxVolume', 0, 1);
+  if (typeof settings.hudCompact !== 'boolean') fail('settings.hudCompact 必须是布尔值');
+  requireArray(state.animals, 'animals');
   requireNumber(state.lootSeed, 'lootSeed', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(state.lootRolls, 'lootRolls', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);
