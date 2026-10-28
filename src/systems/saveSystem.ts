@@ -289,6 +289,7 @@ export function validateSave(data: unknown): GameState {
   requireNumber(state.lootRolls, 'lootRolls', 0, Number.MAX_SAFE_INTEGER);
   requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);
   if (typeof state.dungeon.pendingReset !== 'boolean') fail('dungeon.pendingReset 必须是布尔值');
+  if (!Array.isArray(state.dungeon.clearedFloors)) state.dungeon.clearedFloors = [];
   return state;
 }
 

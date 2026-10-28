@@ -1,17 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
-import { tickWeekReset } from '../../src/systems/dungeonReset';
+import {
+  isFloorCleared,
+  markFloorCleared,
+  tickWeekReset,
+} from '../../src/systems/dungeonReset';
 
 describe('dungeon weekly reset', () => {
-  it('clears chests and clear flags on Monday', () => {
+  it('clears chests, clear flags and floor progress on Monday', () => {
     const state = createNewGame(1);
     state.dungeon.openedChestsThisWeek = ['d1_chest_0'];
     state.dungeon.clearedThisWeek = true;
+    state.dungeon.clearedFloors = [1, 2];
     state.time.day = 8;
     tickWeekReset(state, false);
     expect(state.dungeon.openedChestsThisWeek).toEqual([]);
     expect(state.dungeon.clearedThisWeek).toBe(false);
+    expect(state.dungeon.clearedFloors).toEqual([]);
     expect(state.dungeon.resetDay).toBe(8);
+  });
+
+  it('remembers cleared floors and is idempotent', () => {
+    const state = createNewGame(1);
+    expect(isFloorCleared(state, 1)).toBe(false);
+    markFloorCleared(state, 1);
+    markFloorCleared(state, 1);
+    expect(state.dungeon.clearedFloors).toEqual([1]);
+    expect(isFloorCleared(state, 1)).toBe(true);
+    expect(isFloorCleared(state, 2)).toBe(false);
   });
 
   it('does not reset twice in the same week', () => {

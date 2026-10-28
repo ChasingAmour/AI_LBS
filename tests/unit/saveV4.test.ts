@@ -40,8 +40,10 @@ describe('v3 → v4 迁移', () => {
     const raw = JSON.parse(JSON.stringify(state));
     delete raw.settings.hudCompact;
     delete raw.animals;
+    delete raw.dungeon.clearedFloors;
     const restored = validateSave(raw);
     expect(restored.settings.hudCompact).toBe(false);
     expect(restored.animals).toEqual([]);
+    expect(restored.dungeon.clearedFloors).toEqual([]);
   });
 });

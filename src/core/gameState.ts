@@ -104,6 +104,8 @@ export interface GameState {
   dungeon: {
     openedChestsThisWeek: string[];
     clearedThisWeek: boolean;
+    /** Floors cleared this week; re-entering one spawns no enemies. */
+    clearedFloors: number[];
     firstClearDone: boolean;
     resetDay: number;
     pendingReset: boolean;
@@ -161,6 +163,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
     dungeon: {
       openedChestsThisWeek: [],
       clearedThisWeek: false,
+      clearedFloors: [],
       firstClearDone: false,
       resetDay: 1,
       pendingReset: false,

@@ -513,6 +513,7 @@ export class DungeonScene extends Phaser.Scene {
     if (this.state.dungeon.pendingReset) {
       this.state.dungeon.openedChestsThisWeek = [];
       this.state.dungeon.clearedThisWeek = false;
+      this.state.dungeon.clearedFloors = [];
       this.state.dungeon.pendingReset = false;
     }
     this.state.player.x = this.state.world.wreckSpawn.x;
