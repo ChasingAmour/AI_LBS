@@ -37,4 +37,11 @@ describe('generateNodes', () => {
   it('网格加密后节点总数上升', () => {
     expect(nodes.length).toBeGreaterThan(800);
   });
+
+  it('岩地上会出现铜矿、铁矿和煤矿', () => {
+    const types = new Set(nodes.map((node) => node.type));
+    expect(types.has('copper')).toBe(true);
+    expect(types.has('iron')).toBe(true);
+    expect(types.has('coal')).toBe(true);
+  });
 });

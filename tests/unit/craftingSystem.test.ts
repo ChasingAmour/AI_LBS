@@ -86,4 +86,17 @@ describe('crafting system', () => {
       inputs: [{ baseId: 'raw_meat', count: 1 }],
     });
   });
+
+  it('矿石可在篝火冶炼成锭', () => {
+    expect(RECIPES.copper_ingot.station).toBe('campfire');
+    expect(RECIPES.copper_ingot.inputs.map((i) => i.baseId)).toContain('copper_ore');
+    expect(RECIPES.iron_ingot.station).toBe('campfire');
+    expect(RECIPES.iron_ingot.inputs.map((i) => i.baseId)).toContain('iron_ore');
+  });
+
+  it('铁锭可以打造铁矛', () => {
+    expect(RECIPES.iron_spear.station).toBe('workbench');
+    expect(RECIPES.iron_spear.output).toBe('iron_spear');
+    expect(RECIPES.iron_spear.inputs.map((i) => i.baseId)).toContain('iron_ingot');
+  });
 });

@@ -19,9 +19,10 @@ const DECOR_FRAMES: ReadonlyArray<{ texture: 'town' | 'farm'; frame: number }> =
 
 const CHUNK_PX = CHUNK_TILES * WORLD.tile;
 
-/** 1–2 ground decorations per chunk, deterministic from the seed and chunk coords. */
+/** 1 ground decoration per chunk, deterministic from the seed and chunk coords. */
 export function decorForChunk(seed: number, cx: number, cy: number): Decor[] {
-  const count = 1 + Math.floor(hash2D(cx, cy, seed + 77) * 2);
+  if (hash2D(cx, cy, seed + 77) > 0.55) return [];
+  const count = 1;
   const decor: Decor[] = [];
   for (let i = 0; i < count; i++) {
     const u = hash2D(cx * 7 + i, cy * 13 + i * 3, seed + 991);

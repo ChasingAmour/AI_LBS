@@ -26,9 +26,9 @@ function pickType(tile: number, roll: number): string | null {
     case TILE.sand:
       return roll < 0.72 ? 'palm' : 'clay';
     case TILE.rock:
-      return roll < 0.9 ? 'rock' : 'clay';
+      return roll < 0.3 ? 'iron' : roll < 0.55 ? 'copper' : roll < 0.68 ? 'coal' : roll < 0.9 ? 'rock' : 'clay';
     case TILE.clay:
-      return roll < 0.8 ? 'clay' : 'rock';
+      return roll < 0.35 ? 'copper' : roll < 0.55 ? 'iron' : 'clay';
     case TILE.shallowWater:
       return 'tide';
     default:

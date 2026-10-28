@@ -300,6 +300,8 @@ export class IslandScene extends Phaser.Scene {
 
     for (const decor of decorForChunk(seed, cx, cy)) {
       if (!this.isWalkableWorld(decor.x, decor.y)) continue;
+      const tile = this.terrainAtWorld(decor.x, decor.y);
+      if (tile !== TILE.grass && tile !== TILE.forest) continue;
       drawFrame(
         decor.texture,
         decor.frame,
@@ -458,6 +460,40 @@ export class IslandScene extends Phaser.Scene {
     g.fillStyle(0xf0f0e0).fillRect(8, 3, 1, 1);
     g.fillStyle(0x2b2118).fillRect(9, 3, 1, 1);
     g.generateTexture('animal-fish', 12, 8);
+    g.clear();
+
+    this.drawOres(g);
+  }
+
+  /** Three 16×16 ore rocks: copper flecks, iron veins and coal seams. */
+  private drawOres(g: Phaser.GameObjects.Graphics): void {
+    const rock = (base: number, shade: number, fleck: number): void => {
+      g.fillStyle(shade).fillEllipse(8, 12, 14, 6);
+      g.fillStyle(base).fillPoints(
+        [
+          new Phaser.Geom.Point(2, 12),
+          new Phaser.Geom.Point(4, 5),
+          new Phaser.Geom.Point(9, 2),
+          new Phaser.Geom.Point(13, 6),
+          new Phaser.Geom.Point(14, 12),
+        ],
+        true,
+      );
+      g.fillStyle(fleck).fillRect(6, 6, 2, 2);
+      g.fillRect(9, 8, 2, 2);
+      g.fillRect(11, 5, 1, 1);
+      g.fillRect(5, 9, 1, 1);
+    };
+    rock(0x8a8378, 0x6f6a5f, 0xc9793a);
+    g.generateTexture('ore-copper', 16, 16);
+    g.clear();
+
+    rock(0x7d8188, 0x62666c, 0xb9c2cc);
+    g.generateTexture('ore-iron', 16, 16);
+    g.clear();
+
+    rock(0x5c5a56, 0x45443f, 0x24231f);
+    g.generateTexture('ore-coal', 16, 16);
   }
 
   /** 64×40 beached shipwreck: broken hull, ribs, snapped mast and torn sail. */

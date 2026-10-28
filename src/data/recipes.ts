@@ -209,4 +209,41 @@ export const RECIPES: Record<string, Recipe> = {
     durationSec: 900,
     inputs: [{ baseId: 'raw_meat', count: 1 }],
   },
+  copper_ingot: {
+    id: 'copper_ingot',
+    output: 'copper_ingot',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 1,
+    durationSec: 4,
+    inputs: [
+      { baseId: 'copper_ore', count: 2 },
+      { baseId: 'coal', count: 1 },
+    ],
+  },
+  iron_ingot: {
+    id: 'iron_ingot',
+    output: 'iron_ingot',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 1,
+    durationSec: 6,
+    inputs: [
+      { baseId: 'iron_ore', count: 2 },
+      { baseId: 'coal', count: 1 },
+    ],
+  },
+  iron_spear: {
+    id: 'iron_spear',
+    output: 'iron_spear',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 1,
+    durationSec: 8,
+    inputs: [
+      { baseId: 'iron_ingot', count: 2 },
+      { baseId: 'wood', count: 2 },
+      { baseId: 'rope', count: 1 },
+    ],
+  },
 };

@@ -33,6 +33,9 @@ const NODE_SPRITES: Record<string, NodeSpriteSpec> = {
   berry: { texture: TEXTURE.farm, frame: 78 },
   tide: { texture: TEXTURE.battle, frame: 73 },
   clay: { texture: TEXTURE.farm, frame: 48 },
+  copper: { texture: 'ore-copper' },
+  iron: { texture: 'ore-iron' },
+  coal: { texture: 'ore-coal' },
   chest: { texture: TEXTURE.dungeon, frame: 101 },
 };
 

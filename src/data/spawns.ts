@@ -82,6 +82,39 @@ export const RESOURCE_NODES: Record<string, ResourceNodeDef> = {
     drops: [],
     depleteDrops: [{ baseId: 'clay', min: 2, max: 2 }],
   },
+  copper: {
+    type: 'copper',
+    name: '铜矿',
+    maxHits: 4,
+    respawnDays: 3,
+    tool: 'stone_pick',
+    drops: [{ baseId: 'copper_ore', min: 1, max: 1 }],
+    depleteDrops: [
+      { baseId: 'copper_ore', min: 1, max: 2 },
+      { baseId: 'flint', min: 1, max: 1, chance: 0.25 },
+    ],
+  },
+  iron: {
+    type: 'iron',
+    name: '铁矿',
+    maxHits: 5,
+    respawnDays: 4,
+    tool: 'stone_pick',
+    drops: [{ baseId: 'iron_ore', min: 1, max: 1 }],
+    depleteDrops: [
+      { baseId: 'iron_ore', min: 1, max: 2 },
+      { baseId: 'coal', min: 1, max: 1, chance: 0.3 },
+    ],
+  },
+  coal: {
+    type: 'coal',
+    name: '煤矿',
+    maxHits: 3,
+    respawnDays: 3,
+    tool: 'stone_pick',
+    drops: [{ baseId: 'coal', min: 1, max: 1 }],
+    depleteDrops: [{ baseId: 'coal', min: 1, max: 2 }],
+  },
 };
 
 export const NODE_TYPE_BY_PREFIX: Record<string, string> = {
@@ -92,6 +125,9 @@ export const NODE_TYPE_BY_PREFIX: Record<string, string> = {
   palm: 'palm',
   tide: 'tide',
   clay: 'clay',
+  copper: 'copper',
+  iron: 'iron',
+  coal: 'coal',
 };
 
 export function nodeTypeFromId(nodeId: string): string | null {

@@ -79,6 +79,15 @@ export const WEAPONS: Record<string, WeaponDef> = {
     cooldownSec: 1.1,
     maxDurability: 70,
   },
+  iron_spear: {
+    id: 'iron_spear',
+    name: '铁矛',
+    pattern: { kind: 'thrust', range: 58, width: 15 },
+    damage: 20,
+    stun: 8,
+    cooldownSec: 0.85,
+    maxDurability: 70,
+  },
 };
 
 export function weaponFor(baseId: string | null): WeaponDef {

@@ -4,8 +4,8 @@ import { rollEquipment } from '../../src/systems/equipmentSystem';
 import { createRng } from '../../src/core/rng';
 
 describe('equipment rolls', () => {
-  it('defines the 14 approved bases', () => {
-    expect(Object.keys(EQUIPMENT)).toHaveLength(14);
+  it('defines the 15 approved bases', () => {
+    expect(Object.keys(EQUIPMENT)).toHaveLength(15);
     expect(EQUIPMENT.captain_boots.slot).toBe('boots');
   });
 

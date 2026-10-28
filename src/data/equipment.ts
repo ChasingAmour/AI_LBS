@@ -74,6 +74,14 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     weaponId: 'anchor_hammer',
     legendary: { id: 'anchor', name: '锚定', desc: '命中使目标减速 40%，持续 2 秒' },
   },
+  iron_spear: {
+    id: 'iron_spear',
+    name: '铁矛',
+    slot: 'weapon',
+    durability: 70,
+    weaponId: 'iron_spear',
+    legendary: { id: 'ironclad', name: '精铁', desc: '突刺伤害 +20%' },
+  },
   vine_armor: {
     id: 'vine_armor',
     name: '藤甲',
