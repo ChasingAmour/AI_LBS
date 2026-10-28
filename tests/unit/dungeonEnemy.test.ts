@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyPoison,
   applySlow,
+  consumePendingAttack,
   createDungeonEnemy,
   damageDungeonEnemy,
   enemyAttack,
@@ -102,5 +103,31 @@ describe('dungeon enemies', () => {
     const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
     damageDungeonEnemy(enemy, 1, 0);
     expect(enemy.alerted).toBe(true);
+  });
+
+  it('精英与 Boss 有专属技能和更高的属性', () => {
+    const normal = createDungeonEnemy('crab', 0, 0, 'n');
+    const elite = createDungeonEnemy('crab', 0, 0, 'e', 'elite');
+    const boss = createDungeonEnemy('crab', 0, 0, 'b', 'boss');
+    expect(normal.special).toBeNull();
+    expect(elite.special).toBe('slam');
+    expect(boss.special).toBe('slam');
+    expect(elite.maxHp).toBeGreaterThan(normal.maxHp);
+    expect(boss.maxHp).toBeGreaterThan(elite.maxHp);
+    expect(boss.sightRange).toBeGreaterThan(elite.sightRange);
+  });
+
+  it('技能有预警，预警结束后才结算', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'b', 'boss');
+    const player = { x: 40, y: 0 };
+    enemy.alerted = true;
+    enemy.specialCooldown = 0;
+    tickDungeonEnemy(enemy, player, 0.1, 0);
+    expect(enemy.windup).toBeGreaterThan(0);
+    expect(consumePendingAttack(enemy)).toBeNull();
+    for (let i = 0; i < 12; i++) tickDungeonEnemy(enemy, player, 0.1, 0.1 + i * 0.1);
+    const attack = consumePendingAttack(enemy);
+    expect(attack?.kind).toBe('slam');
+    expect(attack?.damage).toBeGreaterThan(0);
   });
 });

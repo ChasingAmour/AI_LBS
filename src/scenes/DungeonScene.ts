@@ -7,6 +7,7 @@ import { ensurePlayerFrames } from '../entities/playerFrames';
 import {
   applyPoison,
   applySlow,
+  consumePendingAttack,
   createDungeonEnemy,
   damageDungeonEnemy,
   enemyAttack,
@@ -14,6 +15,7 @@ import {
   tickDungeonEnemy,
   tickPoison,
   type DungeonEnemy,
+  type PendingAttack,
 } from '../entities/dungeonEnemy';
 import { depthFor } from '../world/depthSort';
 import {
@@ -38,6 +40,13 @@ import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
 import { enemySprite } from '../ui/assets';
+import { makeText } from '../ui/text';
+
+const BOSS_NAMES: Record<1 | 2 | 3, string> = {
+  1: '巨蟹王',
+  2: '溺亡水手长',
+  3: '船长亡魂',
+};
 
 const STEP = 1 / 60;
 const TILE = 16;
@@ -62,6 +71,11 @@ export class DungeonScene extends Phaser.Scene {
   private closed = false;
   private beam?: Phaser.GameObjects.Rectangle;
   private exitArrow?: Phaser.GameObjects.Triangle;
+  private telegraph!: Phaser.GameObjects.Graphics;
+  private bossBar?: Phaser.GameObjects.Graphics;
+  private bossLabel?: Phaser.GameObjects.Text;
+  private bossLocked = false;
+  private bossDoorSprite?: Phaser.GameObjects.Image;
   private bus = new EventBus();
   private lastHp = 100;
 
@@ -96,6 +110,12 @@ export class DungeonScene extends Phaser.Scene {
     this.spawnEnemies();
     this.spawnChests();
     this.createLighting();
+    this.telegraph = this.add.graphics().setDepth(9004);
+    this.bossBar = this.add.graphics().setDepth(9600).setScrollFactor(0).setVisible(false);
+    this.bossLabel = makeText(this, 320, 20, '', { origin: [0.5, 0], color: '#f0d9a0' })
+      .setDepth(9601)
+      .setScrollFactor(0)
+      .setVisible(false);
     this.checkFloorCleared();
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as unknown as Record<
@@ -234,14 +254,26 @@ export class DungeonScene extends Phaser.Scene {
   private spawnEnemies(): void {
     if (isFloorCleared(this.state, this.floorData.floor)) return;
     this.floorData.enemies.forEach((spawn, index) => {
-      const enemy = createDungeonEnemy(spawn.type, spawn.x * TILE + 8, spawn.y * TILE + 8, `d${this.floorData.floor}_e${index}`);
-      const spec = enemySprite(enemy.type);
-      const sprite = this.add
-        .image(enemy.x, enemy.y, spec.texture, spec.frame)
-        .setOrigin(0.5, 1)
-        .setDepth(9002);
-      this.enemies.push({ state: enemy, sprite });
+      const enemy = createDungeonEnemy(
+        spawn.type,
+        spawn.x * TILE + 8,
+        spawn.y * TILE + 8,
+        `d${this.floorData.floor}_e${index}`,
+        spawn.rank,
+      );
+      this.addEnemyView(enemy);
     });
+  }
+
+  private addEnemyView(enemy: DungeonEnemy): void {
+    const spec = enemySprite(enemy.type);
+    const scale = enemy.rank === 'boss' ? 4 : enemy.rank === 'elite' ? 1.6 : 1;
+    const sprite = this.add
+      .image(enemy.x, enemy.y, spec.texture, spec.frame)
+      .setOrigin(0.5, 1)
+      .setScale(scale)
+      .setDepth(9002);
+    this.enemies.push({ state: enemy, sprite });
   }
 
   private spawnChests(): void {
@@ -344,6 +376,113 @@ export class DungeonScene extends Phaser.Scene {
   }
 
   /** Marks the floor cleared once every enemy is down. */
+  /** Resolves an elite/boss special once its telegraph expires. */
+  private applySpecial(view: EnemyView, attack: PendingAttack): void {
+    const enemy = view.state;
+    if (attack.kind === 'summon') {
+      for (let i = 0; i < 2; i++) {
+        const rat = createDungeonEnemy(
+          'rat',
+          enemy.x + (i === 0 ? 20 : -20),
+          enemy.y + 12,
+          `${enemy.id}_s${Math.round(this.time.now)}_${i}`,
+        );
+        rat.alerted = true;
+        this.addEnemyView(rat);
+      }
+      this.game.events.emit('ui:banner', '它召唤了船鼠');
+      return;
+    }
+    if (attack.kind === 'teleport') {
+      const angle = this.time.now / 300;
+      enemy.x = this.player.x + Math.cos(angle) * 48;
+      enemy.y = this.player.y + Math.sin(angle) * 48;
+      return;
+    }
+    if (attack.kind === 'charge') {
+      enemy.x = attack.x;
+      enemy.y = attack.y;
+      if (Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y) < 40) {
+        applyDamage(this.state, attack.damage);
+      }
+      return;
+    }
+    if (Math.hypot(attack.x - this.player.x, attack.y - this.player.y) <= attack.radius) {
+      applyDamage(this.state, attack.damage);
+    }
+  }
+
+  /** Red danger circles under every winding-up special. */
+  private drawTelegraphs(): void {
+    this.telegraph.clear();
+    for (const view of this.enemies) {
+      const enemy = view.state;
+      if (enemy.dead || !enemy.pending || enemy.windup <= 0) continue;
+      this.telegraph
+        .fillStyle(0xff4d4d, 0.16)
+        .fillCircle(enemy.pending.x, enemy.pending.y, enemy.pending.radius);
+      this.telegraph
+        .lineStyle(2, 0xff6b6b, 0.75)
+        .strokeCircle(enemy.pending.x, enemy.pending.y, enemy.pending.radius);
+    }
+  }
+
+  /** Seals the captain's cabin while the boss lives, and draws its health bar. */
+  private updateBossFight(): void {
+    const bossView = this.enemies.find((view) => view.state.rank === 'boss' && !view.state.dead);
+    const boss = bossView?.state;
+    const room = this.floorData.bossRoom;
+    const px = Math.floor(this.player.x / TILE);
+    const py = Math.floor(this.player.y / TILE);
+    const inside =
+      px >= room.x && px < room.x + room.w && py >= room.y && py < room.y + room.h;
+
+    if (!this.bossLocked && boss && inside) {
+      this.bossLocked = true;
+      this.setBossDoor(true);
+      playSfx(this, this.state, 'warning');
+      this.game.events.emit('ui:banner', '船长室的门关上了');
+    }
+    if (this.bossLocked && !boss) {
+      this.bossLocked = false;
+      this.setBossDoor(false);
+      this.game.events.emit('ui:banner', '船长室的门开了');
+    }
+
+    if (!this.bossBar || !this.bossLabel) return;
+    const show = Boolean(boss && (this.bossLocked || boss.alerted));
+    this.bossBar.setVisible(show);
+    this.bossLabel.setVisible(show);
+    if (!show || !boss) return;
+    const width = 280;
+    const ratio = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
+    this.bossBar.clear();
+    this.bossBar.fillStyle(0x1b120b, 0.88).fillRect(180, 34, width, 12);
+    this.bossBar.lineStyle(1, 0xd8b25a, 1).strokeRect(180, 34, width, 12);
+    this.bossBar.fillStyle(0xb03a2e, 1).fillRect(182, 36, (width - 4) * ratio, 8);
+    this.bossLabel.setText(BOSS_NAMES[this.floorData.floor]);
+  }
+
+  private setBossDoor(closed: boolean): void {
+    const door = this.floorData.bossDoor;
+    this.floorData.tiles[door.y * this.floorData.width + door.x] = closed
+      ? DUNGEON_TILE.wall
+      : DUNGEON_TILE.bossDoor;
+    if (closed) {
+      if (!this.bossDoorSprite) {
+        const point = this.tileCenter(door.x, door.y);
+        this.bossDoorSprite = this.add
+          .image(point.x, point.y, 'dungeon', 42)
+          .setOrigin(0.5, 1)
+          .setScale(1.2)
+          .setDepth(9002);
+      }
+    } else if (this.bossDoorSprite) {
+      this.bossDoorSprite.destroy();
+      this.bossDoorSprite = undefined;
+    }
+  }
+
   private checkFloorCleared(): void {
     if (isFloorCleared(this.state, this.floorData.floor)) return;
     if (this.enemies.some((view) => !view.state.dead)) return;
@@ -407,11 +546,15 @@ export class DungeonScene extends Phaser.Scene {
           hasLineOfSight(this.floorData, { x: fx, y: fy }, { x: tx, y: ty }),
       );
       tickPoison(enemy, this.time.now / 1000, dt);
+      const special = consumePendingAttack(enemy);
+      if (special) this.applySpecial(view, special);
       view.sprite.setPosition(enemy.x, enemy.y).setDepth(depthFor(enemy.y));
       view.sprite.setAlpha(enemy.dead ? 0.25 : 1);
       const hit = enemyAttack(enemy, Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y));
       if (hit > 0) applyDamage(this.state, hit);
     }
+    this.drawTelegraphs();
+    this.updateBossFight();
 
     this.darkness.setVisible(true);
     this.light.setPosition(this.player.x, this.player.y - 8);

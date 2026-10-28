@@ -51,23 +51,40 @@ describe('dungeon generation', () => {
     }
   });
 
-  it('places 3-4 cabins, chests and hazards', () => {
+  it('places a full deck of cabins, chests and hazards', () => {
     for (const floorLevel of [1, 2, 3] as const) {
       const floor = generateDungeonFloor(11, floorLevel);
-      expect(floor.rooms.length).toBeGreaterThanOrEqual(3);
-      expect(floor.rooms.length).toBeLessThanOrEqual(4);
-      expect(floor.chests).toHaveLength(floor.rooms.length);
+      expect(floor.rooms.length).toBeGreaterThanOrEqual(8);
+      expect(floor.chests.length).toBeGreaterThanOrEqual(4);
       expect(floor.hazards.length).toBeGreaterThan(0);
-      expect(floor.enemies.length).toBeGreaterThanOrEqual(2);
+      expect(floor.enemies.filter((e) => e.rank === 'normal').length).toBeGreaterThanOrEqual(6);
+      expect(floor.enemies.filter((e) => e.rank === 'elite').length).toBe(2);
+      expect(floor.enemies.filter((e) => e.rank === 'boss').length).toBe(1);
     }
   });
 
-  it('gives floor 3 the final chest and a sea snake', () => {
+  it('puts the boss and the final chest in the captain cabin', () => {
     const floor = generateDungeonFloor(3, 3);
+    const boss = floor.enemies.find((enemy) => enemy.rank === 'boss')!;
+    const room = floor.bossRoom;
+    expect(boss.x).toBeGreaterThanOrEqual(room.x);
+    expect(boss.x).toBeLessThan(room.x + room.w);
+    expect(boss.y).toBeGreaterThanOrEqual(room.y);
+    expect(boss.y).toBeLessThan(room.y + room.h);
     expect(floor.chests.some((chest) => chest.final)).toBe(true);
-    expect(floor.enemies.some((enemy) => enemy.type === 'snake')).toBe(true);
-    expect(floor.width).toBe(32);
-    expect(floor.height).toBe(20);
+    expect(floor.tiles[floor.bossDoor.y * floor.width + floor.bossDoor.x]).toBe(
+      DUNGEON_TILE.bossDoor,
+    );
+    expect(isDungeonWalkable(DUNGEON_TILE.bossDoor)).toBe(true);
+  });
+
+  it('grows the deck with every floor', () => {
+    const one = generateDungeonFloor(3, 1);
+    const three = generateDungeonFloor(3, 3);
+    expect(one.width).toBe(64);
+    expect(one.height).toBe(36);
+    expect(three.width).toBe(80);
+    expect(three.height).toBe(44);
   });
 
   it('stairs are walkable', () => {
@@ -98,6 +115,8 @@ describe('dungeon generation', () => {
       rooms: [],
       entry: { x: 0, y: 0 },
       stairs: { x: 0, y: 0 },
+      bossRoom: { x: 0, y: 0, w: 1, h: 1 },
+      bossDoor: { x: 0, y: 0 },
       chests: [],
       hazards: [],
       enemies: [],

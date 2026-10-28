@@ -1,8 +1,19 @@
-import type { DungeonEnemyType, DungeonHazard } from '../world/dungeonGen';
+import type { DungeonEnemyRank, DungeonEnemyType, DungeonHazard } from '../world/dungeonGen';
+
+export type EnemySpecial = 'slam' | 'summon' | 'volley' | 'charge' | 'sweep' | 'teleport';
+
+export interface PendingAttack {
+  kind: EnemySpecial;
+  x: number;
+  y: number;
+  radius: number;
+  damage: number;
+}
 
 export interface DungeonEnemy {
   id: string;
   type: DungeonEnemyType;
+  rank: DungeonEnemyRank;
   x: number;
   y: number;
   hp: number;
@@ -18,6 +29,12 @@ export interface DungeonEnemy {
   alerted: boolean;
   /** seconds the player has been out of sight while alerted */
   lostSightSec: number;
+  /** elite/boss signature move */
+  special: EnemySpecial | null;
+  specialCooldown: number;
+  /** seconds left of the telegraph before the special lands */
+  windup: number;
+  pending: PendingAttack | null;
   shellUntil: number;
   nextShellAt: number;
   lungeUntil: number;
@@ -35,25 +52,53 @@ const DEFS: Record<
   crab: { hp: 15, damage: 5, speed: 45, defense: 0, sight: 96 },
   hermit: { hp: 80, damage: 12, speed: 30, defense: 2, sight: 112 },
   snake: { hp: 40, damage: 10, speed: 80, defense: 1, sight: 150 },
+  rat: { hp: 10, damage: 3, speed: 62, defense: 0, sight: 110 },
+  ghost: { hp: 30, damage: 7, speed: 34, defense: 0, sight: 132 },
 };
 
-export function createDungeonEnemy(type: DungeonEnemyType, x: number, y: number, id: string): DungeonEnemy {
+export function createDungeonEnemy(
+  type: DungeonEnemyType,
+  x: number,
+  y: number,
+  id: string,
+  rank: DungeonEnemyRank = 'normal',
+): DungeonEnemy {
   const def = DEFS[type];
+  const scale = rank === 'boss' ? 10 : rank === 'elite' ? 3 : 1;
+  const damageScale = rank === 'boss' ? 2 : rank === 'elite' ? 1.5 : 1;
+  const hp = Math.round(def.hp * scale);
+  const special: EnemySpecial | null =
+    rank === 'normal'
+      ? null
+      : rank === 'boss'
+        ? type === 'ghost'
+          ? 'volley'
+          : type === 'hermit'
+            ? 'sweep'
+            : 'slam'
+        : type === 'ghost'
+          ? 'summon'
+          : 'slam';
   return {
     id,
     type,
+    rank,
     x,
     y,
-    hp: def.hp,
-    maxHp: def.hp,
-    damage: def.damage,
-    speed: def.speed,
-    defense: def.defense,
+    hp,
+    maxHp: hp,
+    damage: Math.round(def.damage * damageScale),
+    speed: def.speed * (rank === 'boss' ? 0.7 : 1),
+    defense: def.defense + (rank === 'boss' ? 3 : rank === 'elite' ? 1 : 0),
     dead: false,
     attackCooldown: 0,
-    sightRange: def.sight,
+    sightRange: def.sight + (rank === 'boss' ? 40 : rank === 'elite' ? 20 : 0),
     alerted: false,
     lostSightSec: 0,
+    special,
+    specialCooldown: rank === 'boss' ? 4 : 6,
+    windup: 0,
+    pending: null,
     shellUntil: 0,
     nextShellAt: 6,
     lungeUntil: 0,
@@ -63,6 +108,14 @@ export function createDungeonEnemy(type: DungeonEnemyType, x: number, y: number,
     poisonStacks: 0,
     poisonUntil: 0,
   };
+}
+
+/** Pulls the telegraphed special once its wind-up finishes. */
+export function consumePendingAttack(enemy: DungeonEnemy): PendingAttack | null {
+  if (!enemy.pending || enemy.windup > 0) return null;
+  const attack = enemy.pending;
+  enemy.pending = null;
+  return attack;
 }
 
 export function isShelled(enemy: DungeonEnemy, now: number): boolean {
@@ -112,6 +165,26 @@ export function tickDungeonEnemy(
     if (enemy.lostSightSec > 3) {
       enemy.alerted = false;
       enemy.lostSightSec = 0;
+      return;
+    }
+  }
+
+  if (enemy.special && enemy.alerted) {
+    enemy.specialCooldown = Math.max(0, enemy.specialCooldown - dtSec);
+    if (enemy.windup > 0) {
+      enemy.windup -= dtSec;
+      return;
+    }
+    if (enemy.specialCooldown <= 0 && distance < 170) {
+      enemy.windup = enemy.rank === 'boss' ? 0.9 : 0.7;
+      enemy.specialCooldown = enemy.rank === 'boss' ? 4.5 : 6.5;
+      enemy.pending = {
+        kind: enemy.special,
+        x: player.x,
+        y: player.y,
+        radius: enemy.special === 'slam' ? 58 : enemy.special === 'sweep' ? 72 : 90,
+        damage: Math.round(enemy.damage * 1.4),
+      };
       return;
     }
   }
