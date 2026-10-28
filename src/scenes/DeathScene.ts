@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
-import type { EventBus } from '../core/eventBus';
+import { EventBus } from '../core/eventBus';
 import { respawnAfterDeath } from '../systems/needsSystem';
 import { makeText } from '../ui/text';
 import { COLORS, TINTS } from '../ui/theme';
@@ -59,8 +59,8 @@ export class DeathScene extends Phaser.Scene {
 
   private respawn(): void {
     const state = this.registry.get('state') as GameState | undefined;
-    const bus = this.registry.get('bus') as EventBus | undefined;
-    if (state && bus) {
+    const bus = (this.registry.get('bus') as EventBus | undefined) ?? new EventBus();
+    if (state) {
       respawnAfterDeath(state, bus);
       if (state.raid?.active) {
         state.raid = null;

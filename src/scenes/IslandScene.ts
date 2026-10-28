@@ -131,7 +131,7 @@ export class IslandScene extends Phaser.Scene {
   create(): void {
     const registered = this.registry.get('state') as GameState | undefined;
     this.state = registered ?? createNewGame();
-    this.bus = new EventBus();
+    this.bus = (this.registry.get('bus') as EventBus | undefined) ?? new EventBus();
     this.registry.set('state', this.state);
     this.registry.set('bus', this.bus);
     this.registry.set('nearStation', false);

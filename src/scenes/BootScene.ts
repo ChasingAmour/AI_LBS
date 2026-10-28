@@ -6,6 +6,7 @@ import { loadAudio } from '../systems/audio';
 import { ensureWaterFrames } from '../world/waterFrames';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
+import { EventBus } from '../core/eventBus';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -25,6 +26,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.input.mouse?.disableContextMenu();
+    this.registry.set('bus', new EventBus());
     ensurePlayerFrames(this);
     ensureItemIcons(this);
     ensureWaterFrames(this);
