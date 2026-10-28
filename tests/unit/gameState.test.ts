@@ -16,6 +16,7 @@ describe('game state', () => {
     expect(s.world.groundLoot).toEqual([]);
     expect(s.equipment).toEqual({ weapon: null, armor: null, boots: null });
     expect(s.hotbar).toHaveLength(8);
+    expect(s.animals).toEqual([]);
   });
 });
 

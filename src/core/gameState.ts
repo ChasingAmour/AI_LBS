@@ -1,4 +1,5 @@
 import type { SavageState } from '../entities/savage';
+import type { AnimalState } from '../entities/animal';
 import { SAVE_VERSION } from './saveVersion';
 
 export interface ItemStack {
@@ -110,6 +111,7 @@ export interface GameState {
   flags: { tutorialStep: number; raidWarnedDay: number; firstRaidDone: boolean };
   raid: { active: boolean; day: number } | null;
   savages: SavageState[];
+  animals: AnimalState[];
 }
 
 export function createNewGame(seed: number = Date.now()): GameState {
@@ -166,5 +168,6 @@ export function createNewGame(seed: number = Date.now()): GameState {
     flags: { tutorialStep: 0, raidWarnedDay: 0, firstRaidDone: false },
     raid: null,
     savages: [],
+    animals: [],
   };
 }
