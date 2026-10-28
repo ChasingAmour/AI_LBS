@@ -57,10 +57,17 @@ describe('动物生成', () => {
 
   it('只落在栖息地上', () => {
     const state = createNewGame(11);
-    const waterWorld = { tileAt: () => TILE.deepWater };
-    spawnAnimals(state, waterWorld, createRng(11));
+    const shallow = { tileAt: () => TILE.shallowWater };
+    spawnAnimals(state, shallow, createRng(11));
     expect(state.animals.length).toBe(ANIMAL_SPAWN.fishCap);
     expect(state.animals.every((a) => a.type === 'fish')).toBe(true);
+  });
+
+  it('深海不刷鱼', () => {
+    const state = createNewGame(14);
+    const deep = { tileAt: () => TILE.deepWater };
+    spawnAnimals(state, deep, createRng(14));
+    expect(state.animals).toEqual([]);
   });
 
   it('陆地不会刷鱼', () => {

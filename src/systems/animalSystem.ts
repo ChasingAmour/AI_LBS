@@ -32,11 +32,13 @@ function slotSpawn(
   state: GameState,
   kind: 'small' | 'large' | 'fish',
   slot: number,
+  minDist: number,
+  maxDist: number,
 ): { id: string; species: string; x: number; y: number } {
   const seed = state.world.seed;
   const day = state.time.day;
   const angle = hash2D(day, slot, seed + 1201) * Math.PI * 2;
-  const spread = ANIMAL_SPAWN.minDist + hash2D(day, slot, seed + 1202) * (ANIMAL_SPAWN.maxDist - ANIMAL_SPAWN.minDist);
+  const spread = minDist + hash2D(day, slot, seed + 1202) * (maxDist - minDist);
   const species = pickSpecies(kind, hash2D(day, slot, seed + 1203));
   return {
     id: `animal_${species}_${day}_s${slot}`,
@@ -54,15 +56,21 @@ export function spawnAnimals(state: GameState, world: AnimalWorld, rng: Rng): An
   // Yesterday's wildlife leaves at dawn instead of piling up.
   state.animals = state.animals.filter((animal) => animal.id.includes(dayTag));
   const occupied = new Set(state.animals.map((a) => a.id));
-  const groups: Array<{ kind: 'small' | 'large' | 'fish'; cap: number; offset: number }> = [
-    { kind: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0 },
-    { kind: 'large', cap: ANIMAL_SPAWN.largeCap, offset: 100 },
-    { kind: 'fish', cap: ANIMAL_SPAWN.fishCap, offset: 200 },
+  const groups: Array<{
+    kind: 'small' | 'large' | 'fish';
+    cap: number;
+    offset: number;
+    minDist: number;
+    maxDist: number;
+  }> = [
+    { kind: 'small', cap: ANIMAL_SPAWN.smallCap, offset: 0, minDist: ANIMAL_SPAWN.minDist, maxDist: ANIMAL_SPAWN.maxDist },
+    { kind: 'large', cap: ANIMAL_SPAWN.largeCap, offset: 100, minDist: ANIMAL_SPAWN.minDist, maxDist: ANIMAL_SPAWN.maxDist },
+    { kind: 'fish', cap: ANIMAL_SPAWN.fishCap, offset: 200, minDist: ANIMAL_SPAWN.fishMinDist, maxDist: ANIMAL_SPAWN.fishMaxDist },
   ];
   for (const group of groups) {
     for (let i = 0; i < group.cap; i++) {
       const slot = group.offset + i;
-      const spot = slotSpawn(state, group.kind, slot);
+      const spot = slotSpawn(state, group.kind, slot, group.minDist, group.maxDist);
       if (occupied.has(spot.id)) continue;
       const def = ANIMALS[spot.species];
       if (!def.habitat.includes(world.tileAt(Math.floor(spot.x / TILE), Math.floor(spot.y / TILE)))) {

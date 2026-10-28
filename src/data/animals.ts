@@ -81,7 +81,7 @@ export const ANIMALS: Record<string, AnimalDef> = {
     leashRange: 200,
     disengageSec: 3,
     drops: [{ baseId: 'raw_fish', min: 1, max: 1 }],
-    habitat: [TILE.shallowWater, TILE.stream, TILE.deepWater],
+    habitat: [TILE.shallowWater, TILE.stream],
     aquatic: true,
     flees: true,
   },
@@ -94,6 +94,8 @@ export const ANIMAL_SPAWN = {
   fishCap: 6,
   minDist: 200,
   maxDist: 500,
+  fishMinDist: 100,
+  fishMaxDist: 360,
   despawnDist: 900,
   refillSec: 10,
 } as const;
