@@ -11,7 +11,7 @@ export interface GeneratedNode {
   y: number;
 }
 
-const STRIDE = 8;
+const STRIDE = 6;
 
 function pickType(tile: number, roll: number): string | null {
   switch (tile) {

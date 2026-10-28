@@ -217,7 +217,7 @@ export class Hud {
     this.compactToggle = makeText(
       this.scene,
       HUD.status.x + HUD.status.w - 12,
-      HUD.status.y + 3,
+      HUD.status.y + HUD.status.h - 14,
       '▾',
       { color: COLORS.inkSoft },
     )
@@ -247,7 +247,9 @@ export class Hud {
       .setText(compact ? '▸' : '▾')
       .setPosition(
         (compact ? HUD.statusCompact.x + HUD.statusCompact.w : HUD.status.x + HUD.status.w) - 12,
-        (compact ? HUD.statusCompact.y : HUD.status.y) + 3,
+        (compact
+          ? HUD.statusCompact.y + HUD.statusCompact.h
+          : HUD.status.y + HUD.status.h) - 14,
       );
   }
 

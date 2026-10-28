@@ -259,7 +259,7 @@ export function upgradeToV4(state: GameState): GameState {
   state.flags.tutorialStep = (state.flags.tutorialStep ?? 0) + 1;
   state.animals = Array.isArray(state.animals) ? state.animals : [];
   state.settings.hudCompact = state.settings.hudCompact === true;
-  if (state.buildings.length > 0 && !state.buildings.some((b) => b.type === 'flag')) {
+  if (!state.buildings.some((b) => b.type === 'flag')) {
     state.buildings.push({
       id: 'b_flag_migrated',
       type: 'flag',
