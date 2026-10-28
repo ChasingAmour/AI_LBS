@@ -113,7 +113,7 @@ export class IslandScene extends Phaser.Scene {
     this.deathLaunched = false;
     this.chunkLayers.clear();
 
-    this.makeTextures();
+    this.makeWorldTextures();
     this.setupTerrain();
 
     const start = this.startPosition();
@@ -289,7 +289,7 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private makeTextures(): void {
+  private makeWorldTextures(): void {
     if (this.textures.exists('palm') && this.textures.exists('hut')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);

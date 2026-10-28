@@ -91,24 +91,24 @@ export class Hud {
       .setDepth(8001)
       .setScrollFactor(0);
 
-    this.campText = makeText(scene, HUD.camp.x + 8, HUD.camp.y + 9, '', {
+    this.campText = makeText(scene, HUD.camp.x + 8, HUD.camp.y + 6, '', {
       color: COLORS.ink,
     })
       .setDepth(8001)
       .setScrollFactor(0);
     drawBarTrack(this.chrome, {
       x: HUD.camp.x + 8,
-      y: HUD.camp.y + 19,
+      y: HUD.camp.y + 21,
       w: HUD.camp.w - 46,
       h: 6,
       color: TINTS.goldDark,
     });
     this.campProgress = scene.add
-      .rectangle(HUD.camp.x + 8, HUD.camp.y + 19, 0, 6, TINTS.gold, 1)
+      .rectangle(HUD.camp.x + 8, HUD.camp.y + 21, 0, 6, TINTS.gold, 1)
       .setOrigin(0, 0)
       .setDepth(8001)
       .setScrollFactor(0);
-    this.campLabel = makeText(scene, HUD.camp.x + HUD.camp.w - 8, HUD.camp.y + 9, '', {
+    this.campLabel = makeText(scene, HUD.camp.x + HUD.camp.w - 8, HUD.camp.y + 6, '', {
       origin: [1, 0],
       color: COLORS.inkSoft,
     })

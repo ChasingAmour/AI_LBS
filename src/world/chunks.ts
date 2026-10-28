@@ -23,8 +23,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Chunks touching the camera rectangle, plus a one-chunk margin so a fast
- * camera never shows an unbaked seam. Clamped to the world.
+ * Chunks touching the camera rectangle, plus a three-quarter-chunk margin so a
+ * moving camera never shows an unbaked seam while keeping the resident set ≤ 9.
  */
 export function visibleChunks(
   cameraX: number,
@@ -32,10 +32,11 @@ export function visibleChunks(
   viewW: number,
   viewH: number,
 ): ChunkCoord[] {
-  const minCx = clamp(Math.floor((cameraX - CHUNK_PX) / CHUNK_PX), 0, WORLD_CHUNKS_X - 1);
-  const maxCx = clamp(Math.floor((cameraX + viewW + CHUNK_PX) / CHUNK_PX), 0, WORLD_CHUNKS_X - 1);
-  const minCy = clamp(Math.floor((cameraY - CHUNK_PX) / CHUNK_PX), 0, WORLD_CHUNKS_Y - 1);
-  const maxCy = clamp(Math.floor((cameraY + viewH + CHUNK_PX) / CHUNK_PX), 0, WORLD_CHUNKS_Y - 1);
+  const margin = CHUNK_PX * 0.75;
+  const minCx = clamp(Math.floor((cameraX - margin) / CHUNK_PX), 0, WORLD_CHUNKS_X - 1);
+  const maxCx = clamp(Math.floor((cameraX + viewW + margin) / CHUNK_PX), 0, WORLD_CHUNKS_X - 1);
+  const minCy = clamp(Math.floor((cameraY - margin) / CHUNK_PX), 0, WORLD_CHUNKS_Y - 1);
+  const maxCy = clamp(Math.floor((cameraY + viewH + margin) / CHUNK_PX), 0, WORLD_CHUNKS_Y - 1);
 
   const chunks: ChunkCoord[] = [];
   for (let cy = minCy; cy <= maxCy; cy++) {

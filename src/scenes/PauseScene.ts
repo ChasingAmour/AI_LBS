@@ -1,12 +1,11 @@
 import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { exportSave, importSave, saveGame } from '../systems/saveSystem';
+import { makeText } from '../ui/text';
+import { COLORS, TINTS } from '../ui/theme';
+import { drawPanel } from '../ui/widgets/panel';
 
-const BUTTON_STYLE = {
-  fontFamily: 'monospace',
-  fontSize: '14px',
-  color: '#d8e4f0',
-};
+const PANEL = { x: 140, y: 46, w: 360, h: 268 };
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -14,38 +13,42 @@ export class PauseScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.add.rectangle(0, 0, 640, 360, 0x05080c, 0.86).setOrigin(0, 0);
-    this.add
-      .text(320, 84, '暂停', {
-        fontFamily: 'monospace',
-        fontSize: '22px',
-        color: '#ffd479',
-      })
-      .setOrigin(0.5);
+    this.add.rectangle(0, 0, 640, 360, 0x05080c, 0.72).setOrigin(0, 0);
+    const g = this.add.graphics();
+    drawPanel(g, PANEL);
 
-    this.button(150, '继续游戏', () => this.resumeGame());
-    this.button(184, '保存进度', () => this.save());
-    this.button(218, '导出存档', () => this.exportFile());
-    this.button(252, '导入存档', () => this.importFile());
+    makeText(this, 320, PANEL.y + 16, '暂停', {
+      size: 24,
+      color: COLORS.ink,
+      align: 'center',
+    }).setOrigin(0.5, 0);
 
-    this.add
-      .text(320, 320, 'Esc 继续 · 存档保存在浏览器 localStorage', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#5a6b7a',
-      })
-      .setOrigin(0.5);
+    this.button(112, '继续游戏', () => this.resumeGame());
+    this.button(152, '保存进度', () => this.save());
+    this.button(192, '导出存档', () => this.exportFile());
+    this.button(232, '导入存档', () => this.importFile());
+
+    makeText(this, 320, PANEL.y + PANEL.h - 18, 'Esc 继续 · 存档保存在浏览器 localStorage', {
+      color: COLORS.muted,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
 
     this.input.keyboard?.on('keydown-ESC', () => this.resumeGame());
   }
 
-  private button(y: number, label: string, onClick: () => void): void {
-    const text = this.add
-      .text(320, y, label, BUTTON_STYLE)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    text.on('pointerover', () => text.setColor('#ffd479'));
-    text.on('pointerout', () => text.setColor('#d8e4f0'));
+  private button(centerY: number, label: string, onClick: () => void): void {
+    const x = 220;
+    const y = centerY - 16;
+    const g = this.add.graphics();
+    g.fillStyle(0x3a2412, 1).fillRect(x, y, 200, 32);
+    g.lineStyle(2, TINTS.goldDark, 1).strokeRect(x + 1, y + 1, 198, 30);
+    const text = makeText(this, 320, centerY, label, {
+      color: COLORS.cream,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerover', () => text.setColor(COLORS.gold));
+    text.on('pointerout', () => text.setColor(COLORS.cream));
     text.on('pointerdown', onClick);
   }
 
@@ -89,13 +92,10 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private flash(message: string): void {
-    const text = this.add
-      .text(320, 286, message, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#9fe0a8',
-      })
-      .setOrigin(0.5);
+    const text = makeText(this, 320, 286, message, {
+      color: COLORS.energy,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
     this.tweens.add({ targets: text, alpha: 0, delay: 900, duration: 400 });
   }
 }

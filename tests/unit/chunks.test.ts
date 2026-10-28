@@ -29,6 +29,7 @@ describe('chunks', () => {
   it('has no duplicate chunks', () => {
     const chunks = visibleChunks(4321, 2100, 320, 180);
     expect(new Set(chunks.map((c) => `${c.cx},${c.cy}`)).size).toBe(chunks.length);
+    expect(chunks.length).toBeLessThanOrEqual(9);
   });
 });
 
