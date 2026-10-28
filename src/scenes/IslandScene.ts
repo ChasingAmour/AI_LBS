@@ -29,6 +29,7 @@ import {
   spendEnergy,
   tickNeeds,
 } from '../systems/needsSystem';
+import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
   gatherNode,
@@ -98,6 +99,7 @@ export class IslandScene extends Phaser.Scene {
   private channel: { target: InteractTarget; elapsed: number } | null = null;
   private accumulator = 0;
   private nextAttackAt = 0;
+  private hasteUntil = 0;
   private deathLaunched = false;
 
   constructor() {
@@ -703,7 +705,9 @@ export class IslandScene extends Phaser.Scene {
     const now = this.time.now;
     if (now < this.nextAttackAt) return;
     const weapon = weaponFor(this.selectedWeaponBaseId());
-    this.nextAttackAt = now + weapon.cooldownSec * 1000;
+    const stats = deriveStats(this.state);
+    const haste = now < this.hasteUntil ? 0.7 : 1;
+    this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
 
     const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
     const targets = this.state.savages
@@ -717,11 +721,18 @@ export class IslandScene extends Phaser.Scene {
     for (const id of hitIds) {
       const savage = this.state.savages.find((entry) => entry.id === id);
       if (!savage) continue;
-      const result = applyHitToSavage(savage, weapon, 0);
+      const result = applyHitToSavage(savage, weapon, 0, {
+        attack: stats.attack,
+        stunMul: stats.stunMul,
+        stunBonus: stats.stunBonus,
+        savageMul: stats.savageMul,
+        armorPierce: stats.armorPierce,
+      });
       if (result === 'stunned') {
         this.game.events.emit('ui:banner', '野人眩晕了！靠近按 E 用藤蔓捆绑');
       } else if (result === 'dead') {
         this.game.events.emit('ui:banner', '野人倒下了');
+        if (stats.killHaste) this.hasteUntil = now + 2000;
       }
     }
     if (hitIds.length > 0) this.damageWeapon();
@@ -782,13 +793,24 @@ export class IslandScene extends Phaser.Scene {
         input.y = 0;
       }
       const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
-      const terrain = terrainSpeedAt(tile);
+      const stats = deriveStats(this.state);
+      const inWater = tile === TILE.shallowWater || tile === TILE.stream;
+      const terrain = stats.shallowImmune && inWater
+        ? stats.waveWalk
+          ? 1.1
+          : 1
+        : terrainSpeedAt(tile);
       const sprint = this.keys.SHIFT.isDown ? 1.5 : 1;
-      this.player.setVelocityFromInput(input, 90 * terrain * sprint);
+      const speed = 90 * terrain * stats.moveMul * sprint;
+      this.player.setVelocityFromInput(input, speed);
       if (dx !== 0) this.state.player.facing = dx < 0 ? 'left' : 'right';
       else if (dy !== 0) this.state.player.facing = dy < 0 ? 'up' : 'down';
-      if (this.keys.SHIFT.isDown) spendEnergy(this.state, 0.4 * dt);
+      if (this.keys.SHIFT.isDown) {
+        spendEnergy(this.state, 0.4 * stats.sprintEnergyMul * dt);
+      }
     }
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    tickBootWear(this.state, Math.hypot(body.deltaX(), body.deltaY()));
     this.player.setDepth(depthFor(this.player.y));
     this.light.setPosition(this.player.x, this.player.y - 8);
     this.light.setDepth(LIGHT_DEPTH);

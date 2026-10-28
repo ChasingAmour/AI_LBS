@@ -1,5 +1,11 @@
 import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
+import { damageEquipped, deriveStats } from './statsSystem';
+
+export interface DamageSource {
+  kind: 'savage' | 'dungeon';
+  id: string;
+}
 
 interface FoodEffect {
   hunger?: number;
@@ -23,7 +29,8 @@ function clamp100(value: number): number {
 export function tickNeeds(state: GameState, dtSec: number): void {
   if (dtSec <= 0 || state.player.dead) return;
   const p = state.player;
-  p.hunger = clamp100(p.hunger - 0.05 * dtSec);
+  const stats = deriveStats(state);
+  p.hunger = clamp100(p.hunger - 0.05 * stats.hungerMul * dtSec);
   p.thirst = clamp100(p.thirst - 0.08 * dtSec);
   if (p.hunger <= 0 || p.thirst <= 0) {
     p.hp = clamp100(p.hp - 0.5 * dtSec);
@@ -58,19 +65,31 @@ export function drinkFreshWater(state: GameState): void {
   state.player.thirst = clamp100(state.player.thirst + 40);
 }
 
-export function applyDamage(state: GameState, amount: number): void {
-  state.player.hp = clamp100(state.player.hp - Math.max(0, amount));
+export function applyDamage(state: GameState, amount: number, attacker?: DamageSource): void {
+  if (amount <= 0) return;
+  const stats = deriveStats(state);
+  const reduced = Math.max(1, amount - stats.defense);
+  state.player.hp = clamp100(state.player.hp - reduced);
+  damageEquipped(state, 'armor', 1);
+  if (attacker?.kind === 'savage' && stats.thorns > 0) {
+    const savage = state.savages.find((entry) => entry.id === attacker.id);
+    if (savage && savage.mode !== 'dead') {
+      savage.hp = Math.max(0, savage.hp - stats.thorns);
+      if (savage.hp <= 0) savage.mode = 'dead';
+    }
+  }
   if (state.player.hp <= 0) state.player.dead = true;
 }
 
 export function spendEnergy(state: GameState, amount: number): boolean {
   if (state.player.energy < amount) return false;
-  state.player.energy = clamp100(state.player.energy - amount);
+  const max = deriveStats(state).energyMax;
+  state.player.energy = Math.max(0, Math.min(max, state.player.energy - amount));
   return true;
 }
 
 export function applySleepRecovery(state: GameState): void {
-  state.player.energy = 100;
+  state.player.energy = deriveStats(state).energyMax;
   state.player.hp = clamp100(state.player.hp + 20);
 }
 
@@ -81,7 +100,7 @@ export function respawnAfterDeath(state: GameState, bus: EventBus): void {
   p.hp = 50;
   p.hunger = 50;
   p.thirst = 50;
-  p.energy = 100;
+  p.energy = deriveStats(state).energyMax;
   p.dead = false;
   p.healing = null;
   const respawn = state.buildings.find((b) => b.type === 'tent')

@@ -43,6 +43,42 @@ export const WEAPONS: Record<string, WeaponDef> = {
     cooldownSec: 0.8,
     maxDurability: 50,
   },
+  coral_dagger: {
+    id: 'coral_dagger',
+    name: '珊瑚匕首',
+    pattern: { kind: 'combo', range: 26, angleDeg: 70, hits: 3 },
+    damage: 4,
+    stun: 3,
+    cooldownSec: 0.25,
+    maxDurability: 45,
+  },
+  captain_cutlass: {
+    id: 'captain_cutlass',
+    name: '船长弯刀',
+    pattern: { kind: 'arc', range: 42, angleDeg: 100 },
+    damage: 16,
+    stun: 8,
+    cooldownSec: 0.7,
+    maxDurability: 60,
+  },
+  sea_snake_spear: {
+    id: 'sea_snake_spear',
+    name: '海蛇骨矛',
+    pattern: { kind: 'thrust', range: 60, width: 16 },
+    damage: 18,
+    stun: 6,
+    cooldownSec: 0.9,
+    maxDurability: 55,
+  },
+  anchor_hammer: {
+    id: 'anchor_hammer',
+    name: '船锚锤',
+    pattern: { kind: 'arc', range: 40, angleDeg: 120 },
+    damage: 12,
+    stun: 28,
+    cooldownSec: 1.1,
+    maxDurability: 70,
+  },
 };
 
 export function weaponFor(baseId: string | null): WeaponDef {

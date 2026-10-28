@@ -2,6 +2,7 @@ import type { GameState } from '../core/gameState';
 import { WORLD } from '../core/config';
 import { createSavage, type SavageState } from '../entities/savage';
 import { damageBuilding, getStorage } from './buildingSystem';
+import { applyDamage } from './needsSystem';
 
 export interface RaidDawnResult {
   foodLost: number;
@@ -71,8 +72,7 @@ export function updateSavageAi(state: GameState, savage: SavageState, dtSec: num
 
   savage.attackCooldown = (savage.attackCooldown ?? 0) - dtSec;
   if (savage.attackCooldown <= 0) {
-    state.player.hp = Math.max(0, state.player.hp - 8);
-    if (state.player.hp <= 0) state.player.dead = true;
+    applyDamage(state, 8, { kind: 'savage', id: savage.id });
     savage.attackCooldown = 1;
   }
 }

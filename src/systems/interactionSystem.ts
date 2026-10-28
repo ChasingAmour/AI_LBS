@@ -3,6 +3,7 @@ import { BUILDINGS } from '../data/buildings';
 import { ITEMS } from '../data/items';
 import { RESOURCE_NODES, nodeDefForId } from '../data/spawns';
 import { addItem, countItem } from './inventorySystem';
+import { deriveStats } from './statsSystem';
 
 export type InteractKind =
   | 'savage'
@@ -39,8 +40,9 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
 
 function nodeDuration(state: GameState, nodeId: string): number {
   const def = nodeDefForId(nodeId);
-  if (!def?.tool) return BASE_CHANNEL;
-  return countItem(state, def.tool) > 0 ? BASE_CHANNEL : BASE_CHANNEL * 3;
+  const base = BASE_CHANNEL / deriveStats(state).gatherMul;
+  if (!def?.tool) return base;
+  return countItem(state, def.tool) > 0 ? base : base * 3;
 }
 
 /**

@@ -11,6 +11,8 @@ export interface SavageState {
   hp: number;
   /** 0..100 stun meter */
   stun: number;
+  /** flat damage reduction, defaults to 0 */
+  defense?: number;
   /** seconds of stun remaining, null when not stunned */
   stunnedUntil: number | null;
   /** seconds since the last hit taken */

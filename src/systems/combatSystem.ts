@@ -60,16 +60,30 @@ export function computeHitTargets(
 
 export type HitResult = 'hit' | 'stunned' | 'dead';
 
+export interface CombatMods {
+  attack?: number;
+  stunMul?: number;
+  stunBonus?: number;
+  savageMul?: number;
+  armorPierce?: boolean;
+}
+
 export function applyHitToSavage(
   savage: SavageState,
   weapon: WeaponDef,
   dtSec: number,
+  mods: CombatMods = {},
 ): HitResult {
   void dtSec;
   if (savage.mode === 'dead') return 'dead';
   savage.lastHitAgo = 0;
-  savage.hp -= weapon.damage;
-  savage.stun = Math.min(100, savage.stun + weapon.stun);
+  const rawDamage = (weapon.damage + (mods.attack ?? 0)) * (mods.savageMul ?? 1);
+  const defense = mods.armorPierce ? 0 : (savage.defense ?? 0);
+  savage.hp -= Math.max(1, Math.round(rawDamage - defense));
+  savage.stun = Math.min(
+    100,
+    savage.stun + (weapon.stun + (mods.stunBonus ?? 0)) * (mods.stunMul ?? 1),
+  );
 
   if (savage.hp <= 0) {
     savage.hp = 0;
