@@ -73,4 +73,17 @@ describe('crafting system', () => {
     expect(RECIPES.dried_fish.station).toBe('dryingRack');
     expect(craftDurationSec('dried_fish')).toBe(900);
   });
+
+  it('生肉可在篝火烤、在晾肉架做肉干', () => {
+    expect(RECIPES.cooked_meat).toMatchObject({
+      station: 'campfire',
+      output: 'cooked_meat',
+      inputs: [{ baseId: 'raw_meat', count: 1 }],
+    });
+    expect(RECIPES.dried_meat).toMatchObject({
+      station: 'dryingRack',
+      output: 'dried_meat',
+      inputs: [{ baseId: 'raw_meat', count: 1 }],
+    });
+  });
 });

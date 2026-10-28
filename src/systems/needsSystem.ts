@@ -1,26 +1,12 @@
 import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
+import { ITEMS } from '../data/items';
 import { damageEquipped, deriveStats } from './statsSystem';
 
 export interface DamageSource {
   kind: 'savage' | 'dungeon';
   id: string;
 }
-
-interface FoodEffect {
-  hunger?: number;
-  thirst?: number;
-  healOverSec?: number;
-  heal?: number;
-}
-
-export const FOOD_EFFECTS: Record<string, FoodEffect> = {
-  coconut: { hunger: 10, thirst: 15 },
-  berries: { hunger: 8 },
-  cooked_fish: { hunger: 35 },
-  dried_fish: { hunger: 25 },
-  bandage: { healOverSec: 8, heal: 30 },
-};
 
 function clamp100(value: number): number {
   return Math.max(0, Math.min(100, value));
@@ -45,7 +31,7 @@ export function tickNeeds(state: GameState, dtSec: number): void {
 }
 
 export function consumeFood(state: GameState, baseId: string): boolean {
-  const effect = FOOD_EFFECTS[baseId];
+  const effect = ITEMS[baseId]?.food;
   if (!effect) return false;
   const index = state.inventory.findIndex((i) => i.baseId === baseId && i.count > 0);
   if (index < 0) return false;

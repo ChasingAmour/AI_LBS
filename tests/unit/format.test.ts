@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatClock, formatDay, getInteractPrompt } from '../../src/ui/format';
+import { formatClock, formatDay, foodEffectLines, getInteractPrompt } from '../../src/ui/format';
 import { createNewGame } from '../../src/core/gameState';
 
 describe('ui format', () => {
@@ -25,5 +25,9 @@ describe('ui format', () => {
     expect(getInteractPrompt(s)).toBeNull();
     s.raid = { active: true, day: 5 };
     expect(getInteractPrompt(s)).toContain('藤蔓');
+  });
+
+  it('foodEffectLines 对未知物品返回空数组', () => {
+    expect(foodEffectLines('wood')).toEqual([]);
   });
 });

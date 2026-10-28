@@ -10,7 +10,15 @@ export interface RaidDawnResult {
 }
 
 const SAVAGE_COUNT_BY_LEVEL = [2, 2, 3, 4];
-const FOOD_PRIORITY = ['dried_fish', 'cooked_fish', 'coconut', 'berries', 'raw_fish'];
+export const FOOD_PRIORITY = [
+  'dried_meat',
+  'cooked_meat',
+  'dried_fish',
+  'cooked_fish',
+  'coconut',
+  'berries',
+  'raw_fish',
+];
 const DESTRUCTIBLE = ['fence', 'stone_wall', 'storage', 'drying_rack'];
 
 /** Raiders come ashore 10 tiles east and 6 south of the camp, inside the world. */
