@@ -1,6 +1,7 @@
 import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
 import { countItem } from './inventorySystem';
+import { hasCampFlag } from './buildingSystem';
 
 export interface TutorialGoal {
   id: string;
@@ -8,6 +9,7 @@ export interface TutorialGoal {
 }
 
 export const TUTORIAL_GOALS: TutorialGoal[] = [
+  { id: 'flag', label: '插下据点旗' },
   { id: 'chest', label: '打开破船上的箱子' },
   { id: 'stick', label: '制作一根木棍' },
   { id: 'campfire', label: '建造营火' },
@@ -18,6 +20,8 @@ export const TUTORIAL_GOALS: TutorialGoal[] = [
 
 function goalDone(state: GameState, goal: TutorialGoal): boolean {
   switch (goal.id) {
+    case 'flag':
+      return hasCampFlag(state);
     case 'chest':
       return state.world.uniqueLoot.includes('chest_wreck');
     case 'stick':

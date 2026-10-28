@@ -133,6 +133,19 @@ export class MapPanel {
   private drawLandmarks(state: GameState, island: IslandData | undefined): void {
     if (!island) return;
     const g = this.scene.add.graphics();
+    const flag = state.buildings.find((b) => b.type === 'flag');
+    if (flag) {
+      const point = worldToMap(flag.x * 16 + 8, flag.y * 16 + 8, MAP_RECT);
+      g.fillStyle(0xb03a2e, 1).fillTriangle(point.x - 4, point.y - 4, point.x + 4, point.y - 4, point.x - 4, point.y + 3);
+      g.lineStyle(1, TINTS.woodDark, 1).strokeTriangle(
+        point.x - 4,
+        point.y - 4,
+        point.x + 4,
+        point.y - 4,
+        point.x - 4,
+        point.y + 3,
+      );
+    }
     for (const landmark of island.landmarks) {
       const point = worldToMap(landmark.x, landmark.y, MAP_RECT);
       const discovered = state.world.discovered.includes(landmark.id);

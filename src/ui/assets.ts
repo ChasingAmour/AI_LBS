@@ -42,6 +42,7 @@ const DEPLETED_SPRITES: Record<string, NodeSpriteSpec> = {
 };
 
 const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
+  flag: { texture: 'flag', w: 14, h: 20 },
   shelter: { texture: 'hut', w: 64, h: 64 },
   tent: { texture: 'hut', w: 64, h: 64 },
   campfire: { texture: TEXTURE.dungeon, frame: 29, w: 16, h: 16 },

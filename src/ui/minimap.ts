@@ -78,6 +78,12 @@ export class Minimap {
       }
     }
 
+    const flag = state.buildings.find((b) => b.type === 'flag');
+    if (flag) {
+      const p = worldToMap(flag.x * 16 + 8, flag.y * 16 + 8, MINI_RECT);
+      g.fillStyle(0xb03a2e, 1).fillRect(Math.round(p.x) - 1, Math.round(p.y) - 2, 3, 3);
+    }
+
     if (state.world.waypoint) {
       const p = worldToMap(state.world.waypoint.x, state.world.waypoint.y, MINI_RECT);
       g.lineStyle(1, TINTS.gold, 1);

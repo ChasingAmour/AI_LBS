@@ -171,10 +171,6 @@ export class IslandScene extends Phaser.Scene {
     this.terrain = this.island.terrain;
     this.registry.set('island', this.island);
     this.state.world.hash = this.island.hash;
-    this.state.camp.center = {
-      x: Math.floor(this.island.campCenter.x / WORLD.tile),
-      y: Math.floor(this.island.campCenter.y / WORLD.tile),
-    };
     this.state.world.wreckSpawn = { x: this.island.spawn.x, y: this.island.spawn.y };
   }
 
@@ -336,13 +332,16 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private makeWorldTextures(): void {
-    if (this.textures.exists('palm') && this.textures.exists('hut')) return;
+    if (this.textures.exists('palm') && this.textures.exists('hut') && this.textures.exists('flag')) return;
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     this.drawPalm(g);
     g.clear();
 
     this.drawHut(g);
+    g.clear();
+
+    this.drawFlag(g);
     g.destroy();
 
     const canvas = this.textures.createCanvas('light', 256, 256);
@@ -369,9 +368,18 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  /** 12×20 camp flag: wooden pole with a red pennant. */
+  private drawFlag(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x5a3a1c).fillRect(4, 4, 2, 16);
+    g.fillStyle(0x7a5024).fillRect(4, 4, 1, 16);
+    g.fillStyle(0xb03a2e).fillTriangle(6, 4, 12, 7, 6, 11);
+    g.fillStyle(0xd4533f).fillTriangle(6, 5, 10, 7, 6, 10);
+    g.fillStyle(0x3a2a18).fillRect(2, 19, 6, 1);
+    g.generateTexture('flag', 14, 20);
+  }
+
   /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
-  private drawPalm(g: Phaser.GameObjects.Graphics): void {
-    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
+  private drawPalm(g: Phaser.GameObjects.Graphics): void {    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
     g.fillRect(7, 14, 3, 10);
     g.fillStyle(0x8a5a2b).fillRect(10, 10, 2, 14);
     g.fillStyle(0x2f6b34).fillRect(1, 5, 8, 3);

@@ -16,8 +16,12 @@ export interface PlacementCheck {
   reason?: string;
 }
 
-function nextBuildingId(state: GameState): string {
-  let max = 0;
+/** The camp only exists once the player has planted the flag. */
+export function hasCampFlag(state: GameState): boolean {
+  return state.buildings.some((b) => b.type === 'flag');
+}
+
+function nextBuildingId(state: GameState): string {  let max = 0;
   for (const building of state.buildings) {
     const match = /^b_(\d+)$/.exec(building.id);
     if (match) max = Math.max(max, Number(match[1]));
@@ -34,12 +38,18 @@ export function canPlace(
 ): PlacementCheck {
   const def = BUILDINGS[type];
   if (!def) return { ok: false, reason: '未知建筑' };
+  if (def.unique && hasCampFlag(state)) {
+    return { ok: false, reason: '据点已建立' };
+  }
+  if (!def.unique && !hasCampFlag(state)) {
+    return { ok: false, reason: '先插旗建立据点' };
+  }
   if (state.camp.level < def.unlockLevel) {
     return { ok: false, reason: `需要营地等级 ${def.unlockLevel}` };
   }
   const dx = tileX - state.camp.center.x;
   const dy = tileY - state.camp.center.y;
-  if (Math.hypot(dx, dy) > CONFIG.campRadiusTiles) {
+  if (!def.unique && Math.hypot(dx, dy) > CONFIG.campRadiusTiles) {
     return { ok: false, reason: '超出营地范围' };
   }
   if (state.buildings.some((b) => b.x === tileX && b.y === tileY)) {
@@ -77,6 +87,7 @@ export function placeBuilding(
   };
   if (type === 'storage') building.storage = [];
   state.buildings.push(building);
+  if (type === 'flag') state.camp.center = { x: tileX, y: tileY };
   return building;
 }
 
@@ -90,6 +101,7 @@ export function demolishBuilding(state: GameState, id: string): void {
   const index = state.buildings.findIndex((b) => b.id === id);
   if (index < 0) return;
   const building = state.buildings[index];
+  if (BUILDINGS[building.type]?.indestructible) return;
   for (const refund of refundFor(building.type)) {
     addItem(state, refund.baseId, refund.count);
   }
@@ -100,6 +112,7 @@ export function damageBuilding(state: GameState, id: string, amount: number): vo
   const index = state.buildings.findIndex((b) => b.id === id);
   if (index < 0) return;
   const building = state.buildings[index];
+  if (BUILDINGS[building.type]?.indestructible) return;
   building.hp -= Math.max(0, amount);
   if (building.hp > 0) return;
   if (building.storage?.length) {
