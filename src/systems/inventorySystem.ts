@@ -71,3 +71,12 @@ export function getToolDurability(state: GameState, baseId: string): number | nu
   const stack: ItemStack | undefined = state.inventory.find((i) => i.baseId === baseId && i.durability !== undefined);
   return stack?.durability ?? null;
 }
+
+/** Puts a tool or weapon into the first empty hotbar slot. */
+export function ensureHotbar(state: GameState, baseId: string): void {
+  const def = ITEMS[baseId];
+  if (!def || (def.kind !== 'tool' && def.kind !== 'weapon')) return;
+  if (state.hotbar.includes(baseId)) return;
+  const index = state.hotbar.findIndex((slot) => slot === null);
+  if (index >= 0) state.hotbar[index] = baseId;
+}

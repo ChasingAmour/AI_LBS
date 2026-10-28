@@ -13,9 +13,10 @@ import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
 import {
   applySleepRecovery,
   drinkFreshWater,
+  spendEnergy,
   tickNeeds,
 } from '../systems/needsSystem';
-import { damageTool } from '../systems/inventorySystem';
+import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
   gatherNode,
   hasToolFor,
@@ -494,10 +495,15 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private placeSelectedBuilding(type: string, pointer: Phaser.Input.Pointer): void {
+    if (!spendEnergy(this.state, 10)) {
+      this.game.events.emit('ui:banner', '精力不足，先休息一下');
+      return;
+    }
     const tileX = Math.floor(pointer.worldX / 16);
     const tileY = Math.floor(pointer.worldY / 16);
     const building = placeBuilding(this.state, type, tileX, tileY, this.placementWorld());
     if (!building) {
+      this.state.player.energy = Math.min(100, this.state.player.energy + 10);
       this.game.events.emit('ui:banner', '这里不能建造');
       return;
     }
@@ -653,6 +659,7 @@ export class IslandScene extends Phaser.Scene {
       this.player.setVelocityFromInput(input, 90 * terrain * sprint);
       if (dx !== 0) this.state.player.facing = dx < 0 ? 'left' : 'right';
       else if (dy !== 0) this.state.player.facing = dy < 0 ? 'up' : 'down';
+      if (this.keys.SHIFT.isDown) spendEnergy(this.state, 0.4 * dt);
     }
     this.player.setDepth(depthFor(this.player.y));
     this.light.setPosition(this.player.x, this.player.y - 8);
@@ -762,7 +769,32 @@ export class IslandScene extends Phaser.Scene {
       this.game.events.emit('ui:banner', '这个箱子已经打开过了');
       return;
     }
-    this.channel = { target, elapsed: 0 };
+    if (target.kind === 'node') {
+      const node = this.state.world.nodes[target.id];
+      const cost = this.gatherEnergyCost(node?.type ?? '');
+      if (this.state.player.energy < cost) {
+        this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
+        return;
+      }
+    }
+    if (target.kind === 'building' && this.state.player.energy < 10) {
+      const building = this.state.buildings.find((b) => b.id === target.id);
+      if (building?.type === 'workbench' || building?.type === 'storage') {
+        this.game.events.emit('ui:banner', '精力不足，先休息一下');
+        return;
+      }
+    }
+    const slow = this.state.player.energy < 10 && (target.kind === 'node' || target.kind === 'building');
+    this.channel = {
+      target: slow ? { ...target, durationSec: target.durationSec * 2 } : target,
+      elapsed: 0,
+    };
+  }
+
+  private gatherEnergyCost(nodeType: string): number {
+    if (nodeType === 'tree') return 5;
+    if (nodeType === 'rock' || nodeType === 'clay') return 6;
+    return 1;
   }
 
   private cancelChannel(): void {
@@ -823,6 +855,10 @@ export class IslandScene extends Phaser.Scene {
     if (!node) return;
     const def = RESOURCE_NODES[node.type];
     if (!def) return;
+    if (!spendEnergy(this.state, this.gatherEnergyCost(node.type))) {
+      this.game.events.emit('ui:banner', '精力不足，先吃点东西或睡一觉');
+      return;
+    }
     const result = gatherNode(this.state, target.id, this.rng);
     this.state.rngState = this.rng.state();
     if (result.items.length > 0) {
@@ -834,7 +870,7 @@ export class IslandScene extends Phaser.Scene {
         'ui:banner',
         leftover > 0 ? `采集到${names}，背包已满` : `采集到${names}`,
       );
-      for (const item of result.items) this.assignHotbar(item.baseId);
+      for (const item of result.items) ensureHotbar(this.state, item.baseId);
     } else {
       this.game.events.emit('ui:banner', `${def.name}被采空了`);
     }
@@ -842,14 +878,6 @@ export class IslandScene extends Phaser.Scene {
       damageTool(this.state, def.tool, 1);
     }
     this.syncNodes();
-  }
-
-  private assignHotbar(baseId: string): void {
-    const def = ITEMS[baseId];
-    if (!def || (def.kind !== 'tool' && def.kind !== 'weapon')) return;
-    if (this.state.hotbar.includes(baseId)) return;
-    const index = this.state.hotbar.findIndex((slot) => slot === null);
-    if (index >= 0) this.state.hotbar[index] = baseId;
   }
 
   private openChest(target: InteractTarget): void {

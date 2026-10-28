@@ -23,6 +23,12 @@ export class UIScene extends Phaser.Scene {
     this.hud = new Hud(this);
     this.panel = new Panel(this);
 
+    const notice = this.registry.get('loadNotice') as string | undefined;
+    if (notice) {
+      this.registry.set('loadNotice', null);
+      this.time.delayedCall(250, () => this.hud.showBanner(notice, 3200));
+    }
+
     const keyboard = this.input.keyboard;
     if (keyboard) {
       keyboard.on('keydown-I', () => this.withState((state) => openInventoryPanel(this.panel, state)));

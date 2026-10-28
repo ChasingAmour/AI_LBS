@@ -127,7 +127,20 @@ export function saveGame(state: GameState, storage: Storage = localStorage): voi
 }
 
 export function loadGame(storage: Storage = localStorage): GameState | null {
-  return readSlot(storage, SAVE_KEY) ?? readSlot(storage, BACKUP_KEY);
+  return loadGameResult(storage).state;
+}
+
+export interface LoadResult {
+  state: GameState | null;
+  source: 'main' | 'backup' | 'none';
+}
+
+export function loadGameResult(storage: Storage = localStorage): LoadResult {
+  const main = readSlot(storage, SAVE_KEY);
+  if (main) return { state: main, source: 'main' };
+  const backup = readSlot(storage, BACKUP_KEY);
+  if (backup) return { state: backup, source: 'backup' };
+  return { state: null, source: 'none' };
 }
 
 export function exportSaveJson(state: GameState): string {
