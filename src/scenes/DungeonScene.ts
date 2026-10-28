@@ -59,6 +59,7 @@ export class DungeonScene extends Phaser.Scene {
   private light!: Phaser.GameObjects.Image;
   private closed = false;
   private beam?: Phaser.GameObjects.Rectangle;
+  private exitArrow?: Phaser.GameObjects.Triangle;
   private bus = new EventBus();
   private lastHp = 100;
 
@@ -317,6 +318,33 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
+  /** Screen-edge arrow pointing at the stairs until they come into view. */
+  private updateExitArrow(): void {
+    const cam = this.cameras.main;
+    const stair = this.tileCenter(this.floorData.stairs.x, this.floorData.stairs.y);
+    if (Phaser.Geom.Rectangle.Contains(cam.worldView, stair.x, stair.y)) {
+      this.exitArrow?.setVisible(false);
+      return;
+    }
+    if (!this.exitArrow) {
+      this.exitArrow = this.add
+        .triangle(0, 0, 0, 0, 14, 7, 0, 14, 0xffe6a0, 0.9)
+        .setScrollFactor(0)
+        .setDepth(9500);
+    }
+    const angle = Math.atan2(stair.y - this.player.y, stair.x - this.player.x);
+    const radius = Math.min(cam.width, cam.height) / 2 - 26;
+    const x = cam.width / 2 + Math.cos(angle) * radius;
+    const y = cam.height / 2 + Math.sin(angle) * radius;
+    this.exitArrow
+      .setVisible(true)
+      .setPosition(
+        Phaser.Math.Clamp(x, 14, cam.width - 14),
+        Phaser.Math.Clamp(y, 14, cam.height - 14),
+      )
+      .setRotation(angle);
+  }
+
   /** Marks the floor cleared once every enemy is down. */
   private checkFloorCleared(): void {
     if (isFloorCleared(this.state, this.floorData.floor)) return;
@@ -382,6 +410,7 @@ export class DungeonScene extends Phaser.Scene {
     this.darkness.setVisible(true);
     this.light.setPosition(this.player.x, this.player.y - 8);
     this.light.setDisplaySize(this.hasTorch() ? 120 : 40, this.hasTorch() ? 120 : 40);
+    this.updateExitArrow();
     this.state.player.x = this.player.x;
     this.state.player.y = this.player.y;
 
