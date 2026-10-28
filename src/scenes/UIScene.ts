@@ -4,6 +4,7 @@ import { Hud } from '../ui/hud';
 import { Panel } from '../ui/panel';
 import { InventoryOverlay } from '../ui/inventoryPanel';
 import { MapPanel } from '../ui/mapPanel';
+import { Minimap } from '../ui/minimap';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -14,6 +15,7 @@ export class UIScene extends Phaser.Scene {
   private panel!: Panel;
   private inventory!: InventoryOverlay;
   private map!: MapPanel;
+  private minimap!: Minimap;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
@@ -27,6 +29,10 @@ export class UIScene extends Phaser.Scene {
     this.panel = new Panel(this);
     this.inventory = new InventoryOverlay(this);
     this.map = new MapPanel(this);
+    this.minimap = new Minimap(this, () => {
+      if (this.panel.isOpen || this.inventory.isOpen || this.map.isOpen) return;
+      this.toggleMap();
+    });
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -44,12 +50,7 @@ export class UIScene extends Phaser.Scene {
       keyboard.on('keydown-C', () => this.withState((state) => this.openCraft(state)));
       keyboard.on('keydown-B', () => this.withState((state) => this.openBuild(state)));
       keyboard.on('keydown-L', () => this.withState((state) => this.openLabor(state)));
-      keyboard.on('keydown-M', () => {
-        this.panel.close();
-        this.inventory.close();
-        this.withState((state) => this.map.toggle(state));
-      });
-      keyboard.on('keydown-ESC', () => {
+      keyboard.on('keydown-M', () => this.toggleMap());      keyboard.on('keydown-ESC', () => {
         if (this.map.isOpen) {
           this.map.close();
           return;
@@ -85,7 +86,10 @@ export class UIScene extends Phaser.Scene {
 
   update(): void {
     const state = this.state();
-    if (state) this.hud.update(state);
+    if (state) {
+      this.hud.update(state);
+      this.minimap.update(state);
+    }
     this.registry.set('uiOpen', this.panel.isOpen || this.inventory.isOpen || this.map.isOpen);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
@@ -106,6 +110,13 @@ export class UIScene extends Phaser.Scene {
       else if (kind === 'build') this.openBuild(state);
       else if (kind === 'labor') this.openLabor(state);
     });
+  }
+
+  /** M key and minimap click: close other modals, then toggle the map. */
+  private toggleMap(): void {
+    this.panel.close();
+    this.inventory.close();
+    this.withState((state) => this.map.toggle(state));
   }
 
   private openCraft(state: GameState): void {

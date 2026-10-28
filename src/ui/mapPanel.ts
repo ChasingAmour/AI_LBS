@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { decodeExplored } from '../core/explored';
 import { WORLD } from '../core/config';
-import { TILE } from '../world/terrain';
 import type { IslandData } from '../world/generate';
 import { LANDMARK_NAMES } from '../world/landmarks';
 import { MAP_RECT, explorePercent, mapToWorld, worldToMap } from '../world/mapView';
@@ -11,38 +10,10 @@ import { makeText } from './text';
 import { COLORS, TINTS } from './theme';
 import { panelRect } from './widgets/layout';
 import { drawPanel } from './widgets/panel';
+import { renderIslandCanvas } from './islandCanvas';
 
 const CANVAS_W = 400;
 const CANVAS_H = 240;
-
-const TERRAIN_COLOR: Record<number, number> = {
-  [TILE.deepWater]: 0x1c4f66,
-  [TILE.shallowWater]: 0x2f7f96,
-  [TILE.stream]: 0x3f9fd0,
-  [TILE.sand]: 0xd9a05e,
-  [TILE.grass]: 0x7ec850,
-  [TILE.forest]: 0x4f8a3c,
-  [TILE.rock]: 0x8a8478,
-  [TILE.clay]: 0xb07a4f,
-};
-
-function mix(a: number, b: number, t: number): number {
-  const ar = (a >> 16) & 0xff;
-  const ag = (a >> 8) & 0xff;
-  const ab = a & 0xff;
-  const br = (b >> 16) & 0xff;
-  const bg = (b >> 8) & 0xff;
-  const bb = b & 0xff;
-  return (
-    (Math.round(ar + (br - ar) * t) << 16) |
-    (Math.round(ag + (bg - ag) * t) << 8) |
-    Math.round(ab + (bb - ab) * t)
-  );
-}
-
-function css(color: number): string {
-  return `#${color.toString(16).padStart(6, '0')}`;
-}
 
 /** Full-island parchment map with fog, trails, landmarks and a waypoint. */
 export class MapPanel {
@@ -119,58 +90,12 @@ export class MapPanel {
     island: IslandData | undefined,
     explored: Set<string>,
   ): void {
-    const key = 'island-map';
-    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
-    const texture = this.scene.textures.createCanvas(key, CANVAS_W, CANVAS_H);
-    if (!texture) return;
-    const ctx = texture.context;
-    const parchment = 0xf0dfb8;
-
-    if (island) {
-      for (let py = 0; py < CANVAS_H; py++) {
-        for (let px = 0; px < CANVAS_W; px++) {
-          const worldX = (px / CANVAS_W) * WORLD.widthPx;
-          const worldY = (py / CANVAS_H) * WORLD.heightPx;
-          const tile = island.terrain[
-            Math.floor(worldY / WORLD.tile) * WORLD.widthTiles + Math.floor(worldX / WORLD.tile)
-          ];
-          const base = TERRAIN_COLOR[tile] ?? TERRAIN_COLOR[TILE.grass];
-          const cx = Math.floor(worldX / CHUNK_PX);
-          const cy = Math.floor(worldY / CHUNK_PX);
-          const seen = explored.has(`${cx},${cy}`);
-          const sea = base === TERRAIN_COLOR[TILE.deepWater] || base === TERRAIN_COLOR[TILE.shallowWater];
-          const color = seen ? base : mix(base, parchment, sea ? 0.22 : 0.74);
-          ctx.fillStyle = css(color);
-          ctx.fillRect(px, py, 1, 1);
-        }
-      }
-    }
-
-    // coastline: a 1px dark brown edge wherever land meets water
-    if (island) {
-      const image = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H).data;
-      ctx.fillStyle = 'rgba(74,47,24,0.85)';
-      for (let py = 1; py < CANVAS_H - 1; py++) {
-        for (let px = 1; px < CANVAS_W - 1; px++) {
-          const i = (py * CANVAS_W + px) * 4;
-          const left = (i - 4);
-          const right = (i + 4);
-          const up = (i - CANVAS_W * 4);
-          const down = (i + CANVAS_W * 4);
-          const isLand = image[i + 1] > image[i + 2] + 10;
-          const neighborLand =
-            image[left + 1] > image[left + 2] + 10 ||
-            image[right + 1] > image[right + 2] + 10 ||
-            image[up + 1] > image[up + 2] + 10 ||
-            image[down + 1] > image[down + 2] + 10;
-          if (isLand && !neighborLand) ctx.fillRect(px, py, 1, 1);
-        }
-      }
-    }
-
-    texture.refresh();
+    renderIslandCanvas(this.scene, 'island-map', CANVAS_W, CANVAS_H, island, explored);
     this.root.add(
-      this.scene.add.image(MAP_RECT.x, MAP_RECT.y, key).setOrigin(0, 0).setDisplaySize(MAP_RECT.w, MAP_RECT.h),
+      this.scene.add
+        .image(MAP_RECT.x, MAP_RECT.y, 'island-map')
+        .setOrigin(0, 0)
+        .setDisplaySize(MAP_RECT.w, MAP_RECT.h),
     );
     const border = this.scene.add.graphics();
     border.lineStyle(1, TINTS.woodDark, 1);

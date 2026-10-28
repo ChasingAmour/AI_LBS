@@ -53,7 +53,17 @@ describe('resource system', () => {
     expect(countItem(s, 'torch')).toBe(0);
   });
 
-  it('a tree yields 3 to 5 wood when it falls', () => {
+  it('a tree gives wood on every hit, not only when it falls', () => {
+    const s = createNewGame(7);
+    for (let i = 0; i < 3; i++) {
+      const hit = gatherNode(s, 'tree_001', createRng(7 + i));
+      const wood = hit.items.filter((item) => item.baseId === 'wood');
+      expect(wood.length).toBeGreaterThan(0);
+      expect(wood[0].count).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('a tree yields 5 to 6 wood across four hits', () => {
     const s = createNewGame(7);
     let total = 0;
     for (let i = 0; i < 4; i++) {
@@ -61,7 +71,7 @@ describe('resource system', () => {
         .filter((item) => item.baseId === 'wood')
         .reduce((sum, item) => sum + item.count, 0);
     }
-    expect(total).toBeGreaterThanOrEqual(3);
-    expect(total).toBeLessThanOrEqual(5);
+    expect(total).toBeGreaterThanOrEqual(5);
+    expect(total).toBeLessThanOrEqual(6);
   });
 });

@@ -18,6 +18,7 @@ import { decorForChunk } from '../world/decor';
 import { generateNodes } from '../world/nodes';
 import { DEPTH } from '../ui/theme';
 import { buildingSprite, nodeSprite } from '../ui/assets';
+import { makeText } from '../ui/text';
 import { decodeExplored, encodeExplored } from '../core/explored';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
 import { WEAPONS, weaponFor } from '../data/weapons';
@@ -92,6 +93,8 @@ export class IslandScene extends Phaser.Scene {
   private savageSprites = new Map<string, Phaser.GameObjects.Image>();
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
   private buildGhost?: Phaser.GameObjects.Image;
+  private buildMarker?: Phaser.GameObjects.Graphics;
+  private buildReason?: Phaser.GameObjects.Text;
   private channel: { target: InteractTarget; elapsed: number } | null = null;
   private accumulator = 0;
   private nextAttackAt = 0;
@@ -580,8 +583,7 @@ export class IslandScene extends Phaser.Scene {
     }
     this.syncBuildings();
     this.registry.set('buildSelection', null);
-    this.buildGhost?.destroy();
-    this.buildGhost = undefined;
+    this.clearBuildPreview();
     this.game.events.emit('ui:banner', `建成了${this.buildingName(type)}`);
     checkCampUpgrade(this.state, this.bus);
     refreshTutorial(this.state, this.bus);
@@ -622,27 +624,78 @@ export class IslandScene extends Phaser.Scene {
   private updateBuildGhost(pointer: Phaser.Input.Pointer): void {
     const type = this.registry.get('buildSelection') as string | null;
     if (!type) {
-      this.buildGhost?.destroy();
-      this.buildGhost = undefined;
+      this.clearBuildPreview();
       return;
     }
     const spec = buildingSprite(type);
     if (!this.buildGhost) {
-      this.buildGhost = this.add.image(0, 0, spec.texture, spec.frame).setOrigin(0.5, 1).setAlpha(0.6).setDepth(9000);
+      this.buildGhost = this.add.image(0, 0, spec.texture, spec.frame).setOrigin(0.5, 1).setAlpha(0.65).setDepth(9000);
+      this.buildMarker = this.add.graphics().setDepth(9001);
+      this.buildReason = makeText(this, 0, 0, '', {
+        origin: [0.5, 1],
+        color: '#ff8f8f',
+        shadow: true,
+      })
+        .setDepth(9002)
+        .setVisible(false);
     }
     const tileX = Math.floor(pointer.worldX / 16);
     const tileY = Math.floor(pointer.worldY / 16);
     this.buildGhost.setTexture(spec.texture, spec.frame).setDisplaySize(spec.w, spec.h);
     this.buildGhost.setPosition(tileX * 16 + 8, tileY * 16 + 16);
+
     const check = canPlace(this.state, type, tileX, tileY, this.placementWorld());
-    this.buildGhost.setTint(check.ok ? 0x8fff8f : 0xff8f8f);
+    this.buildGhost.setTint(check.ok ? 0x9fff9f : 0xff9f9f);
+    this.drawBuildMarker(tileX, tileY, check.ok);
+    if (this.buildReason) {
+      this.buildReason
+        .setText(check.ok ? '' : (check.reason ?? '不能建造'))
+        .setPosition(tileX * 16 + 8, tileY * 16 - 4)
+        .setVisible(!check.ok);
+    }
+  }
+
+  /** Green footprint + brackets when valid; red fill + X when blocked. */
+  private drawBuildMarker(tileX: number, tileY: number, ok: boolean): void {
+    const marker = this.buildMarker;
+    if (!marker) return;
+    const x = tileX * 16;
+    const y = tileY * 16;
+    marker.clear();
+    if (ok) {
+      marker.fillStyle(0x6fbf4f, 0.28).fillRect(x, y, 16, 16);
+      marker.lineStyle(2, 0xd8f7b0, 0.95);
+      const len = 5;
+      marker.beginPath();
+      marker.moveTo(x, y + len).lineTo(x, y).lineTo(x + len, y);
+      marker.moveTo(x + 16 - len, y).lineTo(x + 16, y).lineTo(x + 16, y + len);
+      marker.moveTo(x, y + 16 - len).lineTo(x, y + 16).lineTo(x + len, y + 16);
+      marker.moveTo(x + 16 - len, y + 16).lineTo(x + 16, y + 16).lineTo(x + 16, y + 16 - len);
+      marker.strokePath();
+    } else {
+      marker.fillStyle(0xc94f4f, 0.35).fillRect(x, y, 16, 16);
+      marker.lineStyle(2, 0xff6b6b, 0.95);
+      marker.beginPath();
+      marker.moveTo(x + 2, y + 2).lineTo(x + 14, y + 14);
+      marker.moveTo(x + 14, y + 2).lineTo(x + 2, y + 14);
+      marker.strokePath();
+      marker.lineStyle(1, 0xff6b6b, 0.8).strokeRect(x + 0.5, y + 0.5, 15, 15);
+    }
+  }
+
+  private clearBuildPreview(): void {
+    this.buildGhost?.destroy();
+    this.buildGhost = undefined;
+    this.buildMarker?.destroy();
+    this.buildMarker = undefined;
+    this.buildReason?.destroy();
+    this.buildReason = undefined;
   }
 
   private cancelBuild(): void {
     if (!this.registry.get('buildSelection')) return;
     this.registry.set('buildSelection', null);
-    this.buildGhost?.destroy();
-    this.buildGhost = undefined;
+    this.clearBuildPreview();
     this.game.events.emit('ui:banner', '已取消建造');
   }
 
@@ -973,8 +1026,10 @@ export class IslandScene extends Phaser.Scene {
         leftover > 0 ? `采集到${names}，背包已满` : `采集到${names}`,
       );
       for (const item of result.items) ensureHotbar(this.state, item.baseId);
-    } else {
+    } else if (result.depleted) {
       this.game.events.emit('ui:banner', `${def.name}被采空了`);
+    } else {
+      this.game.events.emit('ui:banner', `继续采集${def.name}`);
     }
     if (def.tool && hasToolFor(this.state, target.id)) {
       damageTool(this.state, def.tool, 1);

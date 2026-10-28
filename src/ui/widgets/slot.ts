@@ -9,7 +9,7 @@ export function drawSlot(
   size: number,
   selected: boolean,
 ): void {
-  g.fillStyle(0x1b120b, 0.88).fillRect(x, y, size, size);
+  g.fillStyle(0x1b120b, 1).fillRect(x, y, size, size);
   g.lineStyle(selected ? 2 : 1, selected ? TINTS.gold : TINTS.wood, 1);
   g.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
   if (selected) {

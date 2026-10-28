@@ -19,6 +19,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.input.mouse?.disableContextMenu();
     const errors = validateGameData();
     if (errors.length > 0) {
       console.error('游戏数据校验失败：', errors);

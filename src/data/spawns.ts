@@ -26,8 +26,8 @@ export const RESOURCE_NODES: Record<string, ResourceNodeDef> = {
     maxHits: 4,
     respawnDays: 3,
     tool: 'stone_axe',
-    drops: [],
-    depleteDrops: [{ baseId: 'wood', min: 3, max: 5 }],
+    drops: [{ baseId: 'wood', min: 1, max: 1 }],
+    depleteDrops: [{ baseId: 'wood', min: 1, max: 2 }],
   },
   rock: {
     type: 'rock',
@@ -35,9 +35,9 @@ export const RESOURCE_NODES: Record<string, ResourceNodeDef> = {
     maxHits: 4,
     respawnDays: 5,
     tool: 'stone_pick',
-    drops: [],
+    drops: [{ baseId: 'stone', min: 1, max: 1 }],
     depleteDrops: [
-      { baseId: 'stone', min: 2, max: 3 },
+      { baseId: 'stone', min: 1, max: 2 },
       { baseId: 'flint', min: 1, max: 1, chance: 0.3 },
     ],
   },

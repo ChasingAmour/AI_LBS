@@ -38,6 +38,8 @@ export class Hud {
   private sunIcon: Phaser.GameObjects.Image;
   private moonIcon: Phaser.GameObjects.Image;
   private bannerText: Phaser.GameObjects.Text;
+  private bannerChrome: Phaser.GameObjects.Graphics;
+  private bannerIcon: Phaser.GameObjects.Image;
   private campText: Phaser.GameObjects.Text;
   private campProgress: Phaser.GameObjects.Rectangle;
   private campLabel: Phaser.GameObjects.Text;
@@ -58,9 +60,11 @@ export class Hud {
     this.chrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
     this.slotChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
 
-    for (const rect of [HUD.clock, HUD.banner, HUD.camp, HUD.status, HUD.goal]) {
+    for (const rect of [HUD.clock, HUD.camp, HUD.status, HUD.goal]) {
       drawPanel(this.chrome, rect);
     }
+    this.bannerChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
+    drawPanel(this.bannerChrome, HUD.banner);
     this.promptChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
     drawPanel(this.promptChrome, HUD.prompt);
 
@@ -80,16 +84,18 @@ export class Hud {
       .setDepth(8001)
       .setScrollFactor(0);
 
-    scene.add
+    this.bannerIcon = scene.add
       .image(HUD.banner.x + 10, HUD.banner.y + 15, iconTexture('campfire'))
       .setDepth(8001)
-      .setScrollFactor(0);
-    this.bannerText = makeText(scene, HUD.banner.x + HUD.banner.w / 2 + 6, HUD.banner.y + 15, '荒野求生', {
+      .setScrollFactor(0)
+      .setVisible(false);
+    this.bannerText = makeText(scene, HUD.banner.x + HUD.banner.w / 2 + 6, HUD.banner.y + 15, '', {
       origin: [0.5, 0.5],
       color: COLORS.ink,
     })
       .setDepth(8001)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setVisible(false);
 
     this.campText = makeText(scene, HUD.camp.x + 8, HUD.camp.y + 6, '', {
       color: COLORS.ink,
@@ -303,9 +309,19 @@ export class Hud {
   private tickBanner(now: number): void {
     if (now < this.bannerUntil) return;
     const next = this.bannerQueue.shift();
-    if (!next) return;
-    this.bannerText.setText(next.text).setAlpha(1);
+    if (!next) {
+      this.setBannerVisible(false);
+      return;
+    }
+    this.bannerText.setText(next.text);
+    this.setBannerVisible(true);
     this.bannerUntil = now + next.duration;
+  }
+
+  private setBannerVisible(visible: boolean): void {
+    this.bannerChrome.setVisible(visible);
+    this.bannerIcon.setVisible(visible);
+    this.bannerText.setVisible(visible);
   }
 
   setPrompt(text: string | null): void {
