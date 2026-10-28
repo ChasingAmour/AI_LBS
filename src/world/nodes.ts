@@ -16,12 +16,15 @@ const STRIDE = 6;
 function pickType(tile: number, roll: number): string | null {
   switch (tile) {
     case TILE.forest:
-      return roll < 0.92 ? 'tree' : roll < 0.97 ? 'vine' : 'berry';
+      return roll < 0.88 ? 'tree' : roll < 0.93 ? 'vine' : roll < 0.95 ? 'copper' : roll < 0.97 ? 'iron' : 'berry';
     case TILE.grass:
-      if (roll < 0.68) return 'tree';
-      if (roll < 0.78) return 'berry';
-      if (roll < 0.87) return 'vine';
-      if (roll < 0.95) return 'rock';
+      if (roll < 0.66) return 'tree';
+      if (roll < 0.74) return 'berry';
+      if (roll < 0.81) return 'vine';
+      if (roll < 0.87) return 'rock';
+      if (roll < 0.91) return 'copper';
+      if (roll < 0.94) return 'iron';
+      if (roll < 0.96) return 'coal';
       return 'clay';
     case TILE.sand:
       return roll < 0.72 ? 'palm' : 'clay';
