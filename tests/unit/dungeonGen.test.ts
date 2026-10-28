@@ -74,4 +74,12 @@ describe('dungeon generation', () => {
     expect(floor.tiles[floor.stairs.y * floor.width + floor.stairs.x]).toBe(DUNGEON_TILE.stairs);
     expect(isDungeonWalkable(DUNGEON_TILE.stairs)).toBe(true);
   });
+
+  it('每层的入口是可见的出口瓦片', () => {
+    for (const level of [1, 2, 3] as const) {
+      const floor = generateDungeonFloor(5, level);
+      expect(floor.tiles[floor.entry.y * floor.width + floor.entry.x]).toBe(DUNGEON_TILE.exit);
+      expect(isDungeonWalkable(DUNGEON_TILE.exit)).toBe(true);
+    }
+  });
 });

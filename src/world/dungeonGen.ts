@@ -9,6 +9,8 @@ export const DUNGEON_TILE = {
   hazard: 4,
   door: 5,
   stairs: 6,
+  /** floor entrance: leave the wreck on floor 1, stairs up on floors 2-3 */
+  exit: 7,
 } as const;
 
 export type HazardKind = 'loose' | 'flooded' | 'collapse';
@@ -184,15 +186,17 @@ export function generateDungeonFloor(seed: number, floorLevel: 1 | 2 | 3): Dunge
   }
 
   set(floor, floor.stairs.x, floor.stairs.y, DUNGEON_TILE.stairs);
+  set(floor, floor.entry.x, floor.entry.y, DUNGEON_TILE.exit);
   return floor;
 }
 
-/** Walkable tiles (floor, door, hazard, stairs). */
+/** Walkable tiles (floor, door, hazard, stairs, exit). */
 export function isDungeonWalkable(tile: number): boolean {
   return (
     tile === DUNGEON_TILE.floor ||
     tile === DUNGEON_TILE.door ||
     tile === DUNGEON_TILE.hazard ||
-    tile === DUNGEON_TILE.stairs
+    tile === DUNGEON_TILE.stairs ||
+    tile === DUNGEON_TILE.exit
   );
 }
