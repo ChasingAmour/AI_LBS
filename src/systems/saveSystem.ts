@@ -215,7 +215,7 @@ const LEGACY_WEAPONS = new Set(['club', 'spear']);
 /** Fills v3 fields and turns old club/spear stacks into common equipment instances. */
 export function upgradeToV3(state: GameState): GameState {
   state.version = SAVE_VERSION;
-  if (!state.settings) state.settings = { muted: false, sfxVolume: 0.7 };
+  if (!state.settings) state.settings = { muted: false, sfxVolume: 0.7, hudCompact: false };
   state.lootSeed = typeof state.lootSeed === 'number' ? state.lootSeed : (state.world?.seed ?? Date.now());
   state.lootRolls = typeof state.lootRolls === 'number' ? state.lootRolls : 0;
   state.bootWear = typeof state.bootWear === 'number' ? state.bootWear : 0;

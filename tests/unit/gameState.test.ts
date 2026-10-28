@@ -17,6 +17,7 @@ describe('game state', () => {
     expect(s.equipment).toEqual({ weapon: null, armor: null, boots: null });
     expect(s.hotbar).toHaveLength(8);
     expect(s.animals).toEqual([]);
+    expect(s.settings.hudCompact).toBe(false);
   });
 });
 

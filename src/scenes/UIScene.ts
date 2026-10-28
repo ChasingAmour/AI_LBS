@@ -22,6 +22,13 @@ export class UIScene extends Phaser.Scene {
   private adventure!: AdventurePanel;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
+  private hudCompactHandler = (compact: boolean): void => {
+    const state = this.state();
+    if (!state) return;
+    state.settings.hudCompact = compact;
+    const bus = this.registry.get('bus') as EventBus | undefined;
+    bus?.emit('save:requested', { reason: 'settings' });
+  };
   private panelKind: 'build' | 'craft' | 'labor' | null = null;
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
 
@@ -43,6 +50,7 @@ export class UIScene extends Phaser.Scene {
       this.toggleMap();
     });
     this.adventure = new AdventurePanel(this);
+    this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
@@ -90,17 +98,18 @@ export class UIScene extends Phaser.Scene {
 
     this.game.events.on('ui:banner', this.bannerHandler);
     this.game.events.on('ui:panel', this.panelHandler);
+    this.game.events.on('ui:hudCompact', this.hudCompactHandler);
     this.input.on('pointerdown', () => {
       if (this.registry.get('uiOpen')) playSfx(this, this.state(), 'click');
     });
     this.events.once('shutdown', () => {
       this.game.events.off('ui:banner', this.bannerHandler);
       this.game.events.off('ui:panel', this.panelHandler);
+      this.game.events.off('ui:hudCompact', this.hudCompactHandler);
     });
 
     const bus = this.registry.get('bus') as EventBus | undefined;
-    if (bus) {
-      this.listen(bus, 'raid:warning', () => {
+    if (bus) {      this.listen(bus, 'raid:warning', () => {
         playSfx(this, this.state(), 'warning');
         this.hud.showBanner('周五 17:00：野人将在 18:00 来袭！');
       });

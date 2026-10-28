@@ -52,7 +52,7 @@ export interface ResourceNodeState {
 
 export interface GameState {
   version: number;
-  settings: { muted: boolean; sfxVolume: number };
+  settings: { muted: boolean; sfxVolume: number; hudCompact: boolean };
   lootSeed: number;
   lootRolls: number;
   /** pixels moved since the last boot durability tick */
@@ -118,7 +118,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
   const wreckSpawn = { x: 12 * 16, y: 48 * 16 };
   return {
     version: SAVE_VERSION,
-    settings: { muted: false, sfxVolume: 0.7 },
+    settings: { muted: false, sfxVolume: 0.7, hudCompact: false },
     lootSeed: seed,
     lootRolls: 0,
     bootWear: 0,

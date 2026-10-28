@@ -8,7 +8,7 @@ describe('save v3', () => {
   it('creates v3 defaults', () => {
     const state = createNewGame(7);
     expect(state.version).toBe(SAVE_VERSION);
-    expect(state.settings).toEqual({ muted: false, sfxVolume: 0.7 });
+    expect(state.settings).toEqual({ muted: false, sfxVolume: 0.7, hudCompact: false });
     expect(state.lootSeed).toBe(7);
     expect(state.lootRolls).toBe(0);
     expect(state.bootWear).toBe(0);
