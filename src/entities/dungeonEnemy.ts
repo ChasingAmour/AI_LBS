@@ -93,13 +93,14 @@ export function tickDungeonEnemy(
   const dx = player.x - enemy.x;
   const dy = player.y - enemy.y;
   const distance = Math.hypot(dx, dy) || 1;
+  // Cool down every frame, including while pressed against the player.
+  enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dtSec);
   if (distance <= 16) return;
 
   const dir = now < enemy.retreatUntil ? -1 : 1;
   const speed = enemySpeed(enemy, now);
   enemy.x += (dx / distance) * speed * dir * dtSec;
   enemy.y += (dy / distance) * speed * dir * dtSec;
-  enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dtSec);
 }
 
 export function enemyAttack(enemy: DungeonEnemy, distance: number): number {

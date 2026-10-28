@@ -53,4 +53,14 @@ describe('dungeon enemies', () => {
     });
     expect(hazardEffect({ x: 0, y: 0, kind: 'collapse' }).damage).toBe(20);
   });
+
+  it('贴身敌人每秒都能再次攻击', () => {
+    const enemy = createDungeonEnemy('crab', 0, 0, 'e1');
+    const player = { x: 10, y: 0 };
+    expect(enemyAttack(enemy, 10)).toBeGreaterThan(0);
+    for (let i = 0; i < 10; i++) tickDungeonEnemy(enemy, player, 0.1, i * 0.1);
+    expect(enemyAttack(enemy, 10)).toBe(0);
+    for (let i = 0; i < 10; i++) tickDungeonEnemy(enemy, player, 0.1, 1 + i * 0.1);
+    expect(enemyAttack(enemy, 10)).toBeGreaterThan(0);
+  });
 });
