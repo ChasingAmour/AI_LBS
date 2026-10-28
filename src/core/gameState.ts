@@ -36,6 +36,8 @@ export interface LaborerState {
   task: { nodeType: string; x: number; y: number } | null;
   carrying: number;
   carryingType: string | null;
+  /** seconds accumulated toward the next gathered item */
+  progress?: number;
 }
 
 export interface ResourceNodeState {
