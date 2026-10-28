@@ -9,8 +9,13 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.tilemapTiledJSON('island', 'assets/maps/island.tmj');
-    this.load.image('tiles', 'assets/tiles/placeholder.png');
+    const frame = { frameWidth: 16, frameHeight: 16 };
+    this.load.spritesheet('town', 'assets/tiles/town.png', frame);
+    this.load.spritesheet('battle', 'assets/tiles/battle.png', frame);
+    this.load.spritesheet('dungeon', 'assets/tiles/dungeon.png', frame);
+    this.load.spritesheet('farm', 'assets/tiles/farm.png', frame);
+    this.load.spritesheet('ui-large', 'assets/ui/ui-large.png', frame);
+    this.load.spritesheet('ui-small', 'assets/ui/ui-small.png', frame);
   }
 
   create(): void {

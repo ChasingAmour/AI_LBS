@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { createNewGame, type GameState } from '../core/gameState';
+import { WORLD } from '../core/config';
 import { EventBus } from '../core/eventBus';
 import { createRng, type Rng } from '../core/rng';
 import { PlayerEntity } from '../entities/player';
@@ -7,6 +8,13 @@ import { BuildingSprite, buildingTextures } from '../entities/building';
 import { LABORER_TEXTURE } from '../entities/laborer';
 import { CANOPY_OFFSET, LIGHT_DEPTH, NIGHT_DEPTH, depthFor } from '../world/depthSort';
 import { TILE, terrainSpeedAt } from '../world/terrain';
+import { generateIsland, type IslandData } from '../world/generate';
+import { CHUNK_PX, CHUNK_TILES, chunkKey, visibleChunks } from '../world/chunks';
+import { isWalkableTile, tileAt } from '../world/landmarks';
+import { isWater, terrainSprite, variantFor } from '../world/terrainVisual';
+import { decorForChunk } from '../world/decor';
+import { generateNodes } from '../world/nodes';
+import { DEPTH } from '../ui/theme';
 import { RESOURCE_NODES, UNIQUE_CHESTS } from '../data/spawns';
 import { WEAPONS, weaponFor } from '../data/weapons';
 import { advanceTime, canSleep, sleep } from '../systems/timeSystem';
@@ -66,9 +74,9 @@ const NODE_TEXTURES: Record<string, string> = {
 };
 
 export class IslandScene extends Phaser.Scene {
-  private map!: Phaser.Tilemaps.Tilemap;
-  private ground!: Phaser.Tilemaps.TilemapLayer;
-  private collision!: Phaser.Tilemaps.TilemapLayer;
+  private island!: IslandData;
+  private terrain!: Uint8Array;
+  private chunkLayers = new Map<string, Phaser.GameObjects.Image>();
   private player!: PlayerEntity;
   private keys!: Keys;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -92,11 +100,6 @@ export class IslandScene extends Phaser.Scene {
     super('IslandScene');
   }
 
-  preload(): void {
-    this.load.tilemapTiledJSON('island', 'assets/maps/island.tmj');
-    this.load.image('tiles', 'assets/tiles/placeholder.png');
-  }
-
   create(): void {
     const registered = this.registry.get('state') as GameState | undefined;
     this.state = registered ?? createNewGame();
@@ -109,22 +112,23 @@ export class IslandScene extends Phaser.Scene {
     this.registry.set('interactProgress', null);
     this.rng = createRng(this.state.rngState);
     this.deathLaunched = false;
+    this.chunkLayers.clear();
 
     this.makeTextures();
-    this.makeMap();
+    this.setupTerrain();
 
-    const spawn = this.map.findObject('objects', (o) => o.name === 'spawn_wreck');
-    const spawnX = typeof spawn?.x === 'number' ? spawn.x + 8 : this.state.world.wreckSpawn.x;
-    const spawnY = typeof spawn?.y === 'number' ? spawn.y + 16 : this.state.world.wreckSpawn.y;
-    const startX = this.state.player.x || spawnX;
-    const startY = this.state.player.y || spawnY;
-    this.player = new PlayerEntity(this, startX, startY);
-    this.physics.add.collider(this.player, this.collision);
-    this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    const start = this.startPosition();
+    this.state.player.x = start.x;
+    this.state.player.y = start.y;
+    this.player = new PlayerEntity(this, start.x, start.y);
 
-    this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
-    this.cameras.main.setZoom(2);
-    this.cameras.main.startFollow(this.player, true, 0.18, 0.18);
+    this.physics.world.setBounds(0, 0, WORLD.widthPx, WORLD.heightPx);
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, WORLD.widthPx, WORLD.heightPx);
+    camera.setZoom(2);
+    camera.centerOn(start.x, start.y);
+    camera.startFollow(this.player, true, 0.18, 0.18);
+    camera.preRender();
 
     this.registerWorldObjects();
     this.syncNodes(true);
@@ -134,11 +138,143 @@ export class IslandScene extends Phaser.Scene {
     this.createNightLayer();
     this.bindInput();
     this.bindGameEvents();
+    this.updateChunks(true);
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
     }
     refreshTutorial(this.state, this.bus);
+  }
+
+  /** Rebuilds the island from the stored seed and writes back the derived values. */
+  private setupTerrain(): void {
+    this.island = generateIsland(this.state.world.seed);
+    this.terrain = this.island.terrain;
+    this.state.world.hash = this.island.hash;
+    this.state.camp.center = {
+      x: Math.floor(this.island.campCenter.x / WORLD.tile),
+      y: Math.floor(this.island.campCenter.y / WORLD.tile),
+    };
+    this.state.world.wreckSpawn = { x: this.island.spawn.x, y: this.island.spawn.y };
+  }
+
+  private startPosition(): { x: number; y: number } {
+    const { x, y } = this.state.player;
+    if (x > 0 && y > 0 && this.isWalkableWorld(x, y)) return { x, y };
+    return { x: this.island.spawn.x, y: this.island.spawn.y };
+  }
+
+  private terrainAt(tileX: number, tileY: number): number {
+    return tileAt(this.island, tileX, tileY);
+  }
+
+  private terrainAtWorld(x: number, y: number): number {
+    return this.terrainAt(Math.floor(x / WORLD.tile), Math.floor(y / WORLD.tile));
+  }
+
+  private isWalkableWorld(x: number, y: number): boolean {
+    return isWalkableTile(this.terrainAtWorld(x, y));
+  }
+
+  /** One baked 512×512 ground canvas per visible 32×32 chunk. */
+  private bakeChunk(cx: number, cy: number): void {
+    const key = chunkKey(cx, cy);
+    if (this.chunkLayers.has(key)) return;
+
+    const textureKey = `chunk-${key}`;
+    if (this.textures.exists(textureKey)) this.textures.remove(textureKey);
+    const canvasTexture = this.textures.createCanvas(textureKey, CHUNK_PX, CHUNK_PX);
+    if (!canvasTexture) return;
+    const ctx = canvasTexture.context;
+    ctx.imageSmoothingEnabled = false;
+
+    const seed = this.state.world.seed;
+    const sources: Record<string, CanvasImageSource> = {
+      town: this.textures.get('town').getSourceImage() as CanvasImageSource,
+      battle: this.textures.get('battle').getSourceImage() as CanvasImageSource,
+      farm: this.textures.get('farm').getSourceImage() as CanvasImageSource,
+    };
+    const drawFrame = (texture: string, frame: number, x: number, y: number): void => {
+      const source = sources[texture] ?? sources.town;
+      const offset = this.textures.get(texture).get(frame);
+      ctx.drawImage(source, offset.cutX, offset.cutY, WORLD.tile, WORLD.tile, x, y, WORLD.tile, WORLD.tile);
+    };
+    const rgba = (color: number, alpha: number): string =>
+      `rgba(${(color >> 16) & 0xff},${(color >> 8) & 0xff},${color & 0xff},${alpha})`;
+
+    for (let ty = 0; ty < CHUNK_TILES; ty++) {
+      for (let tx = 0; tx < CHUNK_TILES; tx++) {
+        const worldTx = cx * CHUNK_TILES + tx;
+        const worldTy = cy * CHUNK_TILES + ty;
+        if (worldTx >= WORLD.widthTiles || worldTy >= WORLD.heightTiles) continue;
+
+        const x = tx * WORLD.tile;
+        const y = ty * WORLD.tile;
+        const tile = this.terrain[worldTy * WORLD.widthTiles + worldTx];
+        const neighbors = {
+          n: !isWater(this.terrainAt(worldTx, worldTy - 1)),
+          e: !isWater(this.terrainAt(worldTx + 1, worldTy)),
+          s: !isWater(this.terrainAt(worldTx, worldTy + 1)),
+          w: !isWater(this.terrainAt(worldTx - 1, worldTy)),
+        };
+        const sprite = terrainSprite(tile, neighbors, variantFor(worldTx, worldTy, seed));
+        drawFrame(sprite.texture, sprite.frame, x, y);
+        if (sprite.shade) {
+          ctx.fillStyle = rgba(sprite.shade.color, sprite.shade.alpha);
+          ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
+        }
+        if (sprite.foam) {
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          if (sprite.foam & 1) ctx.fillRect(x, y, WORLD.tile, 1);
+          if (sprite.foam & 2) ctx.fillRect(x + WORLD.tile - 1, y, 1, WORLD.tile);
+          if (sprite.foam & 4) ctx.fillRect(x, y + WORLD.tile - 1, WORLD.tile, 1);
+          if (sprite.foam & 8) ctx.fillRect(x, y, 1, WORLD.tile);
+        }
+      }
+    }
+
+    for (const decor of decorForChunk(seed, cx, cy)) {
+      if (!this.isWalkableWorld(decor.x, decor.y)) continue;
+      drawFrame(
+        decor.texture,
+        decor.frame,
+        decor.x - cx * CHUNK_PX - WORLD.tile / 2,
+        decor.y - cy * CHUNK_PX - WORLD.tile,
+      );
+    }
+
+    canvasTexture.refresh();
+    const layer = this.add
+      .image(cx * CHUNK_PX, cy * CHUNK_PX, textureKey)
+      .setOrigin(0, 0)
+      .setDepth(DEPTH.world);
+    this.chunkLayers.set(key, layer);
+  }
+
+  /** Bakes at most one chunk per frame, and frees chunks that left the view. */
+  private updateChunks(initial = false): void {
+    const view = this.cameras.main.worldView;
+    const wanted = visibleChunks(view.x, view.y, view.width, view.height);
+    const wantedKeys = new Set(wanted.map((chunk) => chunkKey(chunk.cx, chunk.cy)));
+
+    for (const [key, layer] of this.chunkLayers) {
+      if (wantedKeys.has(key)) continue;
+      layer.destroy();
+      if (this.textures.exists(`chunk-${key}`)) this.textures.remove(`chunk-${key}`);
+      this.chunkLayers.delete(key);
+    }
+
+    const missing = wanted
+      .filter((chunk) => !this.chunkLayers.has(chunkKey(chunk.cx, chunk.cy)))
+      .sort((a, b) => {
+        const da = Math.hypot(a.cx * CHUNK_PX - view.centerX, a.cy * CHUNK_PX - view.centerY);
+        const db = Math.hypot(b.cx * CHUNK_PX - view.centerX, b.cy * CHUNK_PX - view.centerY);
+        return da - db;
+      });
+    const budget = initial ? missing.length : 1;
+    for (const chunk of missing.slice(0, budget)) {
+      this.bakeChunk(chunk.cx, chunk.cy);
+    }
   }
 
   private makeTextures(): void {
@@ -293,36 +429,17 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
-  private makeMap(): void {
-    this.map = this.make.tilemap({ key: 'island' });
-    const tileset = this.map.addTilesetImage('placeholder', 'tiles', 16, 16, 0, 0);
-    if (!tileset) throw new Error('Missing tileset');
-    this.ground = this.map.createLayer('ground', tileset, 0, 0)!;
-    this.collision = this.map.createLayer('collision', tileset, 0, 0)!;
-    this.collision.setVisible(false);
-    this.collision.setCollisionByExclusion([-1, 0]);
-  }
-
   private registerWorldObjects(): void {
-    const objects = this.map.getObjectLayer('objects')?.objects ?? [];
-    for (const obj of objects) {
-      const name = obj.name ?? '';
-      const x = (obj.x ?? 0) + 8;
-      const y = (obj.y ?? 0) + 16;
-      if (name === 'camp_center') {
-        this.state.camp.center = {
-          x: Math.floor((obj.x ?? 768) / 16),
-          y: Math.floor((obj.y ?? 768) / 16),
-        };
-        continue;
+    this.state.world.nodes = {};
+    for (const node of generateNodes(this.island, this.state.world.seed)) {
+      this.state.world.nodes[node.id] = { x: node.x, y: node.y, type: node.type };
+    }
+    for (const landmark of this.island.landmarks) {
+      if (landmark.kind === 'wreck') {
+        this.state.world.nodes.chest_wreck = { x: landmark.x, y: landmark.y, type: 'chest' };
+      } else if (landmark.kind === 'cave') {
+        this.state.world.nodes.chest_cave = { x: landmark.x, y: landmark.y, type: 'chest' };
       }
-      if (name.startsWith('chest_')) {
-        this.state.world.nodes[name] = { x, y, type: 'chest' };
-        continue;
-      }
-      const type = name.split('_')[0];
-      if (!RESOURCE_NODES[type]) continue;
-      this.state.world.nodes[name] = { x, y, type };
     }
   }
 
@@ -533,10 +650,7 @@ export class IslandScene extends Phaser.Scene {
 
   private placementWorld() {
     return {
-      isWater: (tileX: number, tileY: number) => {
-        const index = this.ground.getTileAt(tileX, tileY)?.index ?? -1;
-        return index === TILE.deepWater || index === TILE.shallowWater || index === TILE.stream;
-      },
+      isWater: (tileX: number, tileY: number) => isWater(this.terrainAt(tileX, tileY)),
       hasNode: (tileX: number, tileY: number) =>
         Object.values(this.state.world.nodes).some(
           (node) => Math.floor(node.x / 16) === tileX && Math.floor(node.y / 16) === tileY,
@@ -640,6 +754,7 @@ export class IslandScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = Math.min(delta / 1000, 0.1);
+    this.updateChunks();
     const uiOpen = Boolean(this.registry.get('uiOpen'));
     const buildSelection = Boolean(this.registry.get('buildSelection'));
     if (uiOpen && this.channel) this.cancelChannel();
@@ -653,8 +768,14 @@ export class IslandScene extends Phaser.Scene {
     else {
       const length = Math.hypot(dx, dy) || 1;
       const input = { x: dx / length, y: dy / length };
-      const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
-      const terrain = terrainSpeedAt(tile?.index ?? TILE.grass);
+      if (this.terrainAtWorld(this.player.x + input.x * 12, this.player.y - 4) === TILE.deepWater) {
+        input.x = 0;
+      }
+      if (this.terrainAtWorld(this.player.x, this.player.y - 4 + input.y * 12) === TILE.deepWater) {
+        input.y = 0;
+      }
+      const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
+      const terrain = terrainSpeedAt(tile);
       const sprint = this.keys.SHIFT.isDown ? 1.5 : 1;
       this.player.setVelocityFromInput(input, 90 * terrain * sprint);
       if (dx !== 0) this.state.player.facing = dx < 0 ? 'left' : 'right';
@@ -745,16 +866,16 @@ export class IslandScene extends Phaser.Scene {
       this.registry.set('interactProgress', this.channel.elapsed / this.channel.target.durationSec);
       return;
     }
-    const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
-    const onWater = tile?.index === TILE.shallowWater || tile?.index === TILE.stream;
+    const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
+    const onWater = tile === TILE.shallowWater || tile === TILE.stream;
     const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
     this.registry.set('interactPrompt', target ? `E ${target.label}` : null);
     this.registry.set('interactProgress', null);
   }
 
   private beginInteraction(): void {
-    const tile = this.ground.getTileAtWorldXY(this.player.x, this.player.y - 4);
-    const onWater = tile?.index === TILE.shallowWater || tile?.index === TILE.stream;
+    const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
+    const onWater = tile === TILE.shallowWater || tile === TILE.stream;
     const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
     if (!target) return;
     if (target.kind === 'node') {
