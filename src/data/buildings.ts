@@ -107,4 +107,15 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     unlockLevel: 2,
     blocks: true,
   },
+  farm_plot: {
+    id: 'farm_plot',
+    name: '农田',
+    cost: [
+      { baseId: 'wood', count: 4 },
+      { baseId: 'vine', count: 2 },
+    ],
+    hp: 40,
+    unlockLevel: 1,
+    blocks: false,
+  },
 };

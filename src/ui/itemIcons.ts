@@ -39,6 +39,7 @@ const GENERATED = new Set([
   'fishing_rod',
   'tropical_fish',
   'seaweed',
+  'waterskin',
 ]);
 
 /** Hand-drawn 16×16 icons for items the sheets do not cover. */
@@ -178,6 +179,12 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x4f9f5f).fillRect(8, 3, 2, 10);
     g.fillStyle(0x2f6b3f).fillRect(11, 6, 2, 7);
     g.fillStyle(0x6fbf4f).fillRect(6, 7, 1, 3).fillRect(9, 8, 1, 3);
+  });
+  make('icon-waterskin', () => {
+    g.fillStyle(0x8a5a2b).fillCircle(8, 9, 5);
+    g.fillStyle(0xc9a24a).fillRect(7, 2, 2, 5);
+    g.fillStyle(0x6b4420).fillRect(5, 12, 6, 2);
+    g.fillStyle(0x3f8fd0).fillRect(6, 8, 4, 3);
   });
 
   for (const base of Object.values(EQUIPMENT)) {

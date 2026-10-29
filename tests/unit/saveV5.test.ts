@@ -57,6 +57,25 @@ describe('save v5', () => {
     expect(migrated.settings.musicVolume).toBeCloseTo(0.45);
   });
 
+  it('keeps a planted farm crop across a round trip', () => {
+    const state = createNewGame(4);
+    state.buildings.push({
+      id: 'b_farm',
+      type: 'farm_plot',
+      x: 40,
+      y: 40,
+      hp: 40,
+      crop: { seedId: 'berries', growth: 2, wateredDay: 1, plantedDay: 1 },
+    });
+    const restored = validateSave(JSON.parse(serializeSave(state)));
+    expect(restored.buildings.find((b) => b.id === 'b_farm')?.crop).toEqual({
+      seedId: 'berries',
+      growth: 2,
+      wateredDay: 1,
+      plantedDay: 1,
+    });
+  });
+
   it('rejects out-of-range music volume and non-boolean touch flag', () => {
     const loud = JSON.parse(serializeSave(createNewGame(3))) as Record<string, unknown>;
     (loud.settings as Record<string, unknown>).musicVolume = 2;

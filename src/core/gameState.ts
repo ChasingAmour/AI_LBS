@@ -30,6 +30,13 @@ export interface BuildingInstance {
   y: number;
   hp: number;
   storage?: ItemStack[];
+  /** planted crop on farm plots */
+  crop?: {
+    seedId: string;
+    growth: number;
+    wateredDay: number;
+    plantedDay: number;
+  };
 }
 
 export interface LaborerState {

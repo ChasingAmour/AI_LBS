@@ -5,6 +5,7 @@ import { ensureItemIcons } from '../ui/itemIcons';
 import { loadAudio } from '../systems/audio';
 import { loadMusic } from '../systems/music';
 import { ensureWaterFrames } from '../world/waterFrames';
+import { ensureFarmArt } from '../ui/farmArt';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
 import { EventBus } from '../core/eventBus';
@@ -32,6 +33,7 @@ export class BootScene extends Phaser.Scene {
     ensurePlayerFrames(this);
     ensureItemIcons(this);
     ensureWaterFrames(this);
+    ensureFarmArt(this);
     const errors = validateGameData();
     if (errors.length > 0) {
       console.error('游戏数据校验失败：', errors);

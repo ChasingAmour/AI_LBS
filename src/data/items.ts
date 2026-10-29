@@ -59,6 +59,7 @@ export const ITEMS: Record<string, ItemDef> = {
   stone_axe: { id: 'stone_axe', name: '石斧', kind: 'tool', maxDurability: 60 },
   stone_pick: { id: 'stone_pick', name: '石镐', kind: 'tool', maxDurability: 60 },
   fishing_rod: { id: 'fishing_rod', name: '鱼竿', kind: 'tool', maxDurability: 60 },
+  waterskin: { id: 'waterskin', name: '水袋', kind: 'tool', maxDurability: 3 },
   club: { id: 'club', name: '木棒', kind: 'weapon', maxDurability: 40 },
   spear: { id: 'spear', name: '石矛', kind: 'weapon', maxDurability: 50 },
 };

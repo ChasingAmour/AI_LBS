@@ -55,6 +55,7 @@ const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
   fence: { texture: TEXTURE.town, frame: 45, w: 16, h: 16 },
   stone_wall: { texture: TEXTURE.battle, frame: 96, w: 16, h: 16 },
   drying_rack: { texture: TEXTURE.town, frame: 46, w: 16, h: 16 },
+  farm_plot: { texture: 'farm-plot', w: 16, h: 16 },
 };
 
 const FALLBACK_NODE: NodeSpriteSpec = { texture: TEXTURE.farm, frame: 78 };

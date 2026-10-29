@@ -55,6 +55,18 @@ export const RECIPES: Record<string, Recipe> = {
     durationSec: 2,
     inputs: [{ baseId: 'cloth', count: 1 }],
   },
+  waterskin: {
+    id: 'waterskin',
+    output: 'waterskin',
+    count: 1,
+    station: 'hand',
+    unlockLevel: 0,
+    durationSec: 3,
+    inputs: [
+      { baseId: 'cloth', count: 2 },
+      { baseId: 'vine', count: 1 },
+    ],
+  },
   club: {
     id: 'club',
     output: 'club',
