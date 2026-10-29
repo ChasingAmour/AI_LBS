@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { WEAPONS } from '../../src/data/weapons';
-import { applyHitToSavage, computeHitTargets, tickSavageStun } from '../../src/systems/combatSystem';
+import { applyHitToSavage, autoAimAngle, computeHitTargets, tickSavageStun } from '../../src/systems/combatSystem';
 import type { SavageState } from '../../src/entities/savage';
 
 function makeSavage(): SavageState {
@@ -88,5 +88,33 @@ describe('combat system', () => {
     expect(a.stun).toBe(60);
     tickSavageStun(a, 2);
     expect(a.stun).toBeCloseTo(50);
+  });
+});
+
+describe('auto aim', () => {
+  const player = { x: 0, y: 0 };
+
+  it('aims at the nearest target in range', () => {
+    const angle = autoAimAngle(
+      player,
+      [
+        { x: 70, y: 0 },
+        { x: 20, y: 20 },
+      ],
+      'right',
+      96,
+    );
+    expect(angle).toBeCloseTo(Math.PI / 4);
+  });
+
+  it('falls back to the facing direction without targets', () => {
+    expect(autoAimAngle(player, [], 'up', 96)).toBeCloseTo(-Math.PI / 2);
+    expect(autoAimAngle(player, [], 'down', 96)).toBeCloseTo(Math.PI / 2);
+    expect(autoAimAngle(player, [], 'left', 96)).toBeCloseTo(Math.PI);
+    expect(autoAimAngle(player, [], 'right', 96)).toBe(0);
+  });
+
+  it('ignores targets outside range', () => {
+    expect(autoAimAngle(player, [{ x: 300, y: 0 }], 'down', 96)).toBeCloseTo(Math.PI / 2);
   });
 });

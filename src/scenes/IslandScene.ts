@@ -40,6 +40,7 @@ import {
 } from '../systems/needsSystem';
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { playSfx } from '../systems/audio';
+import { isTouchControlPoint } from '../ui/touchLayout';
 import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
   gatherNode,
@@ -55,6 +56,7 @@ import { settleLaborRations, tickLabor } from '../systems/laborSystem';
 import { resolveRaidDawn, spawnRaid, updateSavageAi } from '../systems/raidSystem';
 import {
   applyHitToSavage,
+  autoAimAngle,
   computeHitTargets,
   tickSavageStun,
 } from '../systems/combatSystem';
@@ -851,6 +853,7 @@ export class IslandScene extends Phaser.Scene {
     this.numberKeys = codes.map((code) => this.input.keyboard!.addKey(code));
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.registry.get('touchEnabled') && isTouchControlPoint(pointer.x, pointer.y)) return;
       if (pointer.rightButtonDown()) {
         this.cancelBuild();
         return;
@@ -859,6 +862,13 @@ export class IslandScene extends Phaser.Scene {
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.updateBuildGhost(pointer);
+    });
+
+    this.game.events.on('ui:touchAttack', this.onTouchAttack, this);
+    this.game.events.on('ui:touchInteract', this.onTouchInteract, this);
+    this.events.once('shutdown', () => {
+      this.game.events.off('ui:touchAttack', this.onTouchAttack, this);
+      this.game.events.off('ui:touchInteract', this.onTouchInteract, this);
     });
   }
 
@@ -907,7 +917,33 @@ export class IslandScene extends Phaser.Scene {
       return;
     }
     if (this.registry.get('uiOpen')) return;
-    this.attack(pointer);
+    const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
+    this.attackAtAngle(angle);
+  }
+
+  private onTouchInteract(): void {
+    if (
+      this.registry.get('uiOpen') ||
+      this.registry.get('buildSelection') ||
+      this.channel ||
+      this.state.player.dead
+    ) {
+      return;
+    }
+    this.beginInteraction();
+  }
+
+  private onTouchAttack(): void {
+    if (this.registry.get('uiOpen') || this.channel || this.buildGhost) return;
+    const targets = [
+      ...this.state.savages
+        .filter((savage) => savage.mode !== 'dead')
+        .map((savage) => ({ x: savage.x, y: savage.y })),
+      ...this.state.animals
+        .filter((animal) => animal.mode !== 'dead')
+        .map((animal) => ({ x: animal.x, y: animal.y })),
+    ];
+    this.attackAtAngle(autoAimAngle(this.player, targets, this.state.player.facing, 96));
   }
 
   private placeSelectedBuilding(type: string, pointer: Phaser.Input.Pointer): void {
@@ -1055,7 +1091,7 @@ export class IslandScene extends Phaser.Scene {
     this.game.events.emit('ui:banner', '已取消建造');
   }
 
-  private attack(pointer: Phaser.Input.Pointer): void {
+  private attackAtAngle(angle: number): void {
     const now = this.time.now;
     if (now < this.nextAttackAt) return;
     const weapon = weaponFor(this.selectedWeaponBaseId());
@@ -1063,7 +1099,6 @@ export class IslandScene extends Phaser.Scene {
     const haste = now < this.hasteUntil ? 0.7 : 1;
     this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
 
-    const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
     const targets = [
       ...this.state.savages
         .filter((savage) => savage.mode !== 'dead')
@@ -1169,14 +1204,20 @@ export class IslandScene extends Phaser.Scene {
     const buildSelection = Boolean(this.registry.get('buildSelection'));
     if (this.channel && shouldCancelChannel(uiPanel)) this.cancelChannel();
 
-    const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
-    const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
-    const moving = dx !== 0 || dy !== 0;
+    const kbDx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
+    const kbDy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
+    const touchMove = this.registry.get('touchMove') as { x: number; y: number } | undefined;
+    const usingTouch = kbDx === 0 && kbDy === 0 && Boolean(touchMove);
+    const dx = usingTouch ? touchMove!.x : kbDx;
+    const dy = usingTouch ? touchMove!.y : kbDy;
+    const rawLength = Math.hypot(dx, dy);
+    const moving = rawLength > 0.05;
+    const analog = usingTouch ? Math.min(1, rawLength) : 1;
     if (moving && this.channel) this.cancelChannel();
     if (moving && uiOpen) this.player.setVelocity(0, 0);
     else if (this.channel || uiOpen || buildSelection) this.player.setVelocity(0, 0);
     else {
-      const length = Math.hypot(dx, dy) || 1;
+      const length = rawLength || 1;
       const input = { x: dx / length, y: dy / length };
       if (this.terrainAtWorld(this.player.x + input.x * 12, this.player.y - 4) === TILE.deepWater) {
         input.x = 0;
@@ -1192,12 +1233,13 @@ export class IslandScene extends Phaser.Scene {
           ? 1.1
           : 1
         : terrainSpeedAt(tile);
-      const sprint = this.keys.SHIFT.isDown ? 1.5 : 1;
-      const speed = 90 * terrain * stats.moveMul * sprint;
+      const sprintHeld = this.keys.SHIFT.isDown || this.registry.get('touchSprint') === true;
+      const sprint = sprintHeld ? 1.5 : 1;
+      const speed = 90 * terrain * stats.moveMul * sprint * analog;
       this.player.setVelocityFromInput(input, speed);
       if (dx !== 0) this.state.player.facing = dx < 0 ? 'left' : 'right';
       else if (dy !== 0) this.state.player.facing = dy < 0 ? 'up' : 'down';
-      if (this.keys.SHIFT.isDown) {
+      if (sprintHeld) {
         spendEnergy(this.state, 0.4 * stats.sprintEnergyMul * dt);
       }
     }

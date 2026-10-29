@@ -60,6 +60,32 @@ export function computeHitTargets(
 
 export type HitResult = 'hit' | 'stunned' | 'dead';
 
+const FACING_ANGLE: Record<'up' | 'down' | 'left' | 'right', number> = {
+  up: -Math.PI / 2,
+  down: Math.PI / 2,
+  left: Math.PI,
+  right: 0,
+};
+
+/** Touch attack: aim at the closest hostile in range, else keep facing. */
+export function autoAimAngle(
+  player: { x: number; y: number },
+  targets: Array<{ x: number; y: number }>,
+  facing: 'up' | 'down' | 'left' | 'right',
+  maxDist: number,
+): number {
+  let best: { x: number; y: number } | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const target of targets) {
+    const distance = Math.hypot(target.x - player.x, target.y - player.y);
+    if (distance > maxDist || distance >= bestDist) continue;
+    best = target;
+    bestDist = distance;
+  }
+  if (!best) return FACING_ANGLE[facing];
+  return Math.atan2(best.y - player.y, best.x - player.x);
+}
+
 export interface CombatMods {
   attack?: number;
   stunMul?: number;

@@ -6,6 +6,8 @@ import { InventoryOverlay } from '../ui/inventoryPanel';
 import { MapPanel } from '../ui/mapPanel';
 import { Minimap } from '../ui/minimap';
 import { AdventurePanel } from '../ui/adventurePanel';
+import { TouchControls } from '../ui/touchControls';
+import { isTouchDevice, prefersTouchLayout } from '../core/platform';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -20,6 +22,7 @@ export class UIScene extends Phaser.Scene {
   private map!: MapPanel;
   private minimap!: Minimap;
   private adventure!: AdventurePanel;
+  private touch?: TouchControls;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private hudCompactHandler = (compact: boolean): void => {
@@ -51,6 +54,18 @@ export class UIScene extends Phaser.Scene {
     });
     this.adventure = new AdventurePanel(this);
     this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
+
+    const state = this.state();
+    const touchEnabled =
+      Boolean(state) &&
+      state!.settings.touchControls &&
+      prefersTouchLayout({
+        touch: isTouchDevice(),
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    this.registry.set('touchEnabled', touchEnabled);
+    if (touchEnabled) this.touch = new TouchControls(this);
 
     // Dev-only QA shortcut: /AI_LBS/?panel=map&zoom=2 opens the map.
     if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -148,6 +163,7 @@ export class UIScene extends Phaser.Scene {
       'uiOpen',
       this.panel.isOpen || this.inventory.isOpen || this.map.isOpen || this.adventure.isOpen,
     );
+    this.touch?.setVisible(!this.registry.get('uiOpen'));
     const uiPanel: UiPanel = this.inventory.isOpen
       ? 'inventory'
       : this.map.isOpen

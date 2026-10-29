@@ -32,6 +32,7 @@ import { addItem } from '../systems/inventorySystem';
 import { EQUIPMENT } from '../data/equipment';
 import { deriveStats, damageEquipped, tickBootWear } from '../systems/statsSystem';
 import { applyDamage, tickNeeds } from '../systems/needsSystem';
+import { autoAimAngle } from '../systems/combatSystem';
 import { tickTorchFuel } from '../systems/resourceSystem';
 import { advanceTime } from '../systems/timeSystem';
 import { tickLabor, settleLaborRations } from '../systems/laborSystem';
@@ -39,6 +40,7 @@ import { isFloorCleared, markFloorCleared, tickWeekReset } from '../systems/dung
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
+import { isTouchControlPoint } from '../ui/touchLayout';
 import { enemySprite } from '../ui/assets';
 import { makeText } from '../ui/text';
 
@@ -124,7 +126,17 @@ export class DungeonScene extends Phaser.Scene {
     >;
     this.input.keyboard?.on('keydown-E', () => this.interact());
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.leftButtonDown()) this.attack(pointer);
+      if (this.registry.get('touchEnabled') && isTouchControlPoint(pointer.x, pointer.y)) return;
+      if (pointer.leftButtonDown()) {
+        const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
+        this.attackAtAngle(angle);
+      }
+    });
+    this.game.events.on('ui:touchAttack', this.onTouchAttack, this);
+    this.game.events.on('ui:touchInteract', this.onTouchInteract, this);
+    this.events.once('shutdown', () => {
+      this.game.events.off('ui:touchAttack', this.onTouchAttack, this);
+      this.game.events.off('ui:touchInteract', this.onTouchInteract, this);
     });
 
     if (!this.scene.isActive('UIScene')) this.scene.launch('UIScene');
@@ -581,9 +593,13 @@ export class DungeonScene extends Phaser.Scene {
 
   private move(dt: number, speed: number): void {
     void dt;
-    const dx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
-    const dy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
-    if (dx === 0 && dy === 0) {
+    const kbDx = Number(this.keys.D.isDown) - Number(this.keys.A.isDown);
+    const kbDy = Number(this.keys.S.isDown) - Number(this.keys.W.isDown);
+    const touchMove = this.registry.get('touchMove') as { x: number; y: number } | undefined;
+    const usingTouch = kbDx === 0 && kbDy === 0 && Boolean(touchMove);
+    const dx = usingTouch ? touchMove!.x : kbDx;
+    const dy = usingTouch ? touchMove!.y : kbDy;
+    if (Math.hypot(dx, dy) < 0.05) {
       this.player.setVelocity(0, 0);
       return;
     }
@@ -591,7 +607,19 @@ export class DungeonScene extends Phaser.Scene {
     const input = { x: dx / length, y: dy / length };
     if (!isDungeonWalkable(this.tileAtWorld(this.player.x + input.x * 10, this.player.y - 4))) input.x = 0;
     if (!isDungeonWalkable(this.tileAtWorld(this.player.x, this.player.y - 4 + input.y * 10))) input.y = 0;
-    this.player.setVelocityFromInput(input, speed);
+    const analog = usingTouch ? Math.min(1, Math.hypot(dx, dy)) : 1;
+    this.player.setVelocityFromInput(input, speed * analog);
+  }
+
+  private onTouchAttack(): void {
+    if (this.channel) return;
+    const targets = this.enemies.filter((view) => !view.state.dead).map((view) => view.state);
+    this.attackAtAngle(autoAimAngle(this.player, targets, this.state.player.facing, 96));
+  }
+
+  private onTouchInteract(): void {
+    if (this.channel) return;
+    this.interact();
   }
 
   private hazardAt(x: number, y: number): DungeonHazard | null {
@@ -625,9 +653,8 @@ export class DungeonScene extends Phaser.Scene {
     }
   }
 
-  private attack(pointer: Phaser.Input.Pointer): void {
+  private attackAtAngle(angle: number): void {
     if (this.channel) return;
-    const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
     const slash = this.add
       .image(this.player.x, this.player.y - 8, 'slash')
       .setRotation(angle)
