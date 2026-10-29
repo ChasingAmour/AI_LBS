@@ -79,7 +79,10 @@ async function boot(): Promise<void> {
   };
   window.addEventListener('pointerdown', unlockAudio, { once: true });
 
-  if (import.meta.env.DEV) {
+  const debug =
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug'));
+  if (debug) {
     (globalThis as unknown as { __game: Phaser.Game }).__game = game;
   }
 }
