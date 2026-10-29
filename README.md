@@ -99,7 +99,8 @@ src/
   core/        GameState、事件总线、随机数、噪声、缩放、存档版本（不依赖 Phaser）
   data/        物品、配方、建筑、营地等级、武器、资源与宝箱数据
   entities/    玩家、野人、劳工、建筑、资源节点精灵
-  scenes/      Boot / Island / Dungeon / UI / Pause / Death  systems/     时间、需求、背包、资源、合成、建筑、营地、战斗、入侵、劳工、存档、交互、教学
+  scenes/      Boot / Island / Dungeon / UI / Pause / Death
+  systems/     时间、需求、背包、资源、合成、建筑、营地、战斗、入侵、劳工、存档、交互、教学
   ui/          HUD、面板、地图、图标与通用控件
   world/       地形生成、区块、地标、小径、光照、地图坐标（纯函数）
 public/assets/ 瓦片、UI、字体
