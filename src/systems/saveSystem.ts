@@ -214,8 +214,17 @@ const LEGACY_WEAPONS = new Set(['club', 'spear']);
 
 /** Fills v3 fields and turns old club/spear stacks into common equipment instances. */
 export function upgradeToV3(state: GameState): GameState {
-  state.version = SAVE_VERSION;
-  if (!state.settings) state.settings = { muted: false, sfxVolume: 0.7, hudCompact: false };
+  state.version = 3;
+  if (!state.settings) {
+    state.settings = {
+      muted: false,
+      sfxVolume: 0.7,
+      musicMuted: false,
+      musicVolume: 0.45,
+      hudCompact: false,
+      touchControls: true,
+    };
+  }
   state.lootSeed = typeof state.lootSeed === 'number' ? state.lootSeed : (state.world?.seed ?? Date.now());
   state.lootRolls = typeof state.lootRolls === 'number' ? state.lootRolls : 0;
   state.bootWear = typeof state.bootWear === 'number' ? state.bootWear : 0;
@@ -254,7 +263,7 @@ export function upgradeToV3(state: GameState): GameState {
  * camp flag, and animals plus the HUD setting are new state.
  */
 export function upgradeToV4(state: GameState): GameState {
-  state.version = SAVE_VERSION;
+  state.version = 4;
   state.world.nodeStates = {};
   state.flags.tutorialStep = (state.flags.tutorialStep ?? 0) + 1;
   state.animals = Array.isArray(state.animals) ? state.animals : [];
@@ -271,11 +280,39 @@ export function upgradeToV4(state: GameState): GameState {
   return state;
 }
 
+/**
+ * v5: independent background-music settings and a touch-control toggle.
+ */
+export function upgradeToV5(state: GameState): GameState {
+  state.version = SAVE_VERSION;
+  if (!state.settings) {
+    state.settings = {
+      muted: false,
+      sfxVolume: 0.7,
+      musicMuted: false,
+      musicVolume: 0.45,
+      hudCompact: false,
+      touchControls: true,
+    };
+  }
+  state.settings.musicMuted = state.settings.musicMuted === true;
+  state.settings.musicVolume =
+    typeof state.settings.musicVolume === 'number'
+      ? Math.max(0, Math.min(1, state.settings.musicVolume))
+      : 0.45;
+  state.settings.touchControls = state.settings.touchControls !== false;
+  state.settings.hudCompact = state.settings.hudCompact === true;
+  return state;
+}
+
 export function validateSave(data: unknown): GameState {
   if (!isRecord(data)) fail('存档不是对象');
-  if (data.version === 1) return upgradeToV4(upgradeToV3(migrateV1(data)));
-  if (data.version === 2) return upgradeToV4(upgradeToV3(validateCore(data)));
-  if (data.version === 3) return upgradeToV4(validateCore(data));
+  if (data.version === 1) return upgradeToV5(upgradeToV4(upgradeToV3(migrateV1(data))));
+  if (data.version === 2) {
+    return upgradeToV5(upgradeToV4(upgradeToV3(validateCore(data))));
+  }
+  if (data.version === 3) return upgradeToV5(upgradeToV4(validateCore(data)));
+  if (data.version === 4) return upgradeToV5(validateCore(data));
   if (data.version !== SAVE_VERSION) fail('存档版本不兼容');
 
   const state = validateCore(data);
@@ -283,6 +320,9 @@ export function validateSave(data: unknown): GameState {
   const settings = requireObject(state.settings, 'settings');
   if (typeof settings.muted !== 'boolean') fail('settings.muted 必须是布尔值');
   requireNumber(settings.sfxVolume, 'settings.sfxVolume', 0, 1);
+  if (typeof settings.musicMuted !== 'boolean') fail('settings.musicMuted 必须是布尔值');
+  requireNumber(settings.musicVolume, 'settings.musicVolume', 0, 1);
+  if (typeof settings.touchControls !== 'boolean') fail('settings.touchControls 必须是布尔值');
   if (settings.hudCompact === undefined) settings.hudCompact = false;
   if (typeof settings.hudCompact !== 'boolean') fail('settings.hudCompact 必须是布尔值');
   requireNumber(state.lootSeed, 'lootSeed', 0, Number.MAX_SAFE_INTEGER);
