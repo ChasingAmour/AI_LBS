@@ -8,6 +8,7 @@ import { ensureWaterFrames } from '../world/waterFrames';
 import { ensureFarmArt } from '../ui/farmArt';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
+import { shouldPlayIntro } from '../data/introStory';
 import { EventBus } from '../core/eventBus';
 
 export class BootScene extends Phaser.Scene {
@@ -43,7 +44,8 @@ export class BootScene extends Phaser.Scene {
     const state = loaded.state ?? createNewGame();
     // Dev-only QA shortcut: /AI_LBS/?dungeon=1|2|3 starts inside that floor.
     const forcedFloor = Number(new URLSearchParams(window.location.search).get('dungeon'));
-    if (import.meta.env.DEV && forcedFloor >= 1 && forcedFloor <= 3) {
+    const forced = import.meta.env.DEV && forcedFloor >= 1 && forcedFloor <= 3;
+    if (forced) {
       state.scene = 'dungeon';
       state.dungeonFloor = forcedFloor as 1 | 2 | 3;
     }
@@ -55,6 +57,10 @@ export class BootScene extends Phaser.Scene {
       this.registry.set('loadNotice', `读取存档：第 ${state.time.day} 天`);
     }
 
+    if (!forced && shouldPlayIntro(state, loaded.source)) {
+      this.scene.start('IntroScene');
+      return;
+    }
     this.scene.start(state.scene === 'dungeon' && state.dungeonFloor ? 'DungeonScene' : 'IslandScene');
   }
 }

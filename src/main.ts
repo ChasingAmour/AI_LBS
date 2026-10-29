@@ -4,6 +4,7 @@ import { BASE_HEIGHT, BASE_WIDTH, fitScale, integerScale } from './core/scaling'
 import { isTouchDevice, shouldPauseForPortrait } from './core/platform';
 import { GAME_CONFIG } from './core/config';
 import { BootScene } from './scenes/BootScene';
+import { IntroScene } from './scenes/IntroScene';
 import { IslandScene } from './scenes/IslandScene';
 import { DungeonScene } from './scenes/DungeonScene';
 import { UIScene } from './scenes/UIScene';
@@ -57,7 +58,7 @@ async function boot(): Promise<void> {
 
   const game = new Phaser.Game({
     ...GAME_CONFIG,
-    scene: [BootScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
+    scene: [BootScene, IntroScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
   } as Phaser.Types.Core.GameConfig);
 
   applyViewportScale(game);
