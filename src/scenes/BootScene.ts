@@ -66,6 +66,10 @@ export class BootScene extends Phaser.Scene {
       this.scene.start('IntroScene');
       return;
     }
+    if (!forced && !state.flags.named) {
+      this.scene.start('NameScene');
+      return;
+    }
     this.scene.start(state.scene === 'dungeon' && state.dungeonFloor ? 'DungeonScene' : 'IslandScene');
   }
 }

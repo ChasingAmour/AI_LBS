@@ -27,9 +27,9 @@ import {
   type DungeonFloor,
   type DungeonHazard,
 } from '../world/dungeonGen';
-import { rollChestLoot } from '../systems/lootSystem';
+import { rollChestLoot, rollEnemyLoot } from '../systems/lootSystem';
 import { addItem } from '../systems/inventorySystem';
-import { EQUIPMENT } from '../data/equipment';
+import { EQUIPMENT, RARITY } from '../data/equipment';
 import { deriveStats, damageEquipped, tickBootWear } from '../systems/statsSystem';
 import { applyDamage, tickNeeds } from '../systems/needsSystem';
 import { autoAimAngle } from '../systems/combatSystem';
@@ -44,6 +44,7 @@ import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import { enemySprite } from '../ui/assets';
+import { spawnDamageNumber, spawnHitSpark, spawnWeaponAttack } from '../ui/combatFx';
 import { makeText } from '../ui/text';
 
 const BOSS_NAMES: Record<1 | 2 | 3, string> = {
@@ -100,7 +101,7 @@ export class DungeonScene extends Phaser.Scene {
     this.bakeFloor();
 
     const start = this.tileCenter(this.floorData.entry.x, this.floorData.entry.y);
-    this.player = new PlayerEntity(this, start.x, start.y);
+    this.player = new PlayerEntity(this, start.x, start.y, this.state);
     this.player.setDepth(9003);
 
     this.physics.world.setBounds(0, 0, this.floorData.width * TILE, this.floorData.height * TILE);
@@ -572,7 +573,12 @@ export class DungeonScene extends Phaser.Scene {
       view.sprite.setPosition(enemy.x, enemy.y).setDepth(depthFor(enemy.y));
       view.sprite.setAlpha(enemy.dead ? 0.25 : 1);
       const hit = enemyAttack(enemy, Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y));
-      if (hit > 0) applyDamage(this.state, hit);
+      if (hit > 0) {
+        const before = this.state.player.hp;
+        applyDamage(this.state, hit);
+        const dealt = before - this.state.player.hp;
+        if (dealt > 0) spawnDamageNumber(this, this.player.x, this.player.y, dealt, 'player');
+      }
     }
     this.drawTelegraphs();
     this.updateBossFight();
@@ -661,13 +667,16 @@ export class DungeonScene extends Phaser.Scene {
 
   private attackAtAngle(angle: number): void {
     if (this.channel) return;
-    const slash = this.add
-      .image(this.player.x, this.player.y - 8, 'slash')
-      .setRotation(angle)
-      .setDisplaySize(72, 72)
-      .setDepth(depthFor(this.player.y) + 2)
-      .setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: slash, alpha: 0, duration: 160, onComplete: () => slash.destroy() });
+    const baseId = this.selectedWeaponBaseId();
+    spawnWeaponAttack(
+      this,
+      this.player.x,
+      this.player.y - 8,
+      angle,
+      baseId,
+      9004,
+    );
+    this.player.swingWeapon(angle);
 
     const stats = deriveStats(this.state);
     const weapon = this.selectedWeapon();
@@ -681,7 +690,13 @@ export class DungeonScene extends Phaser.Scene {
       const targetAngle = Math.atan2(enemy.y - this.player.y, enemy.x - this.player.x);
       const diff = Math.atan2(Math.sin(targetAngle - angle), Math.cos(targetAngle - angle));
       if (Math.abs(diff) > Math.PI / 2) continue;
+      const before = enemy.hp;
       const result = damageDungeonEnemy(enemy, weapon.damage + stats.attack, now, stats.armorPierce);
+      const dealt = before - enemy.hp;
+      if (dealt > 0) {
+        spawnDamageNumber(this, enemy.x, enemy.y, dealt);
+        spawnHitSpark(this, enemy.x, enemy.y, 0xffd479);
+      }
       if (stats.slowOnHit) applySlow(enemy, now);
       if (stats.poisonStacks > 0) applyPoison(enemy, now, stats.poisonStacks);
       playSfx(this, this.state, 'hit');
@@ -692,11 +707,33 @@ export class DungeonScene extends Phaser.Scene {
           enemy.rank === 'boss' ? 80 : enemy.rank === 'elite' ? 25 : 8,
           this.bus,
         );
-        this.game.events.emit('ui:banner', '敌人倒下了');
+        const lootText = this.dropEnemyLoot(enemy);
+        this.game.events.emit(
+          'ui:banner',
+          lootText ? `敌人倒下了 · ${lootText}` : '敌人倒下了',
+        );
       }
     }
     this.checkFloorCleared();
     damageEquipped(this.state, 'weapon', 1);
+  }
+
+  private dropEnemyLoot(enemy: DungeonEnemy): string | null {
+    const rng = createRng(
+      this.state.lootSeed + this.state.lootRolls * 7919 + Math.round(enemy.x * 13 + enemy.y * 7),
+    );
+    const drop = rollEnemyLoot(this.state, enemy.rank, this.floorData.floor, rng);
+    if (!drop) return null;
+    const base = EQUIPMENT[drop.baseId];
+    return `${enemy.rank === 'boss' ? '首领掉落' : '获得'}：${RARITY[drop.rarity].label} ${base?.name ?? drop.baseId}`;
+  }
+
+  private selectedWeaponBaseId(): string | null {
+    const id = this.state.equipment.weapon;
+    const instance = id
+      ? this.state.equipmentInstances.find((item) => item.instanceId === id)
+      : null;
+    return instance && instance.durability > 0 ? instance.baseId : null;
   }
 
   private selectedWeapon(): { damage: number; range: number } {
@@ -710,6 +747,8 @@ export class DungeonScene extends Phaser.Scene {
       captain_cutlass: { damage: 16, range: 42 },
       sea_snake_spear: { damage: 18, range: 60 },
       anchor_hammer: { damage: 12, range: 40 },
+      iron_spear: { damage: 20, range: 58 },
+      copper_spear: { damage: 16, range: 55 },
     };
     return (base && map[base]) || { damage: 4, range: 24 };
   }

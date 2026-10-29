@@ -5,6 +5,7 @@ import { isTouchDevice, shouldPauseForPortrait } from './core/platform';
 import { GAME_CONFIG } from './core/config';
 import { BootScene } from './scenes/BootScene';
 import { IntroScene } from './scenes/IntroScene';
+import { NameScene } from './scenes/NameScene';
 import { GuideScene } from './scenes/GuideScene';
 import { IslandScene } from './scenes/IslandScene';
 import { DungeonScene } from './scenes/DungeonScene';
@@ -59,7 +60,7 @@ async function boot(): Promise<void> {
 
   const game = new Phaser.Game({
     ...GAME_CONFIG,
-    scene: [BootScene, IntroScene, GuideScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
+    scene: [BootScene, IntroScene, NameScene, GuideScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
   } as Phaser.Types.Core.GameConfig);
 
   applyViewportScale(game);

@@ -11,6 +11,7 @@ import {
   type Recipe,
 } from '../data/recipes';
 import { canCraft, craft } from '../systems/craftingSystem';
+import { gearPreviewText } from '../systems/equipmentSystem';
 import type { Panel, PanelRow } from './panel';
 
 function costText(recipe: Recipe): string {
@@ -53,6 +54,7 @@ export function craftRows(
           recipe,
           nearStation,
         )}`,
+        sub: EQUIPMENT[recipe.output] ? gearPreviewText(recipe.output) : undefined,
         disabled: !check.ok,
         onClick: () => {
           if (craft(state, recipe.id, stationOk, bus)) refresh();

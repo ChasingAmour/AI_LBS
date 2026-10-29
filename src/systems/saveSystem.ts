@@ -305,6 +305,11 @@ export function upgradeToV5(state: GameState): GameState {
   state.animals = Array.isArray(state.animals) ? state.animals : [];
   state.player.level = typeof state.player.level === 'number' ? state.player.level : 1;
   state.player.xp = typeof state.player.xp === 'number' ? state.player.xp : 0;
+  state.player.name =
+    typeof state.player.name === 'string' && state.player.name.trim()
+      ? state.player.name.trim().slice(0, 12)
+      : '鲁滨孙';
+  state.flags.named = true;
   return state;
 }
 
@@ -333,6 +338,7 @@ export function validateSave(data: unknown): GameState {
   requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);
   if (typeof state.dungeon.pendingReset !== 'boolean') fail('dungeon.pendingReset 必须是布尔值');
   if (!Array.isArray(state.dungeon.clearedFloors)) state.dungeon.clearedFloors = [];
+  if (typeof state.flags.named !== 'boolean') state.flags.named = true;
   return state;
 }
 
@@ -348,6 +354,8 @@ function validateCore(data: Record<string, unknown>): GameState {
   if (time.phase !== 'day' && time.phase !== 'night') fail('time.phase 无效');
 
   const player = requireObject(data.player, 'player');
+  if (typeof player.name !== 'string' || !player.name.trim()) player.name = '鲁滨孙';
+  else player.name = player.name.trim().slice(0, 12);
   requireNumber(player.x, 'player.x', 0, 1_000_000);
   requireNumber(player.y, 'player.y', 0, 1_000_000);
   requireNumber(player.hp, 'player.hp', 0, 100);

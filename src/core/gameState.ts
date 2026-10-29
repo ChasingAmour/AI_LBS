@@ -80,6 +80,8 @@ export interface GameState {
   player: {
     x: number;
     y: number;
+    /** Chosen protagonist name; shown in HUD panels and death/pause screens. */
+    name: string;
     hp: number;
     hunger: number;
     thirst: number;
@@ -134,6 +136,7 @@ export interface GameState {
     firstRaidDone: boolean;
     introSeen?: boolean;
     controlsSeen?: boolean;
+    named?: boolean;
   };
   raid: { active: boolean; day: number } | null;
   savages: SavageState[];
@@ -164,6 +167,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
     player: {
       x: wreckSpawn.x,
       y: wreckSpawn.y,
+      name: '鲁滨孙',
       hp: 100,
       hunger: 100,
       thirst: 100,
@@ -207,6 +211,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
       firstRaidDone: false,
       introSeen: false,
       controlsSeen: false,
+      named: false,
     },
     raid: null,
     savages: [],

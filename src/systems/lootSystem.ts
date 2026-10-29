@@ -3,6 +3,8 @@ import { createRng, type Rng } from '../core/rng';
 import { LOOT_EQUIPMENT_IDS, type Rarity } from '../data/equipment';
 import { rollEquipment } from './equipmentSystem';
 
+type EnemyRank = 'normal' | 'elite' | 'boss';
+
 const NORMAL_TABLE: Array<[Rarity, number]> = [
   ['common', 0.6],
   ['fine', 0.3],
@@ -69,4 +71,42 @@ export function rollChestLoot(
   }
 
   return { equipment, materials, firstClear };
+}
+
+/**
+ * Enemy drops: normal mobs rarely drop common/fine gear, elites drop better
+ * gear, and every boss drops rare-or-better loot from the pirate pool.
+ */
+export function rollEnemyLoot(
+  state: GameState,
+  rank: EnemyRank,
+  floor: 1 | 2 | 3,
+  rng: Rng = createRng(state.lootSeed + state.lootRolls * 7919),
+): EquipInstance | null {
+  const chance = rank === 'boss' ? 1 : rank === 'elite' ? 0.7 : 0.3;
+  if (rng.next() > chance) return null;
+
+  let rarity: Rarity;
+  if (rank === 'boss') {
+    const roll = rng.next();
+    if (floor >= 3) rarity = roll < 0.5 ? 'legendary' : 'epic';
+    else if (floor === 2) rarity = roll < 0.55 ? 'epic' : 'rare';
+    else rarity = roll < 0.4 ? 'epic' : 'rare';
+  } else if (rank === 'elite') {
+    rarity = rng.next() < 0.35 ? 'rare' : 'fine';
+  } else {
+    rarity = rng.next() < 0.15 ? 'fine' : 'common';
+  }
+
+  const baseId = LOOT_EQUIPMENT_IDS[rng.int(0, LOOT_EQUIPMENT_IDS.length - 1)];
+  state.lootRolls += 1;
+  const equipment = rollEquipment(
+    createRng(state.lootSeed + state.lootRolls * 7919),
+    baseId,
+    rarity,
+    `eq_${state.lootRolls}`,
+  );
+  if (!equipment) return null;
+  state.equipmentInstances.push(equipment);
+  return equipment;
 }

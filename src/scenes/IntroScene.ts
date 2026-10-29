@@ -352,7 +352,7 @@ export class IntroScene extends Phaser.Scene {
         this.scene.resume('UIScene');
         this.scene.stop();
       } else {
-        this.scene.start('IslandScene');
+        this.scene.start(state && !state.flags.named ? 'NameScene' : 'IslandScene');
       }
     });
   }

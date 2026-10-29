@@ -8,10 +8,16 @@ import {
   affixesFor,
 } from '../../src/data/equipment';
 import { RECIPES } from '../../src/data/recipes';
-import { gearStatLines, recycleInstance, rollEquipment } from '../../src/systems/equipmentSystem';
+import {
+  gearPreviewText,
+  gearStatLines,
+  recycleInstance,
+  rollEquipment,
+} from '../../src/systems/equipmentSystem';
 import { createRng } from '../../src/core/rng';
 import { createNewGame } from '../../src/core/gameState';
 import { countItem } from '../../src/systems/inventorySystem';
+import { itemIcon } from '../../src/ui/itemIcons';
 
 describe('equipment rolls', () => {
   it('defines the 18 approved bases', () => {
@@ -29,6 +35,17 @@ describe('equipment rolls', () => {
     const recipeOutputs = new Set(Object.values(RECIPES).map((recipe) => recipe.output));
     for (const id of crafted) expect(recipeOutputs.has(id)).toBe(true);
     for (const id of LOOT_EQUIPMENT_IDS) expect(recipeOutputs.has(id)).toBe(false);
+  });
+
+  it('gives every equipment base its own icon texture', () => {
+    const textures = new Set(Object.keys(EQUIPMENT).map((id) => itemIcon(id)?.texture));
+    expect(textures.size).toBe(Object.keys(EQUIPMENT).length);
+  });
+
+  it('previews crafted stats before the item is made', () => {
+    expect(gearPreviewText('iron_spear')).toContain('攻击 20');
+    expect(gearPreviewText('copper_armor')).toContain('防御 9');
+    expect(gearPreviewText('captain_boots')).toContain('移速 18%');
   });
 
   it('is deterministic for the same rng state', () => {

@@ -127,8 +127,24 @@ export class InventoryOverlay {
     this.root.add(box);
     const avatar = this.scene.add.image(88, 88, 'farm', 109).setOrigin(0.5, 0.5).setScale(4);
     this.root.add(avatar);
-    this.root.add(makeText(this.scene, 128, 58, '鲁滨孙', { size: 24, color: COLORS.ink }));
-    this.root.add(makeText(this.scene, 128, 86, '荒岛求生', { color: COLORS.inkSoft }));
+    for (const slot of ['armor', 'boots'] as const) {
+      const id = state.equipment[slot];
+      const instance = id
+        ? state.equipmentInstances.find((item) => item.instanceId === id)
+        : null;
+      if (instance) {
+        this.root.add(
+          this.scene.add
+            .image(88, 88, `gear-${slot}-${instance.baseId}`)
+            .setOrigin(0.5, 0.5)
+            .setScale(4),
+        );
+      }
+    }
+    this.root.add(
+      makeText(this.scene, 128, 58, state.player.name, { size: 24, color: COLORS.ink }),
+    );
+    this.root.add(makeText(this.scene, 128, 86, '失落方舟', { color: COLORS.inkSoft }));
     this.root.add(
       makeText(this.scene, 128, 106, `营地 Lv${state.camp.level}`, { color: COLORS.ink }),
     );

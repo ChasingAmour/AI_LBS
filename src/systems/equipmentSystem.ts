@@ -47,6 +47,22 @@ export function rollEquipment(
   };
 }
 
+/** Compact stat preview used by the crafting book before an item is made. */
+export function gearPreviewText(baseId: string): string {
+  const base = EQUIPMENT[baseId];
+  if (!base) return '';
+  const parts: string[] = [];
+  const weapon = base.weaponId ? WEAPONS[base.weaponId] : null;
+  if (weapon) parts.push(`攻击 ${weapon.damage}`, `眩晕 ${weapon.stun}`);
+  if (base.defense) parts.push(`防御 ${base.defense}`);
+  if (base.moveMul && base.moveMul !== 1) {
+    parts.push(`移速 ${Math.round((base.moveMul - 1) * 100)}%`);
+  }
+  if (base.energyMax) parts.push(`精力 +${base.energyMax}`);
+  parts.push(`耐久 ${base.durability}`);
+  return `${parts.join(' · ')} · 传说 ${base.legendary.name}`;
+}
+
 /** Base stats shown in the inventory tooltip, before affixes. */
 export function gearStatLines(instance: EquipInstance): string[] {
   const base = EQUIPMENT[instance.baseId];

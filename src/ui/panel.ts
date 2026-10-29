@@ -6,6 +6,8 @@ import { pageLabel, pageWindow, visibleRows } from './widgets/scrollList';
 export interface PanelRow {
   label: string;
   detail?: string;
+  /** Smaller second line, used by the crafting book for equipment stats. */
+  sub?: string;
   disabled?: boolean;
   onClick?: () => void;
 }
@@ -24,7 +26,7 @@ interface PanelGeometry {
 
 const GEOMETRY: Record<PanelStyle, PanelGeometry> = {
   list: { width: 420, height: 300, x: 110, y: 30, header: 44, perPage: 8, step: 1 },
-  craft: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 10, step: 1 },
+  craft: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 9, step: 1 },
   build: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 8, step: 2 },
   labor: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 4, step: 1 },
 };
@@ -170,20 +172,29 @@ export class Panel {
   }
 
   private renderList(start: number, end: number, geo: PanelGeometry): void {
-    const rowHeight = 28;
+    const craft = this.currentStyle === 'craft';
+    const rowHeight = craft ? 30 : 28;
     for (let index = start; index < end; index++) {
       const row = this.rows[index];
       const y = geo.header + (index - start) * rowHeight;
       const color = row.disabled ? COLORS.muted : COLORS.ink;
-      const text = makeText(this.scene, 16, y + 7, row.label, { color });
+      const text = makeText(this.scene, 16, y + (craft ? 2 : 7), row.label, { color });
       this.rowObjects.push(text);
 
       if (row.detail) {
-        const detail = makeText(this.scene, geo.width - 16, y + 8, row.detail, {
+        const detail = makeText(this.scene, geo.width - 16, y + (craft ? 3 : 8), row.detail, {
           origin: [1, 0],
           color: row.disabled ? COLORS.muted : COLORS.inkSoft,
         });
         this.rowObjects.push(detail);
+      }
+
+      if (row.sub) {
+        const sub = makeText(this.scene, 16, y + 16, row.sub, {
+          size: 10,
+          color: row.disabled ? COLORS.muted : COLORS.inkSoft,
+        });
+        this.rowObjects.push(sub);
       }
 
       if (!row.disabled && row.onClick) {

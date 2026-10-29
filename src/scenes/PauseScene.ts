@@ -19,7 +19,8 @@ export class PauseScene extends Phaser.Scene {
     const g = this.add.graphics();
     drawPanel(g, PANEL);
 
-    makeText(this, 320, PANEL.y + 16, '暂停', {
+    const playerName = this.state()?.player.name ?? '鲁滨孙';
+    makeText(this, 320, PANEL.y + 16, `${playerName} · 暂停`, {
       size: 24,
       color: COLORS.ink,
       align: 'center',

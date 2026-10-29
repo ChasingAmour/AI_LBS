@@ -21,7 +21,8 @@ export class DeathScene extends Phaser.Scene {
     const g = this.add.graphics();
     drawPanel(g, PANEL);
 
-    makeText(this, 320, PANEL.y + 14, '你失去了一切，但还活着', {
+    const state = this.registry.get('state') as GameState | undefined;
+    makeText(this, 320, PANEL.y + 14, `${state?.player.name ?? '鲁滨孙'}失去了一切，但还活着`, {
       size: 24,
       color: COLORS.ink,
       align: 'center',

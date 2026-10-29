@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 
@@ -291,30 +291,121 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
 
   for (const base of Object.values(EQUIPMENT)) {
     const key = `icon-${base.id}`;
-    if (base.slot !== 'weapon' || scene.textures.exists(key)) continue;
-    const copper = base.id.includes('copper');
-    const iron = base.id.includes('iron');
-    g.fillStyle(0xc9d4e0).fillRect(7, 2, 2, 10);
-    g.fillStyle(copper ? 0xc9793a : iron ? 0x8a97a8 : 0x8aa8c0).fillRect(5, 3, 6, 3);
-    g.fillStyle(0x6b4420).fillRect(7, 12, 2, 2);
+    if (scene.textures.exists(key)) continue;
+    paintEquipmentIcon(g, base.id);
     g.generateTexture(key, 16, 16);
     g.clear();
   }
   g.destroy();
 }
 
-/** Item icon lookup; equipment falls back to its slot icon. */
+/** One silhouette per equipment base, so loot and crafted gear never share art. */
+function paintEquipmentIcon(g: Phaser.GameObjects.Graphics, id: string): void {
+  switch (id) {
+    case 'coral_dagger':
+      g.fillStyle(0xd86a8a).fillTriangle(9, 2, 6, 11, 11, 11);
+      g.fillStyle(0xf09ab0).fillRect(9, 3, 2, 6);
+      g.fillStyle(0xc9a24a).fillRect(4, 10, 9, 2);
+      g.fillStyle(0x6b4420).fillRect(4, 11, 3, 4);
+      break;
+    case 'captain_cutlass':
+      g.fillStyle(0xc9d4e0).fillPoints(
+        [
+          { x: 10, y: 2 },
+          { x: 13, y: 4 },
+          { x: 9, y: 12 },
+          { x: 6, y: 12 },
+          { x: 8, y: 6 },
+        ],
+        true,
+      );
+      g.fillStyle(0xc9a24a).fillRect(4, 11, 9, 2);
+      g.fillStyle(0x6b4420).fillRect(3, 12, 3, 3);
+      break;
+    case 'sea_snake_spear':
+      g.fillStyle(0xd8d0b8).fillRect(7, 4, 2, 11);
+      g.fillStyle(0xf7f1e3).fillTriangle(8, 1, 5, 6, 11, 6);
+      g.fillStyle(0xb03a2e).fillRect(6, 6, 4, 1);
+      break;
+    case 'anchor_hammer':
+      g.fillStyle(0x6b4420).fillRect(7, 4, 2, 10);
+      g.fillStyle(0x8a97a8).fillRect(3, 2, 10, 4);
+      g.fillStyle(0x6a7480).fillRect(3, 5, 10, 1);
+      g.fillStyle(0xc9a24a).fillRect(6, 6, 4, 1);
+      break;
+    case 'copper_spear':
+      g.fillStyle(0x8a5a2b).fillRect(7, 3, 2, 12);
+      g.fillStyle(0xc9793a).fillTriangle(8, 1, 5, 6, 11, 6);
+      g.fillStyle(0xd9975a).fillRect(7, 2, 1, 4);
+      break;
+    case 'iron_spear':
+      g.fillStyle(0x8a5a2b).fillRect(7, 3, 2, 12);
+      g.fillStyle(0xc9d4e0).fillTriangle(8, 1, 5, 6, 11, 6);
+      g.fillStyle(0x8a97a8).fillRect(7, 2, 1, 4);
+      break;
+    case 'vine_armor':
+      g.fillStyle(0x2f6b3f).fillRect(3, 5, 10, 8);
+      g.fillStyle(0x4f9f5f).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0x6fbf4f).fillRect(5, 7, 6, 1).fillRect(5, 9, 6, 1);
+      g.fillStyle(0x8a5a2b).fillRect(7, 6, 2, 7);
+      break;
+    case 'shell_armor':
+      g.fillStyle(0xf0d8c0).fillRect(3, 4, 10, 9);
+      g.fillStyle(0xfff2df).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0xc9a24a).fillRect(5, 7, 2, 2).fillRect(9, 9, 2, 2);
+      g.fillStyle(0xb08a5a).fillRect(7, 5, 1, 7);
+      break;
+    case 'canvas_armor':
+      g.fillStyle(0xd8c49a).fillRect(3, 5, 10, 8);
+      g.fillStyle(0xe8d8b0).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0x8a6a3c).fillRect(7, 6, 1, 7).fillRect(5, 8, 6, 1);
+      break;
+    case 'captain_coat':
+      g.fillStyle(0x2f4f7a).fillRect(3, 4, 10, 10);
+      g.fillStyle(0x4a6a9a).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0xc9a24a).fillRect(7, 5, 2, 8).fillRect(5, 7, 1, 1).fillRect(10, 9, 1, 1);
+      g.fillStyle(0xf0e6d2).fillRect(5, 12, 6, 1);
+      break;
+    case 'copper_armor':
+      g.fillStyle(0xb87333).fillRect(3, 4, 10, 10);
+      g.fillStyle(0xd9975a).fillRect(4, 5, 8, 3).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0x8a4f1e).fillRect(5, 9, 1, 1).fillRect(10, 9, 1, 1);
+      break;
+    case 'iron_armor':
+      g.fillStyle(0x8a97a8).fillRect(3, 4, 10, 10);
+      g.fillStyle(0xc9d4e0).fillRect(4, 5, 8, 3).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0x6a7480).fillRect(5, 9, 1, 1).fillRect(10, 9, 1, 1);
+      break;
+    case 'straw_shoes':
+      g.fillStyle(0xc9a24a).fillRect(3, 10, 5, 3).fillRect(9, 10, 5, 3);
+      g.fillStyle(0x8a6a3c).fillRect(4, 9, 1, 2).fillRect(10, 9, 1, 2);
+      g.fillStyle(0xe0c07a).fillRect(4, 11, 3, 1).fillRect(10, 11, 3, 1);
+      break;
+    case 'wading_shoes':
+      g.fillStyle(0x2f6b3f).fillRect(3, 8, 4, 6).fillRect(9, 8, 4, 6);
+      g.fillStyle(0x4f9f5f).fillRect(3, 9, 4, 1).fillRect(9, 9, 4, 1);
+      g.fillStyle(0x6fbf4f).fillRect(4, 11, 3, 1).fillRect(10, 11, 3, 1);
+      break;
+    case 'canvas_boots':
+      g.fillStyle(0xd8c49a).fillRect(3, 8, 4, 6).fillRect(9, 8, 4, 6);
+      g.fillStyle(0x8a6a3c).fillRect(3, 13, 4, 1).fillRect(9, 13, 4, 1);
+      g.fillStyle(0xa88a5a).fillRect(4, 9, 3, 1).fillRect(10, 9, 3, 1);
+      break;
+    case 'captain_boots':
+      g.fillStyle(0x4a2e14).fillRect(3, 7, 4, 7).fillRect(9, 7, 4, 7);
+      g.fillStyle(0x2b1d12).fillRect(3, 13, 4, 1).fillRect(9, 13, 4, 1);
+      g.fillStyle(0xc9a24a).fillRect(4, 8, 3, 1).fillRect(10, 8, 3, 1);
+      break;
+  }
+}
+
+/** Item icon lookup; equipment has a unique icon per base. */
 export function itemIcon(baseId: string | null | undefined): ItemIcon | null {
   if (!baseId) return null;
   if (SHEET_ICONS[baseId]) return SHEET_ICONS[baseId];
   if (GENERATED.has(baseId)) return { texture: `icon-${baseId}` };
   const equip = EQUIPMENT[baseId];
-  if (equip) {
-    if (equip.slot === 'weapon' && equip.id !== 'club' && equip.id !== 'spear') {
-      return { texture: `icon-${equip.id}` };
-    }
-    return { texture: `icon-${equip.slot}` };
-  }
+  if (equip) return { texture: `icon-${equip.id}` };
   if (ITEMS[baseId]) return { texture: `icon-${baseId}` };
   return null;
 }

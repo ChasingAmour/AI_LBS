@@ -42,6 +42,7 @@ import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import { canChop, isAxe } from '../systems/toolCombat';
+import { spawnDamageNumber, spawnHitSpark, spawnWeaponAttack } from '../ui/combatFx';
 import {
   FISHING_ROD_ID,
   rollCatch,
@@ -132,9 +133,7 @@ export class IslandScene extends Phaser.Scene {
   private buildMarker?: Phaser.GameObjects.Graphics;
   private campRing?: Phaser.GameObjects.Graphics;
   private buildReason?: Phaser.GameObjects.Text;
-  private slashes: Phaser.GameObjects.Image[] = [];
-  private fishing: FishingSession | null = null;
-  private fishingSpot: { x: number; y: number } | null = null;
+  private fishing: FishingSession | null = null;  private fishingSpot: { x: number; y: number } | null = null;
   private fishingLine?: Phaser.GameObjects.Graphics;
   private fishingBobber?: Phaser.GameObjects.Arc;
   private fishingMark?: Phaser.GameObjects.Text;
@@ -173,7 +172,7 @@ export class IslandScene extends Phaser.Scene {
     const start = this.startPosition();
     this.state.player.x = start.x;
     this.state.player.y = start.y;
-    this.player = new PlayerEntity(this, start.x, start.y);
+    this.player = new PlayerEntity(this, start.x, start.y, this.state);
 
     this.physics.world.setBounds(0, 0, WORLD.widthPx, WORLD.heightPx);
     const camera = this.cameras.main;
@@ -1217,6 +1216,7 @@ export class IslandScene extends Phaser.Scene {
     const stats = deriveStats(this.state);
     const haste = now < this.hasteUntil ? 0.7 : 1;
     this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
+    this.player.swingWeapon(angle);
 
     const tree = this.nearestTree(angle);
     if (tree) {
@@ -1250,7 +1250,7 @@ export class IslandScene extends Phaser.Scene {
         playSfx(this, this.state, 'chop');
       }
       this.syncNodes();
-      this.drawSwing(angle, 36);
+      this.drawSwing(angle, 36, selected);
       return;
     }
 
@@ -1270,10 +1270,16 @@ export class IslandScene extends Phaser.Scene {
     for (const id of hitIds) {
       const animal = this.state.animals.find((entry) => entry.id === id);
       if (animal) {
+        const before = animal.hp;
         const result = applyHitToAnimal(this.state, animal, weapon, this.rng, {
           attack: stats.attack,
           savageMul: stats.savageMul,
         });
+        const dealt = before - animal.hp;
+        if (dealt > 0) {
+          spawnDamageNumber(this, animal.x, animal.y, dealt);
+          spawnHitSpark(this, animal.x, animal.y, 0xffe9a8);
+        }
         if (result === 'dead') {
           this.game.events.emit('ui:banner', `猎到了${ANIMALS[animal.type]?.name ?? '野兽'}`);
           playSfx(this, this.state, 'enemy_die');
@@ -1284,6 +1290,7 @@ export class IslandScene extends Phaser.Scene {
       }
       const savage = this.state.savages.find((entry) => entry.id === id);
       if (!savage) continue;
+      const before = savage.hp;
       const result = applyHitToSavage(savage, weapon, 0, {
         attack: stats.attack,
         stunMul: stats.stunMul,
@@ -1291,6 +1298,11 @@ export class IslandScene extends Phaser.Scene {
         savageMul: stats.savageMul,
         armorPierce: stats.armorPierce,
       });
+      const dealt = before - savage.hp;
+      if (dealt > 0) {
+        spawnDamageNumber(this, savage.x, savage.y, dealt);
+        spawnHitSpark(this, savage.x, savage.y, 0xffd479);
+      }
       if (result === 'stunned') {
         this.game.events.emit('ui:banner', '野人眩晕了！靠近按 E 用藤蔓捆绑');
       } else if (result === 'dead') {
@@ -1333,24 +1345,19 @@ export class IslandScene extends Phaser.Scene {
     if (hot && WEAPONS[hot]) damageTool(this.state, hot, 1);
   }
 
-  private drawSwing(angle: number, range: number): void {
-    const slash = this.add
-      .image(this.player.x, this.player.y - 8, 'slash')
-      .setRotation(angle)
-      .setDepth(depthFor(this.player.y) + 2)
-      .setBlendMode(Phaser.BlendModes.ADD);
-    const size = Math.max(18, Math.round(range * 2 + 8));
-    slash.setDisplaySize(size, size);
-    this.slashes.push(slash);
-    this.tweens.add({
-      targets: slash,
-      alpha: 0,
-      duration: 160,
-      onComplete: () => {
-        this.slashes = this.slashes.filter((item) => item !== slash);
-        slash.destroy();
-      },
-    });
+  private drawSwing(
+    angle: number,
+    _range: number,
+    baseId: string | null = this.selectedWeaponBaseId(),
+  ): void {
+    spawnWeaponAttack(
+      this,
+      this.player.x,
+      this.player.y - 8,
+      angle,
+      baseId,
+      depthFor(this.player.y) + 2,
+    );
   }
 
   update(_time: number, delta: number): void {
@@ -1414,10 +1421,6 @@ export class IslandScene extends Phaser.Scene {
     this.player.setDepth(depthFor(this.player.y));
     const velocity = this.player.body as Phaser.Physics.Arcade.Body;
     this.player.setWalking(Math.hypot(velocity.velocity.x, velocity.velocity.y) > 1, this.time.now);
-    for (const slash of this.slashes) {
-      slash.setPosition(this.player.x, this.player.y - 8);
-      slash.setDepth(depthFor(this.player.y) + 2);
-    }
     this.light.setPosition(this.player.x, this.player.y - 8);
     this.light.setDepth(LIGHT_DEPTH);
     this.state.player.x = this.player.x;

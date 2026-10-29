@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
 import { createRng } from '../../src/core/rng';
-import { rollChestLoot } from '../../src/systems/lootSystem';
+import { rollChestLoot, rollEnemyLoot } from '../../src/systems/lootSystem';
 import { EQUIPMENT, LOOT_EQUIPMENT_IDS } from '../../src/data/equipment';
 
 describe('chest loot', () => {
@@ -44,5 +44,30 @@ describe('chest loot', () => {
     const second = rollChestLoot(b, 'normal');
     expect(first).toEqual(second);
     expect(a.lootRolls).toBe(1);
+  });
+
+  it('normal mobs only drop common or fine gear', () => {
+    const s = createNewGame(21);
+    let drops = 0;
+    for (let i = 0; i < 120; i++) {
+      const drop = rollEnemyLoot(s, 'normal', 1, createRng(100 + i));
+      if (!drop) continue;
+      drops += 1;
+      expect(['common', 'fine']).toContain(drop.rarity);
+      expect(EQUIPMENT[drop.baseId].source).toBe('loot');
+      expect(s.equipmentInstances).toContain(drop);
+    }
+    expect(drops).toBeGreaterThan(0);
+  });
+
+  it('bosses always drop rare-or-better gear', () => {
+    const s = createNewGame(31);
+    for (let floor = 1 as const; floor <= 3; floor++) {
+      for (let i = 0; i < 12; i++) {
+        const drop = rollEnemyLoot(s, 'boss', floor, createRng(200 + floor * 20 + i));
+        expect(drop).not.toBeNull();
+        expect(['rare', 'epic', 'legendary']).toContain(drop!.rarity);
+      }
+    }
   });
 });
