@@ -7,7 +7,7 @@ import { makeText } from '../ui/text';
 import { COLORS, TINTS } from '../ui/theme';
 import { drawPanel } from '../ui/widgets/panel';
 
-const PANEL = { x: 140, y: 30, w: 360, h: 306 };
+const PANEL = { x: 140, y: 8, w: 360, h: 344 };
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -25,10 +25,11 @@ export class PauseScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5, 0);
 
-    this.button(96, '继续游戏', () => this.resumeGame());
-    this.button(132, '保存进度', () => this.save());
-    this.button(168, '导出存档', () => this.exportFile());
-    this.button(204, '导入存档', () => this.importFile());
+    this.button(88, '继续游戏', () => this.resumeGame());
+    this.button(126, '保存进度', () => this.save());
+    this.button(164, '导出存档', () => this.exportFile());
+    this.button(202, '导入存档', () => this.importFile());
+    this.button(240, '开场故事', () => this.replayIntro());
     this.soundButton();
     this.musicButton();
     this.musicVolume();
@@ -49,7 +50,7 @@ export class PauseScene extends Phaser.Scene {
   private soundButton(): void {
     const state = this.state();
     const label = (): string => `音效：${state?.settings.muted ? '关' : '开'}（点击切换）`;
-    const text = makeText(this, 320, 250, label(), {
+    const text = makeText(this, 320, 270, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -68,7 +69,7 @@ export class PauseScene extends Phaser.Scene {
     const state = this.state();
     if (!state) return;
     const label = (): string => `音乐：${state.settings.musicMuted ? '关' : '开'}（点击切换）`;
-    const text = makeText(this, 320, 270, label(), {
+    const text = makeText(this, 320, 290, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -85,7 +86,7 @@ export class PauseScene extends Phaser.Scene {
   private musicVolume(): void {
     const state = this.state();
     if (!state) return;
-    const label = makeText(this, 168, 290, '', { origin: [0, 0.5], color: COLORS.inkSoft });
+    const label = makeText(this, 168, 308, '', { origin: [0, 0.5], color: COLORS.inkSoft });
     const refresh = (): void => {
       label.setText(`音乐音量 ${Math.round(state.settings.musicVolume * 100)}%`);
     };
@@ -104,7 +105,7 @@ export class PauseScene extends Phaser.Scene {
       ['−', 320, -0.1],
       ['+', 352, 0.1],
     ] as const) {
-      const button = makeText(this, x, 290, text, {
+      const button = makeText(this, x, 308, text, {
         size: 24,
         origin: [0.5, 0.5],
         color: COLORS.goldDark,
@@ -115,10 +116,11 @@ export class PauseScene extends Phaser.Scene {
   }
 
   /** Phones only: keyboard shortcuts can be replaced by the virtual pad. */
-  private touchButton(): void {    const state = this.state();
+  private touchButton(): void {
+    const state = this.state();
     if (!state) return;
     const label = (): string => `触屏控制：${state.settings.touchControls ? '开' : '关'}（点击切换）`;
-    const text = makeText(this, 320, 310, label(), {
+    const text = makeText(this, 320, 326, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -164,6 +166,12 @@ export class PauseScene extends Phaser.Scene {
     this.scene.stop();
   }
 
+  private replayIntro(): void {
+    this.music()?.setDucked(false);
+    this.scene.launch('IntroScene', { replay: true });
+    this.scene.stop();
+  }
+
   private save(): void {
     const state = this.state();
     if (!state) return;
@@ -194,7 +202,7 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private flash(message: string): void {
-    const text = makeText(this, 320, 286, message, {
+    const text = makeText(this, 320, 334, message, {
       color: COLORS.energy,
       align: 'center',
     }).setOrigin(0.5, 0.5);

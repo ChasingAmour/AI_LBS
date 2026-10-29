@@ -21,11 +21,13 @@ export class IntroScene extends Phaser.Scene {
   }
 
   create(data: { replay?: boolean } = {}): void {
+    this.scene.bringToTop();
     this.replay = data.replay === true;
     this.index = 0;
     this.busy = false;
     this.advancing = false;
     this.cameras.main.fadeIn(300, 0, 0, 0);
+    this.add.rectangle(0, 0, 640, 360, 0x0b0906, 1).setOrigin(0, 0);
 
     const state = this.state();
     if (state) playSfx(this, state, 'open');
