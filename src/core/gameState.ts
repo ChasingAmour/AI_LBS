@@ -124,7 +124,7 @@ export interface GameState {
     resetDay: number;
     pendingReset: boolean;
   };
-  flags: { tutorialStep: number; raidWarnedDay: number; firstRaidDone: boolean };
+  flags: { tutorialStep: number; raidWarnedDay: number; firstRaidDone: boolean; introSeen?: boolean };
   raid: { active: boolean; day: number } | null;
   savages: SavageState[];
   animals: AnimalState[];
@@ -189,7 +189,7 @@ export function createNewGame(seed: number = Date.now()): GameState {
       resetDay: 1,
       pendingReset: false,
     },
-    flags: { tutorialStep: 0, raidWarnedDay: 0, firstRaidDone: false },
+    flags: { tutorialStep: 0, raidWarnedDay: 0, firstRaidDone: false, introSeen: false },
     raid: null,
     savages: [],
     animals: [],
