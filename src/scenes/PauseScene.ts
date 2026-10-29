@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { exportSave, importSave, saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
+import type { MusicManager } from '../systems/music';
 import { makeText } from '../ui/text';
 import { COLORS, TINTS } from '../ui/theme';
 import { drawPanel } from '../ui/widgets/panel';
@@ -39,6 +40,9 @@ export class PauseScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5);
 
     playSfx(this, this.state(), 'open');
+    this.music()?.setDucked(true);
+    const state = this.state();
+    if (state) this.music()?.apply(state);
     this.input.keyboard?.on('keydown-ESC', () => this.resumeGame());
   }
 
@@ -55,6 +59,7 @@ export class PauseScene extends Phaser.Scene {
       state.settings.muted = !state.settings.muted;
       saveGame(state);
       text.setText(label());
+      this.music()?.apply(state);
       playSfx(this, state, 'click');
     });
   }
@@ -72,6 +77,7 @@ export class PauseScene extends Phaser.Scene {
       state.settings.musicMuted = !state.settings.musicMuted;
       saveGame(state);
       text.setText(label());
+      this.music()?.apply(state);
       playSfx(this, state, 'click');
     });
   }
@@ -91,6 +97,7 @@ export class PauseScene extends Phaser.Scene {
       );
       saveGame(state);
       refresh();
+      this.music()?.apply(state);
       playSfx(this, state, 'click');
     };
     for (const [text, x, delta] of [
@@ -126,10 +133,10 @@ export class PauseScene extends Phaser.Scene {
 
   private button(centerY: number, label: string, onClick: () => void): void {
     const x = 220;
-    const y = centerY - 16;
+    const y = centerY - 18;
     const g = this.add.graphics();
-    g.fillStyle(0x3a2412, 1).fillRect(x, y, 200, 32);
-    g.lineStyle(2, TINTS.goldDark, 1).strokeRect(x + 1, y + 1, 198, 30);
+    g.fillStyle(0x3a2412, 1).fillRect(x, y, 200, 36);
+    g.lineStyle(2, TINTS.goldDark, 1).strokeRect(x + 1, y + 1, 198, 34);
     const text = makeText(this, 320, centerY, label, {
       color: COLORS.cream,
       align: 'center',
@@ -144,7 +151,14 @@ export class PauseScene extends Phaser.Scene {
     return (this.registry.get('state') as GameState | undefined) ?? null;
   }
 
+  private music(): MusicManager | null {
+    return (this.registry.get('musicManager') as MusicManager | undefined) ?? null;
+  }
+
   private resumeGame(): void {
+    const state = this.state();
+    if (state) this.music()?.apply(state);
+    this.music()?.setDucked(false);
     this.scene.resume('IslandScene');
     this.scene.resume('UIScene');
     this.scene.stop();

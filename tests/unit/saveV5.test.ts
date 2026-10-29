@@ -38,6 +38,8 @@ describe('save v5', () => {
     const item = rollEquipment(createRng(1), 'club', 'rare', 'eq_keep')!;
     (old.equipmentInstances as unknown[]).push(item);
     (old.equipment as Record<string, unknown>).weapon = 'eq_keep';
+    old.animals = [];
+    (old.buildings as unknown[]).push({ id: 'b_keep', type: 'storage', x: 44, y: 44, hp: 80, storage: [] });
 
     const migrated = validateSave(old);
     expect(migrated.version).toBe(5);
@@ -46,6 +48,8 @@ describe('save v5', () => {
     expect(migrated.settings.touchControls).toBe(true);
     expect(migrated.equipment.weapon).toBe('eq_keep');
     expect(migrated.equipmentInstances.some((gear) => gear.instanceId === 'eq_keep')).toBe(true);
+    expect(migrated.buildings.some((building) => building.id === 'b_keep')).toBe(true);
+    expect(Array.isArray(migrated.animals)).toBe(true);
   });
 
   it('migrates a v1 save all the way to v5', () => {

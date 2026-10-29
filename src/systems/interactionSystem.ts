@@ -213,12 +213,26 @@ export function findInteractTarget(
     );
   }
 
+  if (options.canFillWaterskin) {
+    consider(
+      {
+        kind: 'water',
+        id: 'water',
+        label: '装满水袋',
+        x: px,
+        y: py,
+        durationSec: WATER_CHANNEL,
+      },
+      3.8,
+    );
+  }
+
   if (options.onWater) {
     consider(
       {
         kind: 'water',
         id: 'water',
-        label: options.canFillWaterskin ? '装满水袋' : '喝水',
+        label: '喝水',
         x: px,
         y: py,
         durationSec: WATER_CHANNEL,

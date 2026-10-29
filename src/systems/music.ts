@@ -38,6 +38,7 @@ export class MusicManager {
   private night: LoopSound | null;
   private current: MusicTrack | null = null;
   private paused = false;
+  private ducked = false;
   private fade: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene) {
@@ -55,8 +56,20 @@ export class MusicManager {
     const requested = trackForPhase(state.time.phase);
     const track = this.available(requested);
     if (!track) return;
-    if (this.current !== track) this.crossfade(track, musicGain(state));
-    else if (!this.fade) this.sound(track)?.setVolume(musicGain(state));
+    const target = this.targetGain(state);
+    if (this.current !== track) this.crossfade(track, target);
+    else if (!this.fade) this.sound(track)?.setVolume(target);
+  }
+
+  /** Applies mute/volume changes immediately (used by the pause menu). */
+  apply(state: GameState): void {
+    if (!this.current || this.fade) return;
+    this.sound(this.current)?.setVolume(this.targetGain(state));
+  }
+
+  /** Lowers music under the pause menu instead of stopping it. */
+  setDucked(ducked: boolean): void {
+    this.ducked = ducked;
   }
 
   setPaused(paused: boolean): void {
@@ -91,6 +104,10 @@ export class MusicManager {
 
   private sound(track: MusicTrack): LoopSound | null {
     return track === 'day' ? this.day : this.night;
+  }
+
+  private targetGain(state: GameState): number {
+    return musicGain(state) * (this.ducked ? 0.35 : 1);
   }
 
   private crossfade(track: MusicTrack, target: number): void {

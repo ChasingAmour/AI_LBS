@@ -40,6 +40,7 @@ export class TouchControls {
       this.moveKnob(pointer);
     });
     this.root.add(zone);
+    this.playObjects.push(zone);
 
     scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.activePointer === pointer.id && pointer.isDown) this.moveKnob(pointer);
@@ -84,7 +85,10 @@ export class TouchControls {
     });
     const zone = this.scene.add
       .zone(def.x, def.y, def.radius * 2, def.radius * 2)
-      .setInteractive({ useHandCursor: false });
+      .setInteractive(
+        new Phaser.Geom.Circle(def.radius, def.radius, def.radius),
+        Phaser.Geom.Circle.Contains,
+      );
     zone.on('pointerdown', () => {
       circle.setFillStyle(0x8a5a2b, 0.9);
       this.scene.time.delayedCall(90, () => circle.setFillStyle(0x1b120b, 0.7));
@@ -108,7 +112,7 @@ export class TouchControls {
     });
     const zone = this.scene.add
       .zone(x, y, radius * 2, radius * 2)
-      .setInteractive({ useHandCursor: false });
+      .setInteractive(new Phaser.Geom.Circle(radius, radius, radius), Phaser.Geom.Circle.Contains);
     zone.on('pointerdown', () => this.scene.game.events.emit('ui:touchMenu'));
     this.root.add([circle, text, zone]);
     return text;
@@ -128,13 +132,11 @@ export class TouchControls {
     this.scene.registry.set('touchMove', { x: dx * inv, y: dy * inv });
   }
 
-  /** Hide the movement/action cluster while a modal is open; keep the close button. */
+  /** Hide the movement/action cluster while a modal is open or controls are off. */
   setPanelOpen(open: boolean): void {
     if (open === this.panelOpen) return;
     this.panelOpen = open;
-    for (const object of this.playObjects) {
-      (object as unknown as { setVisible: (value: boolean) => void }).setVisible(!open);
-    }
+    this.applyVisibility();
     this.menuLabel.setText(open ? '×' : '≡');
     if (open) {
       this.activePointer = null;
@@ -147,11 +149,19 @@ export class TouchControls {
   setEnabled(enabled: boolean): void {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
-    this.root.setVisible(enabled);
+    this.applyVisibility();
     if (!enabled) {
       this.activePointer = null;
       this.scene.registry.set('touchMove', { x: 0, y: 0 });
       this.scene.registry.set('touchSprint', false);
+    }
+  }
+
+  /** The menu/close button stays visible so settings can always be reopened. */
+  private applyVisibility(): void {
+    const show = this.enabled && !this.panelOpen;
+    for (const object of this.playObjects) {
+      (object as unknown as { setVisible: (value: boolean) => void }).setVisible(show);
     }
   }
 

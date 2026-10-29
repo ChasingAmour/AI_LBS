@@ -41,7 +41,7 @@ import { tickFarms } from '../systems/farmingSystem';
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
-import { isTouchControlPoint } from '../ui/touchLayout';
+import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import { enemySprite } from '../ui/assets';
 import { makeText } from '../ui/text';
 
@@ -127,7 +127,8 @@ export class DungeonScene extends Phaser.Scene {
     >;
     this.input.keyboard?.on('keydown-E', () => this.interact());
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.registry.get('touchEnabled') && isTouchControlPoint(pointer.x, pointer.y)) return;
+      if (isHotbarPoint(pointer.x, pointer.y)) return;
+      if (this.registry.get('touchLayout') && isTouchControlPoint(pointer.x, pointer.y)) return;
       if (pointer.leftButtonDown()) {
         const angle = Math.atan2(pointer.worldY - this.player.y, pointer.worldX - this.player.x);
         this.attackAtAngle(angle);

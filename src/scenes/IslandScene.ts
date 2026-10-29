@@ -40,7 +40,7 @@ import {
 } from '../systems/needsSystem';
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { playSfx } from '../systems/audio';
-import { isTouchControlPoint } from '../ui/touchLayout';
+import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import {
   FISHING_ROD_ID,
   rollCatch,
@@ -104,6 +104,7 @@ export class IslandScene extends Phaser.Scene {
   private nextWaterAt = 0;
   private exploredSet = new Set<string>();
   private lastNodeSync = 0;
+  private busHandlers: Array<{ event: string; handler: (payload?: unknown) => void }> = [];
   private player!: PlayerEntity;
   private keys!: Keys;
   private numberKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -744,7 +745,6 @@ export class IslandScene extends Phaser.Scene {
         this.buildingLights.set(building.id, light);
       }
     }
-    this.syncCrops();
   }
 
   private syncAnimals(): void {
@@ -871,7 +871,8 @@ export class IslandScene extends Phaser.Scene {
     this.numberKeys = codes.map((code) => this.input.keyboard!.addKey(code));
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.registry.get('touchEnabled') && isTouchControlPoint(pointer.x, pointer.y)) return;
+      if (isHotbarPoint(pointer.x, pointer.y)) return;
+      if (this.registry.get('touchLayout') && isTouchControlPoint(pointer.x, pointer.y)) return;
       const selected = this.registry.get('buildSelection') as string | null;
       if (selected && this.registry.get('touchEnabled')) {
         if (!this.registry.get('uiOpen')) this.placeSelectedBuilding(selected, pointer);
@@ -889,14 +890,25 @@ export class IslandScene extends Phaser.Scene {
 
     this.game.events.on('ui:touchAttack', this.onTouchAttack, this);
     this.game.events.on('ui:touchInteract', this.onTouchInteract, this);
+    this.game.events.on('ui:cancelFishing', this.onCancelFishing, this);
     this.events.once('shutdown', () => {
       this.game.events.off('ui:touchAttack', this.onTouchAttack, this);
       this.game.events.off('ui:touchInteract', this.onTouchInteract, this);
+      this.game.events.off('ui:cancelFishing', this.onCancelFishing, this);
     });
   }
 
+  private onCancelFishing = (): void => {
+    this.cancelFishing('已收竿');
+  };
+
+  private onBus(event: string, handler: (payload?: unknown) => void): void {
+    this.bus.on(event, handler);
+    this.busHandlers.push({ event, handler });
+  }
+
   private bindGameEvents(): void {
-    this.bus.on('save:requested', () => this.persist());
+    this.onBus('save:requested', () => this.persist());
     const teleport = (payload: { x: number; y: number }): void => {
       if (this.state.raid?.active) {
         this.game.events.emit('ui:banner', '野人入侵中，不能传送');
@@ -910,18 +922,23 @@ export class IslandScene extends Phaser.Scene {
       this.persist();
     };
     this.game.events.on('ui:teleport', teleport);
-    this.events.once('shutdown', () => this.game.events.off('ui:teleport', teleport));
-    this.bus.on('raid:started', () => {
+    this.events.once('shutdown', () => {
+      this.game.events.off('ui:teleport', teleport);
+      for (const { event, handler } of this.busHandlers) this.bus.off(event, handler);
+      this.busHandlers = [];
+      this.clearFishing();
+    });
+    this.onBus('raid:started', () => {
       spawnRaid(this.state);
       this.syncSavages();
     });
-    this.bus.on('raid:dawn', () => {
+    this.onBus('raid:dawn', () => {
       const result = resolveRaidDawn(this.state);
       this.syncSavages();
       const lost = result.foodLost > 0 ? `，消耗口粮 ${result.foodLost}` : '';
       this.game.events.emit('ui:banner', `黎明：野人撤退了${lost}`);
     });
-    this.bus.on('time:dayChanged', () => {
+    this.onBus('time:dayChanged', () => {
       tickWeekReset(this.state, false);
       tickFarms(this.state, this.state.time.day - 1);
       respawnNodes(this.state);
@@ -1341,6 +1358,7 @@ export class IslandScene extends Phaser.Scene {
       this.lastNodeSync = this.time.now;
       this.syncNodes();
       this.cullNodes();
+      this.syncCrops();
     }
 
     const night = nightAlpha(this.state.time.clockMin);
@@ -1443,23 +1461,29 @@ export class IslandScene extends Phaser.Scene {
       this.registry.set('interactProgress', this.channel.elapsed / this.channel.target.durationSec);
       return;
     }
-    const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
-    const onWater = tile === TILE.shallowWater || tile === TILE.stream;
-    const target = findInteractTarget(this.state, this.player.x, this.player.y, { onWater });
+    const target = findInteractTarget(this.state, this.player.x, this.player.y, this.interactOptions());
     this.registry.set('interactPrompt', target ? `E ${target.label}` : null);
     this.registry.set('interactProgress', null);
   }
 
-  private beginInteraction(): void {
+  /** One source of truth for the HUD prompt and the actual E action. */
+  private interactOptions(): {
+    onWater: boolean;
+    nearWater: boolean;
+    hasRod: boolean;
+    canFillWaterskin: boolean;
+  } {
     const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
-    const onWater = tile === TILE.shallowWater || tile === TILE.stream;
-    const nearWater = Boolean(this.nearestWater(this.player.x, this.player.y));
-    const target = findInteractTarget(this.state, this.player.x, this.player.y, {
-      onWater,
-      nearWater,
+    return {
+      onWater: tile === TILE.shallowWater || tile === TILE.stream,
+      nearWater: Boolean(this.nearestWater(this.player.x, this.player.y)),
       hasRod: this.hasFishingRod(),
       canFillWaterskin: this.nearFreshWater() && this.hasPartialWaterskin(),
-    });
+    };
+  }
+
+  private beginInteraction(): void {
+    const target = findInteractTarget(this.state, this.player.x, this.player.y, this.interactOptions());
     if (!target) return;
     if (target.kind === 'fishing') {
       this.startFishingSession();
@@ -1580,7 +1604,11 @@ export class IslandScene extends Phaser.Scene {
 
   private updateFishing(dt: number): void {
     if (!this.fishing) return;
+    const before = this.fishing.phase;
     tickFishing(this.fishing, dt);
+    if (before !== 'bite' && this.fishing.phase === 'bite') {
+      playSfx(this, this.state, 'warning');
+    }
     const spot = this.fishingSpot;
     if (this.fishingLine && spot) {
       this.fishingLine.clear();
@@ -1598,6 +1626,7 @@ export class IslandScene extends Phaser.Scene {
     }
     if (this.fishing.phase === 'done') {
       const items = rollCatch(this.rng);
+      this.state.rngState = this.rng.state();
       collectLoot(this.state, items, this.player.x, this.player.y);
       const names = items
         .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
@@ -1680,6 +1709,7 @@ export class IslandScene extends Phaser.Scene {
     if (building.crop.growth >= def.growPoints) {
       const items = harvestCrop(this.state, buildingId, this.rng);
       if (items) {
+        this.state.rngState = this.rng.state();
         collectLoot(this.state, items, this.player.x, this.player.y);
         const names = items
           .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)

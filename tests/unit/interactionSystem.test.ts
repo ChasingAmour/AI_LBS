@@ -102,6 +102,17 @@ describe('interaction system', () => {
     ).toBe('装满水袋');
   });
 
+  it('lets a bank-side refill beat a nearby resource node', () => {
+    const s = createNewGame(1);
+    s.world.nodes = { tree_1: { x: 100, y: 100, type: 'tree' } };
+    const target = findInteractTarget(s, 100, 100, {
+      onWater: false,
+      canFillWaterskin: true,
+    });
+    expect(target?.kind).toBe('water');
+    expect(target?.label).toBe('装满水袋');
+  });
+
   it('labels a depleted node and keeps chests interactable', () => {
     const s = createNewGame(1);
     s.world.nodes = {

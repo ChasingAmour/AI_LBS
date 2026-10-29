@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { TOUCH, TOUCH_HOTBAR, isTouchControlPoint } from '../../src/ui/touchLayout';
 
 describe('touch layout', () => {
-  it('marks the joystick and action buttons as control areas', () => {
+  it('marks the joystick ring and action buttons as control areas', () => {
     expect(isTouchControlPoint(TOUCH.joystick.x, TOUCH.joystick.y)).toBe(true);
-    expect(isTouchControlPoint(TOUCH.joystick.x + 40, TOUCH.joystick.y)).toBe(false);
+    expect(isTouchControlPoint(TOUCH.joystick.x + 40, TOUCH.joystick.y)).toBe(true);
+    expect(isTouchControlPoint(TOUCH.joystick.x + 65, TOUCH.joystick.y)).toBe(false);
     for (const button of [TOUCH.attack, TOUCH.interact, TOUCH.sprint, TOUCH.menu]) {
       expect(isTouchControlPoint(button.x, button.y), button.label).toBe(true);
     }

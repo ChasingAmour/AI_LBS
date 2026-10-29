@@ -1,6 +1,7 @@
 import { BUILDINGS } from '../data/buildings';
 import { ANIMALS } from '../data/animals';
 import { CAMP_LEVELS, CAMP_MAX_LEVEL } from '../data/campLevels';
+import { CROPS } from '../data/farming';
 import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import { RECIPES } from '../data/recipes';
@@ -115,6 +116,15 @@ export function validateGameData(): string[] {
       errors.push(`装备 ${base.id} 引用了未知武器 ${base.weaponId}`);
     }
     if (!base.legendary?.id) errors.push(`装备 ${base.id} 缺少传说词条`);
+  }
+
+  for (const crop of Object.values(CROPS)) {
+    if (!hasItem(crop.seedId)) errors.push(`作物 ${crop.seedId} 的种子不存在`);
+    if (!hasItem(crop.yield.baseId)) errors.push(`作物 ${crop.seedId} 的产物不存在`);
+    if (crop.growPoints <= 0) errors.push(`作物 ${crop.seedId} 的生长值无效`);
+    if (crop.yield.min < 1 || crop.yield.max < crop.yield.min) {
+      errors.push(`作物 ${crop.seedId} 的产量范围无效`);
+    }
   }
 
   return errors;

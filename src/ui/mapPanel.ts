@@ -53,6 +53,9 @@ export class MapPanel {
     scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => this.onPointerMove(pointer));
     scene.input.on('pointerup', () => {
       this.drag = null;
+      this.scene.time.delayedCall(250, () => {
+        this.suppressClick = false;
+      });
     });
     scene.input.on(
       'wheel',
@@ -71,7 +74,9 @@ export class MapPanel {
     if (!this.open) return;
     const rect = panelRect('map');
     this.view = zoomMapAt(
-      { x: state.player.x, y: state.player.y },
+      this.open
+        ? { x: this.view.centerX, y: this.view.centerY }
+        : { x: state.player.x, y: state.player.y },
       { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
       MAP_RECT,
       zoom,
@@ -153,6 +158,7 @@ export class MapPanel {
     this.drawZoomButton(state);
     this.drawClickZone(state, island);
     this.drawZoomButtons(state);
+    this.drawCloseButton();
   }
 
   private drawTerrain(
@@ -374,6 +380,17 @@ export class MapPanel {
       });
       this.root.add(text);
     }
+  }
+
+  private drawCloseButton(): void {
+    const rect = panelRect('map');
+    const close = makeText(this.scene, rect.x + rect.w - 24, rect.y + 6, '×', {
+      size: 24,
+      color: COLORS.ink,
+    });
+    close.setInteractive({ useHandCursor: true });
+    close.on('pointerdown', () => this.close());
+    this.root.add(close);
   }
 
   private drawClickZone(state: GameState, island: IslandData | undefined): void {

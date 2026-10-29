@@ -29,11 +29,15 @@ function inside(point: { x: number; y: number; radius: number }, x: number, y: n
 /** True when a pointer is on a virtual control and must not reach the world. */
 export function isTouchControlPoint(x: number, y: number): boolean {
   return (
-    inside(TOUCH.joystick, x, y) ||
+    inside({ ...TOUCH.joystick, radius: TOUCH.joystick.drag }, x, y) ||
     inside(TOUCH.attack, x, y) ||
     inside(TOUCH.interact, x, y) ||
     inside(TOUCH.sprint, x, y) ||
     inside(TOUCH.menu, x, y) ||
     inRect(TOUCH_HOTBAR, x, y)
   );
+}
+
+export function isHotbarPoint(x: number, y: number): boolean {
+  return inRect(TOUCH_HOTBAR, x, y);
 }

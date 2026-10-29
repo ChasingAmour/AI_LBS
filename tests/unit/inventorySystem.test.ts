@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
-import { addItem, addTool, countItem, damageTool, removeItem } from '../../src/systems/inventorySystem';
+import { addItem, addTool, countItem, damageTool, removeItem, selectHotbar } from '../../src/systems/inventorySystem';
 
 describe('inventory system', () => {
+  it('selects a hotbar slot and rejects invalid indexes', () => {
+    const s = createNewGame(1);
+    expect(selectHotbar(s, 3)).toBe(true);
+    expect(s.hotbarIndex).toBe(3);
+    expect(selectHotbar(s, 99)).toBe(false);
+    expect(s.hotbarIndex).toBe(3);
+  });
+
   it('stacks up to 99 then opens a new slot', () => {
     const s = createNewGame(1);
     addItem(s, 'wood', 120);

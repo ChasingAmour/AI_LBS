@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
 import { ITEMS } from '../data/items';
+import { selectHotbar } from '../systems/inventorySystem';
+import { playSfx } from '../systems/audio';
 import { getCampChecklist } from '../systems/campSystem';
 import { currentGoal } from '../systems/tutorialSystem';
 import { formatClock, formatDay, getInteractPrompt } from './format';
@@ -299,6 +301,18 @@ export class Hud {
         .setScrollFactor(0)
         .setVisible(false);
       this.slots.push({ number, label, icon, count, durability });
+
+      const zone = this.scene.add
+        .zone(rect.x + rect.size / 2, rect.y + rect.size / 2, rect.size, rect.size)
+        .setDepth(8002)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      zone.on('pointerdown', () => {
+        const state = this.scene.registry.get('state') as GameState | undefined;
+        if (!state) return;
+        selectHotbar(state, index);
+        playSfx(this.scene, state, 'click');
+      });
     }
   }
 

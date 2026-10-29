@@ -86,7 +86,6 @@ describe('farming', () => {
     plantCrop(state, farm.id, 'berries');
     expect(waterCrop(state, farm.id)).toBe(true);
     expect(waterskin(state).durability).toBe(2);
-    expect(waterskin(state).durability).toBe(2);
     waterskin(state).durability = 0;
     expect(waterCrop(state, farm.id)).toBe(false);
     expect(fillWaterskin(state)).toBe(true);

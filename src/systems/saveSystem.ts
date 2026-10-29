@@ -302,6 +302,7 @@ export function upgradeToV5(state: GameState): GameState {
       : 0.45;
   state.settings.touchControls = state.settings.touchControls !== false;
   state.settings.hudCompact = state.settings.hudCompact === true;
+  state.animals = Array.isArray(state.animals) ? state.animals : [];
   return state;
 }
 

@@ -47,6 +47,12 @@ export function sortInventory(state: GameState): void {
   );
 }
 
+export function selectHotbar(state: GameState, index: number): boolean {
+  if (!Number.isInteger(index) || index < 0 || index >= state.hotbar.length) return false;
+  state.hotbarIndex = index;
+  return true;
+}
+
 export function addItem(state: GameState, baseId: string, count: number): { added: number; leftover: number } {
   const def = ITEMS[baseId];
   if (!def) throw new Error(`Unknown item: ${baseId}`);

@@ -61,6 +61,7 @@ export class UIScene extends Phaser.Scene {
     });
     this.adventure = new AdventurePanel(this);
     this.music = new MusicManager(this);
+    this.registry.set('musicManager', this.music);
     this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
     const state = this.state();
@@ -163,6 +164,7 @@ export class UIScene extends Phaser.Scene {
       this.game.events.off('ui:touchMenu', this.onTouchMenu);
       this.game.events.off('ui:seedPicker', this.seedPickerHandler);
       this.music?.destroy();
+      this.registry.remove('musicManager');
     });
 
     const bus = this.registry.get('bus') as EventBus | undefined;
@@ -211,7 +213,9 @@ export class UIScene extends Phaser.Scene {
     this.registry.set('uiPanel', uiPanel);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
-    this.touch?.setInteractLabel(typeof prompt === 'string' ? prompt : '交互');
+    this.touch?.setInteractLabel(
+      typeof prompt === 'string' ? prompt.replace(/^E\s*/, '').slice(0, 6) : '交互',
+    );
     const progress = this.registry.get('interactProgress');
     this.hud.setProgress(typeof progress === 'number' ? progress : null);
   }
@@ -339,6 +343,7 @@ export class UIScene extends Phaser.Scene {
   private openPause(): void {
     if (this.scene.isActive('PauseScene')) return;
     this.panel.close();
+    this.game.events.emit('ui:cancelFishing');
     this.touch?.setEnabled(false);
     this.scene.pause('IslandScene');
     this.scene.pause();
