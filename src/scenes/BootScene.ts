@@ -3,6 +3,7 @@ import { createNewGame } from '../core/gameState';
 import { ensurePlayerFrames } from '../entities/playerFrames';
 import { ensureItemIcons } from '../ui/itemIcons';
 import { loadAudio } from '../systems/audio';
+import { loadMusic } from '../systems/music';
 import { ensureWaterFrames } from '../world/waterFrames';
 import { validateGameData } from '../systems/dataValidation';
 import { loadGameResult } from '../systems/saveSystem';
@@ -22,6 +23,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('ui-large', 'assets/ui/ui-large.png', frame);
     this.load.spritesheet('ui-small', 'assets/ui/ui-small.png', frame);
     loadAudio(this);
+    loadMusic(this);
   }
 
   create(): void {

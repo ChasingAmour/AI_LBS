@@ -34,4 +34,10 @@
 
 ## 音频
 
-当前阶段没有音频资源。
+音效与音乐的许可证如下，均为 **CC0 1.0**（公共领域），可商用、无需署名（本项目仍在此列出）：
+
+| 文件 | 来源 | 用途 |
+|---|---|---|
+| `public/assets/audio/*.ogg` | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) / [Kenney UI Audio](https://kenney.nl/assets/ui-audio) | 13 个短音效 |
+| `public/assets/music/day.ogg` | [Feel Good Island Loop](https://opengameart.org/content/feel-good-island-loop)，Brandon Morris / AntumDeluge 循环剪辑 | 白天背景音乐 |
+| `public/assets/music/night.mp3` | [Calm Loop](https://opengameart.org/content/calm-loop)，wipics | 夜晚背景音乐 |

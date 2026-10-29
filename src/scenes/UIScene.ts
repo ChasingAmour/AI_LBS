@@ -14,6 +14,7 @@ import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
 import type { EventBus } from '../core/eventBus';
 import { playSfx } from '../systems/audio';
+import { MusicManager } from '../systems/music';
 import type { UiPanel } from '../systems/interactionSystem';
 
 export class UIScene extends Phaser.Scene {
@@ -25,6 +26,7 @@ export class UIScene extends Phaser.Scene {
   private adventure!: AdventurePanel;
   private touch?: TouchControls;
   private touchMenu?: TouchMenu;
+  private music?: MusicManager;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private hudCompactHandler = (compact: boolean): void => {
@@ -55,6 +57,7 @@ export class UIScene extends Phaser.Scene {
       this.toggleMap();
     });
     this.adventure = new AdventurePanel(this);
+    this.music = new MusicManager(this);
     this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
     const state = this.state();
@@ -154,6 +157,7 @@ export class UIScene extends Phaser.Scene {
       this.game.events.off('ui:panel', this.panelHandler);
       this.game.events.off('ui:hudCompact', this.hudCompactHandler);
       this.game.events.off('ui:touchMenu', this.onTouchMenu);
+      this.music?.destroy();
     });
 
     const bus = this.registry.get('bus') as EventBus | undefined;
@@ -172,6 +176,7 @@ export class UIScene extends Phaser.Scene {
     const state = this.state();
     if (state) {
       this.hud.update(state);
+      this.music?.update(state);
       this.minimap.setVisible(!this.registry.get('inDungeon'));
       this.minimap.update(state);
     }
@@ -298,6 +303,7 @@ export class UIScene extends Phaser.Scene {
   private openPause(): void {
     if (this.scene.isActive('PauseScene')) return;
     this.panel.close();
+    this.touch?.setEnabled(false);
     this.scene.pause('IslandScene');
     this.scene.pause();
     this.scene.launch('PauseScene');

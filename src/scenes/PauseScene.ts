@@ -6,7 +6,7 @@ import { makeText } from '../ui/text';
 import { COLORS, TINTS } from '../ui/theme';
 import { drawPanel } from '../ui/widgets/panel';
 
-const PANEL = { x: 140, y: 46, w: 360, h: 268 };
+const PANEL = { x: 140, y: 30, w: 360, h: 306 };
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -24,14 +24,16 @@ export class PauseScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5, 0);
 
-    this.button(112, '继续游戏', () => this.resumeGame());
-    this.button(152, '保存进度', () => this.save());
-    this.button(192, '导出存档', () => this.exportFile());
-    this.button(232, '导入存档', () => this.importFile());
+    this.button(96, '继续游戏', () => this.resumeGame());
+    this.button(132, '保存进度', () => this.save());
+    this.button(168, '导出存档', () => this.exportFile());
+    this.button(204, '导入存档', () => this.importFile());
     this.soundButton();
+    this.musicButton();
+    this.musicVolume();
     if (this.registry.get('touchLayout')) this.touchButton();
 
-    makeText(this, 320, PANEL.y + PANEL.h - 14, 'Esc 继续 · 存档保存在浏览器 localStorage', {
+    makeText(this, 320, PANEL.y + PANEL.h - 10, 'Esc 继续 · 存档保存在浏览器 localStorage', {
       color: COLORS.muted,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -43,7 +45,7 @@ export class PauseScene extends Phaser.Scene {
   private soundButton(): void {
     const state = this.state();
     const label = (): string => `音效：${state?.settings.muted ? '关' : '开'}（点击切换）`;
-    const text = makeText(this, 320, 258, label(), {
+    const text = makeText(this, 320, 250, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -57,12 +59,59 @@ export class PauseScene extends Phaser.Scene {
     });
   }
 
-  /** Phones only: keyboard shortcuts can be replaced by the virtual pad. */
-  private touchButton(): void {
+  private musicButton(): void {
     const state = this.state();
     if (!state) return;
+    const label = (): string => `音乐：${state.settings.musicMuted ? '关' : '开'}（点击切换）`;
+    const text = makeText(this, 320, 270, label(), {
+      color: COLORS.inkSoft,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => {
+      state.settings.musicMuted = !state.settings.musicMuted;
+      saveGame(state);
+      text.setText(label());
+      playSfx(this, state, 'click');
+    });
+  }
+
+  private musicVolume(): void {
+    const state = this.state();
+    if (!state) return;
+    const label = makeText(this, 168, 290, '', { origin: [0, 0.5], color: COLORS.inkSoft });
+    const refresh = (): void => {
+      label.setText(`音乐音量 ${Math.round(state.settings.musicVolume * 100)}%`);
+    };
+    refresh();
+    const step = (delta: number): void => {
+      state.settings.musicVolume = Math.max(
+        0,
+        Math.min(1, Math.round((state.settings.musicVolume + delta) * 10) / 10),
+      );
+      saveGame(state);
+      refresh();
+      playSfx(this, state, 'click');
+    };
+    for (const [text, x, delta] of [
+      ['−', 320, -0.1],
+      ['+', 352, 0.1],
+    ] as const) {
+      const button = makeText(this, x, 290, text, {
+        size: 24,
+        origin: [0.5, 0.5],
+        color: COLORS.goldDark,
+      });
+      button.setInteractive({ useHandCursor: true });
+      button.on('pointerdown', () => step(delta));
+    }
+  }
+
+  /** Phones only: keyboard shortcuts can be replaced by the virtual pad. */
+  private touchButton(): void {    const state = this.state();
+    if (!state) return;
     const label = (): string => `触屏控制：${state.settings.touchControls ? '开' : '关'}（点击切换）`;
-    const text = makeText(this, 320, 280, label(), {
+    const text = makeText(this, 320, 310, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
