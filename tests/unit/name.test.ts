@@ -18,7 +18,7 @@ describe('protagonist name', () => {
     expect(loaded.flags.named).toBe(true);
   });
 
-  it('gives old v5 saves the classic name without prompting again', () => {
+  it('asks old v5 saves for a name once', () => {
     const state = createNewGame(1);
     const raw = JSON.parse(serializeSave(state)) as {
       player: { name?: string };
@@ -28,6 +28,6 @@ describe('protagonist name', () => {
     delete raw.flags.named;
     const loaded = validateSave(raw);
     expect(loaded.player.name).toBe('鲁滨孙');
-    expect(loaded.flags.named).toBe(true);
+    expect(loaded.flags.named).toBe(false);
   });
 });

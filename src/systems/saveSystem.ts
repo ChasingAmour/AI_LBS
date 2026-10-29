@@ -309,7 +309,7 @@ export function upgradeToV5(state: GameState): GameState {
     typeof state.player.name === 'string' && state.player.name.trim()
       ? state.player.name.trim().slice(0, 12)
       : '鲁滨孙';
-  state.flags.named = true;
+  state.flags.named = false;
   return state;
 }
 
@@ -338,7 +338,7 @@ export function validateSave(data: unknown): GameState {
   requireNumber(state.bootWear, 'bootWear', 0, 1_000_000);
   if (typeof state.dungeon.pendingReset !== 'boolean') fail('dungeon.pendingReset 必须是布尔值');
   if (!Array.isArray(state.dungeon.clearedFloors)) state.dungeon.clearedFloors = [];
-  if (typeof state.flags.named !== 'boolean') state.flags.named = true;
+  if (typeof state.flags.named !== 'boolean') state.flags.named = false;
   return state;
 }
 

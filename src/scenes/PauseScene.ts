@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { GameState } from '../core/gameState';
-import { exportSave, importSave, saveGame } from '../systems/saveSystem';
+import { exportSave, importSave, saveGame, SAVE_KEY, BACKUP_KEY } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
 import type { MusicManager } from '../systems/music';
 import { makeText } from '../ui/text';
@@ -32,6 +32,9 @@ export class PauseScene extends Phaser.Scene {
     });
     guide.setInteractive({ useHandCursor: true });
     guide.on('pointerdown', () => this.openGuide());
+
+    this.link(156, 26, '改名', () => this.rename());
+    this.link(196, 26, '重新开始', () => this.restart());
 
     this.button(88, '继续游戏', () => this.resumeGame());
     this.button(126, '保存进度', () => this.save());
@@ -139,6 +142,35 @@ export class PauseScene extends Phaser.Scene {
       text.setText(label());
       playSfx(this, state, 'click');
     });
+  }
+
+  private link(x: number, y: number, label: string, onClick: () => void): void {
+    const text = makeText(this, x, y, label, { color: COLORS.goldDark });
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', onClick);
+  }
+
+  private rename(): void {
+    const state = this.state();
+    if (!state) return;
+    const raw = window.prompt('输入主角的新名字（最多 12 字）：', state.player.name);
+    if (raw === null) return;
+    const name = raw.trim().slice(0, 12) || '鲁滨孙';
+    state.player.name = name;
+    state.flags.named = true;
+    saveGame(state);
+    this.scene.restart();
+  }
+
+  private restart(): void {
+    if (!window.confirm('重新开始会删除当前存档，确定吗？')) return;
+    try {
+      localStorage.removeItem(SAVE_KEY);
+      localStorage.removeItem(BACKUP_KEY);
+    } catch {
+      // private mode: reload still starts a fresh game
+    }
+    window.location.reload();
   }
 
   private button(centerY: number, label: string, onClick: () => void): void {

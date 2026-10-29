@@ -126,7 +126,9 @@ export class NameScene extends Phaser.Scene {
     }
     this.inputEl?.blur();
     this.cameras.main.fadeOut(260, 0, 0, 0);
-    this.time.delayedCall(280, () => this.scene.start('IslandScene'));
+    this.time.delayedCall(280, () => {
+      this.scene.start(state?.scene === 'dungeon' ? 'DungeonScene' : 'IslandScene');
+    });
   }
 
   private cleanup(): void {

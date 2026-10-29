@@ -110,6 +110,9 @@ function carveTrails(base: TerrainData, trails: Trail[], protectedCenter: Vec2):
       let error = dx + dy;
       for (let guard = 0; guard < 500; guard++) {
         carve(x0, y0);
+        carve(x0 + 1, y0);
+        carve(x0, y0 + 1);
+        carve(x0 + 1, y0 + 1);
         if (x0 === x1 && y0 === y1) break;
         const e2 = 2 * error;
         if (e2 >= dy) {

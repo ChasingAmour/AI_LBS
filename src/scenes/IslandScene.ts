@@ -132,6 +132,8 @@ export class IslandScene extends Phaser.Scene {
   private buildMarker?: Phaser.GameObjects.Graphics;
   private campRing?: Phaser.GameObjects.Graphics;
   private buildReason?: Phaser.GameObjects.Text;
+  private stuckSince = 0;
+  private lastRescueAt = 0;
   private fishing: FishingSession | null = null;  private fishingSpot: { x: number; y: number } | null = null;
   private fishingLine?: Phaser.GameObjects.Graphics;
   private fishingBobber?: Phaser.GameObjects.Arc;
@@ -249,6 +251,30 @@ export class IslandScene extends Phaser.Scene {
       tile !== TILE.cliff &&
       (isWalkableTile(tile) || tile === TILE.shallowWater || tile === TILE.stream)
     );
+  }
+
+  /** Emergency escape if an old save or a narrow path leaves the player wedged in rock. */
+  private rescuePlayer(): void {
+    if (this.time.now - this.lastRescueAt < 1200) return;
+    const tx = Math.floor(this.player.x / 16);
+    const ty = Math.floor(this.player.y / 16);
+    for (let radius = 1; radius <= 10; radius++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          const x = tx * 16 + dx * 16 + 8;
+          const y = ty * 16 + dy * 16 + 16;
+          if (!this.canWalkAt(x, y - 4)) continue;
+          this.player.setPosition(x, y);
+          this.state.player.x = x;
+          this.state.player.y = y;
+          this.lastRescueAt = this.time.now;
+          this.stuckSince = 0;
+          this.game.events.emit('ui:banner', '你从岩缝里挪了出来');
+          return;
+        }
+      }
+    }
   }
 
   /** One baked 512×512 ground canvas per visible 32×32 chunk. */
@@ -1604,6 +1630,10 @@ export class IslandScene extends Phaser.Scene {
     if (moving && uiOpen) this.player.setVelocity(0, 0);
     else if (this.channel || uiOpen || buildSelection) this.player.setVelocity(0, 0);
     else {
+      if (!this.canWalkAt(this.player.x, this.player.y - 4)) {
+        this.rescuePlayer();
+        this.player.setVelocity(0, 0);
+      }
       const length = rawLength || 1;
       const input = { x: dx / length, y: dy / length };
       if (!this.canWalkAt(this.player.x + input.x * 12, this.player.y - 4)) {
@@ -1611,6 +1641,13 @@ export class IslandScene extends Phaser.Scene {
       }
       if (!this.canWalkAt(this.player.x, this.player.y - 4 + input.y * 12)) {
         input.y = 0;
+      }
+      const blocked = moving && input.x === 0 && input.y === 0;
+      if (blocked) {
+        if (this.stuckSince === 0) this.stuckSince = this.time.now;
+        else if (this.time.now - this.stuckSince > 1500) this.rescuePlayer();
+      } else {
+        this.stuckSince = 0;
       }
       const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
       const stats = deriveStats(this.state);
