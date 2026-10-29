@@ -88,6 +88,15 @@ export const WEAPONS: Record<string, WeaponDef> = {
     cooldownSec: 0.85,
     maxDurability: 70,
   },
+  copper_spear: {
+    id: 'copper_spear',
+    name: '铜矛',
+    pattern: { kind: 'thrust', range: 55, width: 15 },
+    damage: 16,
+    stun: 6,
+    cooldownSec: 0.8,
+    maxDurability: 55,
+  },
 };
 
 export function weaponFor(baseId: string | null): WeaponDef {

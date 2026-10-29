@@ -1,22 +1,30 @@
 import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
 import { ITEMS } from '../data/items';
-import { RECIPES, type Station } from '../data/recipes';
-import { canCraft, craft, recipesFor } from '../systems/craftingSystem';
+import {
+  CATEGORY_NAMES,
+  CATEGORY_ORDER,
+  RECIPES,
+  STATION_NAMES,
+  recipeCategory,
+  type Recipe,
+} from '../data/recipes';
+import { canCraft, craft } from '../systems/craftingSystem';
 import type { Panel, PanelRow } from './panel';
 
-const STATIONS: { station: Station; label: string }[] = [
-  { station: 'hand', label: '手工' },
-  { station: 'workbench', label: '工作台' },
-  { station: 'campfire', label: '营火' },
-  { station: 'dryingRack', label: '晾肉架' },
-];
-
-function costText(recipeId: string): string {
-  const recipe = RECIPES[recipeId];
+function costText(recipe: Recipe): string {
   return recipe.inputs
     .map((input) => `${ITEMS[input.baseId]?.name ?? input.baseId}×${input.count}`)
     .join(' + ');
+}
+
+function statusText(state: GameState, recipe: Recipe, nearStation: boolean): string {
+  const stationOk = recipe.station === 'hand' || nearStation;
+  const check = canCraft(state, recipe.id, stationOk);
+  if (check.ok) return '点击合成';
+  if (state.camp.level < recipe.unlockLevel) return `营地 Lv${recipe.unlockLevel} 解锁`;
+  if (recipe.station !== 'hand' && !nearStation) return `靠近${STATION_NAMES[recipe.station]}`;
+  return check.reason ?? '暂时无法合成';
 }
 
 export function craftRows(
@@ -26,17 +34,23 @@ export function craftRows(
   bus?: EventBus,
 ): PanelRow[] {
   const rows: PanelRow[] = [];
-  for (const { station, label } of STATIONS) {
-    const recipes = recipesFor(station, state.camp.level);
+  for (const category of CATEGORY_ORDER) {
+    const recipes = Object.values(RECIPES).filter(
+      (recipe) => recipeCategory(recipe.id) === category,
+    );
     if (recipes.length === 0) continue;
-    rows.push({ label: `— ${label} —`, disabled: true });
+    rows.push({ label: `— ${CATEGORY_NAMES[category]} —`, disabled: true });
     for (const recipe of recipes) {
-      const stationOk = station === 'hand' || nearStation;
+      const stationOk = recipe.station === 'hand' || nearStation;
       const check = canCraft(state, recipe.id, stationOk);
       const outputName = ITEMS[recipe.output]?.name ?? recipe.output;
       rows.push({
         label: outputName,
-        detail: check.ok ? `${costText(recipe.id)} · 点击合成` : check.reason,
+        detail: `${STATION_NAMES[recipe.station]} · ${costText(recipe)} · ${statusText(
+          state,
+          recipe,
+          nearStation,
+        )}`,
         disabled: !check.ok,
         onClick: () => {
           if (craft(state, recipe.id, stationOk, bus)) refresh();

@@ -26,7 +26,13 @@ const GENERATED = new Set([
   'raw_fish',
   'cooked_fish',
   'dried_fish',
+  'fish_stew',
+  'meat_stew',
+  'roast_coconut',
   'bandage',
+  'herbal_poultice',
+  'iron_axe',
+  'lantern',
   'torch',
   'club',
   'spear',
@@ -81,6 +87,26 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x6b4420).fillTriangle(13, 8, 16, 6, 16, 10);
     g.fillStyle(0xd8b25a).fillRect(3, 7, 2, 2);
   });
+  make('icon-fish_stew', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0xe0913f).fillEllipse(7, 8, 6, 3);
+    g.fillStyle(0xf7f1e3).fillRect(4, 8, 2, 1);
+    g.fillStyle(0x4f9f5f).fillRect(10, 8, 2, 1);
+  });
+  make('icon-meat_stew', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0x8a4a24).fillEllipse(7, 8, 6, 3);
+    g.fillStyle(0xb8783a).fillRect(6, 7, 3, 1);
+    g.fillStyle(0x4f9f5f).fillRect(10, 8, 2, 1);
+  });
+  make('icon-roast_coconut', () => {
+    g.fillStyle(0x6b4420).fillCircle(8, 8, 6);
+    g.fillStyle(0x8a5a2b).fillCircle(8, 8, 4);
+    g.fillStyle(0x4a2e14).fillRect(5, 6, 6, 1).fillRect(5, 9, 6, 1);
+    g.fillStyle(0xf7f1e3).fillRect(7, 8, 2, 2);
+  });
   make('icon-stick', () => {
     g.fillStyle(0x8a5a2b).fillRect(4, 4, 2, 10);
     g.fillStyle(0xc9a24a).fillRect(4, 4, 1, 9);
@@ -92,6 +118,12 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
   make('icon-bandage', () => {
     g.fillStyle(0xf0e6d2).fillRect(3, 5, 10, 6);
     g.fillStyle(0xd0c0a0).fillRect(5, 5, 2, 6).fillRect(9, 5, 2, 6);
+  });
+  make('icon-herbal_poultice', () => {
+    g.fillStyle(0x2f6b3f).fillEllipse(8, 9, 12, 7);
+    g.fillStyle(0x4f9f5f).fillEllipse(7, 7, 8, 4);
+    g.fillStyle(0xf0e6d2).fillRect(5, 8, 6, 3);
+    g.fillStyle(0x6fbf4f).fillRect(6, 7, 1, 2).fillRect(9, 9, 1, 2);
   });
   make('icon-torch', () => {
     g.fillStyle(0x6b4420).fillRect(7, 7, 2, 8);
@@ -160,6 +192,17 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0xc9d4e0).fillRect(4, 6, 8, 2);
     g.fillStyle(0x6a7480).fillRect(3, 11, 10, 1);
   });
+  make('icon-iron_axe', () => {
+    g.fillStyle(0x8a5a2b).fillRect(7, 5, 2, 10);
+    g.fillStyle(0xc9d4e0).fillTriangle(8, 3, 2, 5, 8, 9);
+    g.fillStyle(0x8a97a8).fillTriangle(8, 4, 4, 5, 8, 8);
+  });
+  make('icon-lantern', () => {
+    g.fillStyle(0x8a97a8).fillRect(5, 3, 6, 1).fillRect(4, 4, 1, 9).fillRect(11, 4, 1, 9);
+    g.fillStyle(0x6a7480).fillRect(4, 12, 8, 2);
+    g.fillStyle(0xffd479).fillRect(5, 5, 6, 7);
+    g.fillStyle(0xfff2b0).fillRect(7, 6, 2, 5);
+  });
   make('icon-fishing_rod', () => {
     g.lineStyle(1, 0xc9a24a, 1);
     g.lineBetween(3, 13, 12, 2);
@@ -188,19 +231,15 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
   });
 
   for (const base of Object.values(EQUIPMENT)) {
-    if (base.slot === 'weapon') {
-      if (!scene.textures.exists(`icon-${base.id}`)) {
-        const match = base.id === 'coral_dagger' || base.id === 'captain_cutlass' ||
-          base.id === 'sea_snake_spear' || base.id === 'anchor_hammer';
-        if (match) {
-          g.fillStyle(0xc9d4e0).fillRect(7, 2, 2, 10);
-          g.fillStyle(base.id === 'anchor_hammer' ? 0x8a8478 : 0x8aa8c0).fillRect(5, 3, 6, 3);
-          g.fillStyle(0x6b4420).fillRect(7, 12, 2, 2);
-          g.generateTexture(`icon-${base.id}`, 16, 16);
-          g.clear();
-        }
-      }
-    }
+    const key = `icon-${base.id}`;
+    if (base.slot !== 'weapon' || scene.textures.exists(key)) continue;
+    const copper = base.id.includes('copper');
+    const iron = base.id.includes('iron');
+    g.fillStyle(0xc9d4e0).fillRect(7, 2, 2, 10);
+    g.fillStyle(copper ? 0xc9793a : iron ? 0x8a97a8 : 0x8aa8c0).fillRect(5, 3, 6, 3);
+    g.fillStyle(0x6b4420).fillRect(7, 12, 2, 2);
+    g.generateTexture(key, 16, 16);
+    g.clear();
   }
   g.destroy();
 }

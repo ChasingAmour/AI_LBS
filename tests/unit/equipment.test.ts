@@ -6,8 +6,8 @@ import { createNewGame } from '../../src/core/gameState';
 import { countItem } from '../../src/systems/inventorySystem';
 
 describe('equipment rolls', () => {
-  it('defines the 15 approved bases', () => {
-    expect(Object.keys(EQUIPMENT)).toHaveLength(15);
+  it('defines the 17 approved bases', () => {
+    expect(Object.keys(EQUIPMENT)).toHaveLength(17);
     expect(EQUIPMENT.captain_boots.slot).toBe('boots');
   });
 

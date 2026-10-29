@@ -154,6 +154,12 @@ export function deriveStats(state: GameState): DerivedStats {
       case 'steady':
         stats.knockbackMul *= 0.5;
         break;
+      case 'copper_edge':
+        stats.savageMul += 0.1;
+        break;
+      case 'copper_guard':
+        stats.defense += 4;
+        break;
     }
   }
 

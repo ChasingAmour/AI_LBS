@@ -1035,7 +1035,9 @@ export class IslandScene extends Phaser.Scene {
 
   private hasAxe(): boolean {
     return this.state.inventory.some(
-      (item) => item.baseId === 'stone_axe' && (item.durability ?? 0) > 0,
+      (item) =>
+        (item.baseId === 'stone_axe' || item.baseId === 'iron_axe') &&
+        (item.durability ?? 0) > 0,
     );
   }
 
@@ -1197,7 +1199,7 @@ export class IslandScene extends Phaser.Scene {
       this.nextAttackAt = now + 700;
       const selected = this.state.hotbar[this.state.hotbarIndex];
       if (!canChop(selected, 'tree') || !this.hasAxe()) {
-        this.game.events.emit('ui:banner', '空手砍不动树，需要石斧');
+        this.game.events.emit('ui:banner', '空手砍不动树，需要石斧或铁斧');
         this.drawSwing(angle, 36);
         return;
       }
@@ -1208,7 +1210,7 @@ export class IslandScene extends Phaser.Scene {
       }
       const result = gatherNode(this.state, tree.id, this.rng);
       this.state.rngState = this.rng.state();
-      damageTool(this.state, 'stone_axe', 1);
+      damageTool(this.state, selected === 'iron_axe' ? 'iron_axe' : 'stone_axe', 1);
       if (result.items.length > 0) {
         collectLoot(this.state, result.items, tree.x, tree.y);
         const names = result.items

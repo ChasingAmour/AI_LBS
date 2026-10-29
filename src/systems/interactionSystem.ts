@@ -3,7 +3,8 @@ import { BUILDINGS } from '../data/buildings';
 import { ITEMS } from '../data/items';
 import { RESOURCE_NODES, nodeDefForId } from '../data/spawns';
 import { cropDef } from '../data/farming';
-import { addItem, countItem } from './inventorySystem';
+import { addItem } from './inventorySystem';
+import { hasToolFor } from './resourceSystem';
 import { deriveStats } from './statsSystem';
 
 export type InteractKind =
@@ -69,7 +70,7 @@ function nodeDuration(state: GameState, nodeId: string): number {
   const def = nodeDefForId(nodeId);
   const base = BASE_CHANNEL / deriveStats(state).gatherMul;
   if (!def?.tool) return base;
-  return countItem(state, def.tool) > 0 ? base : base * 3;
+  return hasToolFor(state, nodeId) ? base : base * 3;
 }
 
 /**

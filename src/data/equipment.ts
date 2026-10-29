@@ -74,6 +74,14 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     weaponId: 'anchor_hammer',
     legendary: { id: 'anchor', name: '锚定', desc: '命中使目标减速 40%，持续 2 秒' },
   },
+  copper_spear: {
+    id: 'copper_spear',
+    name: '铜矛',
+    slot: 'weapon',
+    durability: 55,
+    weaponId: 'copper_spear',
+    legendary: { id: 'copper_edge', name: '铜锋', desc: '对野人伤害 +10%' },
+  },
   iron_spear: {
     id: 'iron_spear',
     name: '铁矛',
@@ -115,6 +123,15 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     durability: 100,
     defense: 8,
     legendary: { id: 'old_sailor', name: '老练水手', desc: '免疫浅水减速与漏水舱减速' },
+  },
+  copper_armor: {
+    id: 'copper_armor',
+    name: '铜甲',
+    slot: 'armor',
+    durability: 100,
+    defense: 9,
+    moveMul: 0.98,
+    legendary: { id: 'copper_guard', name: '铜壁', desc: '防御 +4' },
   },
   straw_shoes: {
     id: 'straw_shoes',

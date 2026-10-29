@@ -270,4 +270,185 @@ export const RECIPES: Record<string, Recipe> = {
       { baseId: 'rope', count: 1 },
     ],
   },
+  cloth: {
+    id: 'cloth',
+    output: 'cloth',
+    count: 1,
+    station: 'hand',
+    unlockLevel: 0,
+    durationSec: 3,
+    inputs: [{ baseId: 'vine', count: 3 }],
+  },
+  iron_axe: {
+    id: 'iron_axe',
+    output: 'iron_axe',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 2,
+    durationSec: 6,
+    inputs: [
+      { baseId: 'iron_ingot', count: 2 },
+      { baseId: 'wood', count: 2 },
+    ],
+  },
+  copper_spear: {
+    id: 'copper_spear',
+    output: 'copper_spear',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 1,
+    durationSec: 6,
+    inputs: [
+      { baseId: 'copper_ingot', count: 2 },
+      { baseId: 'wood', count: 2 },
+      { baseId: 'rope', count: 1 },
+    ],
+  },
+  copper_armor: {
+    id: 'copper_armor',
+    output: 'copper_armor',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 1,
+    durationSec: 7,
+    inputs: [
+      { baseId: 'copper_ingot', count: 3 },
+      { baseId: 'cloth', count: 2 },
+    ],
+  },
+  lantern: {
+    id: 'lantern',
+    output: 'lantern',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 2,
+    durationSec: 5,
+    inputs: [
+      { baseId: 'iron_ingot', count: 1 },
+      { baseId: 'torch', count: 1 },
+      { baseId: 'cloth', count: 1 },
+    ],
+  },
+  fish_stew: {
+    id: 'fish_stew',
+    output: 'fish_stew',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 1,
+    durationSec: 3,
+    inputs: [
+      { baseId: 'raw_fish', count: 1 },
+      { baseId: 'coconut', count: 1 },
+      { baseId: 'seaweed', count: 1 },
+    ],
+  },
+  meat_stew: {
+    id: 'meat_stew',
+    output: 'meat_stew',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 1,
+    durationSec: 3,
+    inputs: [
+      { baseId: 'raw_meat', count: 1 },
+      { baseId: 'coconut', count: 1 },
+      { baseId: 'seaweed', count: 1 },
+    ],
+  },
+  roast_coconut: {
+    id: 'roast_coconut',
+    output: 'roast_coconut',
+    count: 1,
+    station: 'campfire',
+    unlockLevel: 0,
+    durationSec: 2,
+    inputs: [{ baseId: 'coconut', count: 1 }],
+  },
+  herbal_poultice: {
+    id: 'herbal_poultice',
+    output: 'herbal_poultice',
+    count: 1,
+    station: 'hand',
+    unlockLevel: 0,
+    durationSec: 3,
+    inputs: [
+      { baseId: 'seaweed', count: 2 },
+      { baseId: 'cloth', count: 1 },
+    ],
+  },
+};
+
+export type RecipeCategory =
+  | 'material'
+  | 'tool'
+  | 'weapon'
+  | 'armor'
+  | 'food'
+  | 'medicine'
+  | 'smelting';
+
+export const CATEGORY_ORDER: RecipeCategory[] = [
+  'material',
+  'tool',
+  'weapon',
+  'armor',
+  'food',
+  'medicine',
+  'smelting',
+];
+
+export const CATEGORY_NAMES: Record<RecipeCategory, string> = {
+  material: '加工材料',
+  tool: '工具',
+  weapon: '武器',
+  armor: '防具',
+  food: '食物',
+  medicine: '药品',
+  smelting: '冶炼',
+};
+
+export const CATEGORY_BY_RECIPE: Record<string, RecipeCategory> = {
+  stick: 'material',
+  rope: 'material',
+  cloth: 'material',
+  torch: 'tool',
+  waterskin: 'tool',
+  stone_axe: 'tool',
+  iron_axe: 'tool',
+  stone_pick: 'tool',
+  fishing_rod: 'tool',
+  lantern: 'tool',
+  club: 'weapon',
+  spear: 'weapon',
+  iron_spear: 'weapon',
+  copper_spear: 'weapon',
+  straw_shoes: 'armor',
+  vine_armor: 'armor',
+  wading_shoes: 'armor',
+  shell_armor: 'armor',
+  canvas_boots: 'armor',
+  canvas_armor: 'armor',
+  copper_armor: 'armor',
+  cooked_fish: 'food',
+  dried_fish: 'food',
+  cooked_meat: 'food',
+  dried_meat: 'food',
+  fish_stew: 'food',
+  meat_stew: 'food',
+  roast_coconut: 'food',
+  bandage: 'medicine',
+  herbal_poultice: 'medicine',
+  copper_ingot: 'smelting',
+  iron_ingot: 'smelting',
+};
+
+export function recipeCategory(recipeId: string): RecipeCategory {
+  return CATEGORY_BY_RECIPE[recipeId] ?? 'material';
+}
+
+export const STATION_NAMES: Record<Station, string> = {
+  hand: '手工',
+  workbench: '工作台',
+  campfire: '营火',
+  dryingRack: '晾肉架',
 };
