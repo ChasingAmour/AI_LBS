@@ -22,6 +22,14 @@ describe('crafting system', () => {
     expect(countItem(s, 'stone_axe')).toBe(1);
   });
 
+  it('puts a freshly crafted tool into an empty hotbar slot', () => {
+    const s = createNewGame(1);
+    addItem(s, 'wood', 1);
+    addItem(s, 'vine', 1);
+    expect(craft(s, 'torch', true)).toBe(true);
+    expect(s.hotbar).toContain('torch');
+  });
+
   it('rejects recipe locked above camp level', () => {
     const s = createNewGame(1);
     addItem(s, 'wood', 10);

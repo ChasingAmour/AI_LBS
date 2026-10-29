@@ -5,7 +5,7 @@ import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import { RECIPES, type Recipe, type Station } from '../data/recipes';
 import { rollEquipment } from './equipmentSystem';
-import { addItem, countItem, removeItem } from './inventorySystem';
+import { addItem, countItem, ensureHotbar, removeItem } from './inventorySystem';
 import { grantXp } from './levelSystem';
 
 export { RECIPES } from '../data/recipes';
@@ -63,6 +63,7 @@ export function craft(
   }
 
   const result = addItem(state, recipe.output, recipe.count);
+  if (result.added > 0) ensureHotbar(state, recipe.output);
   if (result.leftover > 0) {
     if (result.added > 0) removeItem(state, recipe.output, result.added);
     for (const input of recipe.inputs) {
