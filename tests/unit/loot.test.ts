@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
 import { createRng } from '../../src/core/rng';
 import { rollChestLoot } from '../../src/systems/lootSystem';
-import { EQUIPMENT } from '../../src/data/equipment';
+import { EQUIPMENT, LOOT_EQUIPMENT_IDS } from '../../src/data/equipment';
 
 describe('chest loot', () => {
   it('first final chest is legendary and consumes the flag', () => {
@@ -26,6 +26,8 @@ describe('chest loot', () => {
       const loot = rollChestLoot(s, 'normal', createRng(i));
       expect(loot.equipment.rarity).not.toBe('legendary');
       expect(EQUIPMENT[loot.equipment.baseId]).toBeTruthy();
+      expect(EQUIPMENT[loot.equipment.baseId].source).toBe('loot');
+      expect(LOOT_EQUIPMENT_IDS).toContain(loot.equipment.baseId);
       expect(loot.materials.length).toBeGreaterThanOrEqual(1);
       expect(loot.materials.length).toBeLessThanOrEqual(2);
       for (const material of loot.materials) {

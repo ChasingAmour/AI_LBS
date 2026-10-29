@@ -22,6 +22,10 @@ export function validateGameData(): string[] {
     if (!hasOutput(recipe.output)) {
       errors.push(`配方 ${recipe.id} 的产物 ${recipe.output} 不存在`);
     }
+    const craftedGear = EQUIPMENT[recipe.output];
+    if (craftedGear && craftedGear.source !== 'craft') {
+      errors.push(`配方 ${recipe.id} 不能产出掉落装备 ${recipe.output}`);
+    }
     if (recipe.unlockLevel < 0 || recipe.unlockLevel > CAMP_MAX_LEVEL) {
       errors.push(`配方 ${recipe.id} 的解锁等级 ${recipe.unlockLevel} 超出范围`);
     }
@@ -110,12 +114,23 @@ export function validateGameData(): string[] {
     }
   }
 
+  const recipeEquipmentOutputs = new Set(
+    Object.values(RECIPES)
+      .map((recipe) => recipe.output)
+      .filter((output) => Boolean(EQUIPMENT[output])),
+  );
   for (const base of Object.values(EQUIPMENT)) {
     if (base.durability <= 0) errors.push(`装备 ${base.id} 的耐久无效`);
     if (base.weaponId && !WEAPONS[base.weaponId]) {
       errors.push(`装备 ${base.id} 引用了未知武器 ${base.weaponId}`);
     }
     if (!base.legendary?.id) errors.push(`装备 ${base.id} 缺少传说词条`);
+    if (base.source === 'craft' && !recipeEquipmentOutputs.has(base.id)) {
+      errors.push(`合成装备 ${base.id} 没有对应配方`);
+    }
+    if (base.source === 'loot' && recipeEquipmentOutputs.has(base.id)) {
+      errors.push(`掉落装备 ${base.id} 不应有合成配方`);
+    }
   }
 
   for (const crop of Object.values(CROPS)) {

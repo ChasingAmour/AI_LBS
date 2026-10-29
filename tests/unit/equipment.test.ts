@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { EQUIPMENT, RARITY, affixesFor } from '../../src/data/equipment';
+import {
+  CRAFTED_EQUIPMENT,
+  EQUIPMENT,
+  LOOT_EQUIPMENT,
+  LOOT_EQUIPMENT_IDS,
+  RARITY,
+  affixesFor,
+} from '../../src/data/equipment';
+import { RECIPES } from '../../src/data/recipes';
 import { gearStatLines, recycleInstance, rollEquipment } from '../../src/systems/equipmentSystem';
 import { createRng } from '../../src/core/rng';
 import { createNewGame } from '../../src/core/gameState';
@@ -9,6 +17,18 @@ describe('equipment rolls', () => {
   it('defines the 17 approved bases', () => {
     expect(Object.keys(EQUIPMENT)).toHaveLength(17);
     expect(EQUIPMENT.captain_boots.slot).toBe('boots');
+  });
+
+  it('keeps crafted gear and dungeon loot in separate pools', () => {
+    expect(CRAFTED_EQUIPMENT).toHaveLength(11);
+    expect(LOOT_EQUIPMENT).toHaveLength(6);
+    const crafted = CRAFTED_EQUIPMENT.map((base) => base.id);
+    expect(new Set(crafted).size).toBe(crafted.length);
+    expect(LOOT_EQUIPMENT_IDS.some((id) => crafted.includes(id))).toBe(false);
+
+    const recipeOutputs = new Set(Object.values(RECIPES).map((recipe) => recipe.output));
+    for (const id of crafted) expect(recipeOutputs.has(id)).toBe(true);
+    for (const id of LOOT_EQUIPMENT_IDS) expect(recipeOutputs.has(id)).toBe(false);
   });
 
   it('is deterministic for the same rng state', () => {

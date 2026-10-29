@@ -1,6 +1,6 @@
 import type { EquipInstance, GameState, ItemStack } from '../core/gameState';
 import { createRng, type Rng } from '../core/rng';
-import { EQUIPMENT, type Rarity } from '../data/equipment';
+import { LOOT_EQUIPMENT_IDS, type Rarity } from '../data/equipment';
 import { rollEquipment } from './equipmentSystem';
 
 const NORMAL_TABLE: Array<[Rarity, number]> = [
@@ -49,7 +49,7 @@ export function rollChestLoot(
     ? 'legendary'
     : rollRarity(rng, source === 'final' ? FINAL_TABLE : NORMAL_TABLE);
 
-  const baseIds = Object.keys(EQUIPMENT);
+  const baseIds = LOOT_EQUIPMENT_IDS;
   const baseId = baseIds[rng.int(0, baseIds.length - 1)];
   state.lootRolls += 1;
   const equipment = rollEquipment(

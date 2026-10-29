@@ -420,7 +420,8 @@ export class InventoryOverlay {
     const base = EQUIPMENT[instance.baseId];
     if (!base) return;
     const rarity = RARITY[instance.rarity];
-    const lines = [`${base.name} · ${rarity.label}`];
+    const source = base.source === 'craft' ? '合成装备' : '掉落装备';
+    const lines = [`${base.name} · ${rarity.label} · ${source}`];
     lines.push(...gearStatLines(instance));
     for (const affix of instance.affixes) {
       const def = AFFIXES.find((entry) => entry.id === affix.id);

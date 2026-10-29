@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createNewGame } from '../../src/core/gameState';
+import { EQUIPMENT } from '../../src/data/equipment';
 import { addItem, countItem } from '../../src/systems/inventorySystem';
 import { canCraft, craft, craftDurationSec, RECIPES } from '../../src/systems/craftingSystem';
 
@@ -28,6 +29,17 @@ describe('crafting system', () => {
     addItem(s, 'vine', 1);
     expect(craft(s, 'torch', true)).toBe(true);
     expect(s.hotbar).toContain('torch');
+  });
+
+  it('crafts equipment from the craft-only pool', () => {
+    const s = createNewGame(1);
+    addItem(s, 'wood', 2);
+    addItem(s, 'rope', 1);
+    expect(craft(s, 'club', true)).toBe(true);
+    expect(s.equipmentInstances).toHaveLength(1);
+    const base = EQUIPMENT[s.equipmentInstances[0].baseId];
+    expect(base?.source).toBe('craft');
+    expect(base?.id).toBe('club');
   });
 
   it('rejects recipe locked above camp level', () => {

@@ -40,13 +40,15 @@ export function craft(
 ): boolean {
   if (!canCraft(state, recipeId, nearStation).ok) return false;
   const recipe = RECIPES[recipeId];
+  const gearBase = EQUIPMENT[recipe.output];
+  if (gearBase && gearBase.source !== 'craft') return false;
 
   for (const input of recipe.inputs) {
     removeItem(state, input.baseId, input.count);
   }
   grantXp(state, 3, bus);
 
-  if (EQUIPMENT[recipe.output]) {
+  if (gearBase) {
     state.lootRolls += 1;
     const instance = rollEquipment(
       createRng(state.lootSeed + state.lootRolls * 7919),

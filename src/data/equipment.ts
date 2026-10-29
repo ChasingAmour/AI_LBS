@@ -2,6 +2,8 @@
 
 export type EquipSlot = 'weapon' | 'armor' | 'boots';
 export type Rarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary';
+/** Crafted gear and dungeon loot are separate pools and never share a base. */
+export type EquipSource = 'craft' | 'loot';
 
 export interface LegendaryTrait {
   id: string;
@@ -13,6 +15,8 @@ export interface EquipBase {
   id: string;
   name: string;
   slot: EquipSlot;
+  /** Recipe output ('craft') or dungeon loot only ('loot'). */
+  source: EquipSource;
   /** base durability at common rarity */
   durability: number;
   attack?: number;
@@ -30,6 +34,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'club',
     name: '木棒',
     slot: 'weapon',
+    source: 'craft',
     durability: 40,
     weaponId: 'club',
     legendary: { id: 'aftershock', name: '余震', desc: '命中额外 +15 眩晕' },
@@ -38,6 +43,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'spear',
     name: '石矛',
     slot: 'weapon',
+    source: 'craft',
     durability: 50,
     weaponId: 'spear',
     legendary: { id: 'sunder', name: '裂甲', desc: '突刺无视目标 50% 防御' },
@@ -46,6 +52,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'coral_dagger',
     name: '珊瑚匕首',
     slot: 'weapon',
+    source: 'loot',
     durability: 45,
     weaponId: 'coral_dagger',
     legendary: { id: 'tidal_combo', name: '潮汐连击', desc: '第 3 段附加击退' },
@@ -54,6 +61,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'captain_cutlass',
     name: '船长弯刀',
     slot: 'weapon',
+    source: 'loot',
     durability: 60,
     weaponId: 'captain_cutlass',
     legendary: { id: 'veteran', name: '老练', desc: '击杀后 2 秒攻速 +30%' },
@@ -62,6 +70,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'sea_snake_spear',
     name: '海蛇骨矛',
     slot: 'weapon',
+    source: 'loot',
     durability: 55,
     weaponId: 'sea_snake_spear',
     legendary: { id: 'venom', name: '毒牙', desc: '中毒可叠加 2 层' },
@@ -70,6 +79,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'anchor_hammer',
     name: '船锚锤',
     slot: 'weapon',
+    source: 'loot',
     durability: 70,
     weaponId: 'anchor_hammer',
     legendary: { id: 'anchor', name: '锚定', desc: '命中使目标减速 40%，持续 2 秒' },
@@ -78,6 +88,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'copper_spear',
     name: '铜矛',
     slot: 'weapon',
+    source: 'craft',
     durability: 55,
     weaponId: 'copper_spear',
     legendary: { id: 'copper_edge', name: '铜锋', desc: '对野人伤害 +10%' },
@@ -86,6 +97,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'iron_spear',
     name: '铁矛',
     slot: 'weapon',
+    source: 'craft',
     durability: 70,
     weaponId: 'iron_spear',
     legendary: { id: 'ironclad', name: '精铁', desc: '突刺伤害 +20%' },
@@ -94,6 +106,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'vine_armor',
     name: '藤甲',
     slot: 'armor',
+    source: 'craft',
     durability: 80,
     defense: 4,
     legendary: { id: 'thorns', name: '荆棘', desc: '反伤 +6' },
@@ -102,6 +115,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'shell_armor',
     name: '贝壳甲',
     slot: 'armor',
+    source: 'craft',
     durability: 90,
     defense: 6,
     moveMul: 0.97,
@@ -111,6 +125,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'canvas_armor',
     name: '帆布衣',
     slot: 'armor',
+    source: 'craft',
     durability: 70,
     defense: 3,
     energyMax: 10,
@@ -120,6 +135,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'captain_coat',
     name: '船长外套',
     slot: 'armor',
+    source: 'loot',
     durability: 100,
     defense: 8,
     legendary: { id: 'old_sailor', name: '老练水手', desc: '免疫浅水减速与漏水舱减速' },
@@ -128,6 +144,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'copper_armor',
     name: '铜甲',
     slot: 'armor',
+    source: 'craft',
     durability: 100,
     defense: 9,
     moveMul: 0.98,
@@ -137,6 +154,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'straw_shoes',
     name: '草鞋',
     slot: 'boots',
+    source: 'craft',
     durability: 50,
     moveMul: 1.05,
     legendary: { id: 'nimble', name: '轻快', desc: '奔跑精力消耗 -50%' },
@@ -145,6 +163,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'wading_shoes',
     name: '藤编涉水鞋',
     slot: 'boots',
+    source: 'craft',
     durability: 55,
     moveMul: 1.08,
     shallowImmune: true,
@@ -154,6 +173,7 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'canvas_boots',
     name: '帆布靴',
     slot: 'boots',
+    source: 'craft',
     durability: 60,
     moveMul: 1.12,
     legendary: { id: 'long_haul', name: '长途', desc: '饱食消耗 -10%' },
@@ -162,11 +182,21 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     id: 'captain_boots',
     name: '船长皮靴',
     slot: 'boots',
+    source: 'loot',
     durability: 70,
     moveMul: 1.18,
     legendary: { id: 'steady', name: '稳健', desc: '受击击退距离减半' },
   },
 };
+
+export const CRAFTED_EQUIPMENT = Object.values(EQUIPMENT).filter(
+  (base) => base.source === 'craft',
+);
+
+export const LOOT_EQUIPMENT = Object.values(EQUIPMENT).filter((base) => base.source === 'loot');
+
+/** Dungeon chests only roll these bases; crafted gear never drops from them. */
+export const LOOT_EQUIPMENT_IDS = LOOT_EQUIPMENT.map((base) => base.id);
 
 export const RARITY: Record<
   Rarity,
