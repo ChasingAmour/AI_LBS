@@ -43,6 +43,7 @@ import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import { canChop, isAxe } from '../systems/toolCombat';
 import { spawnDamageNumber, spawnHitSpark, spawnWeaponAttack } from '../ui/combatFx';
+import { worldNameLabel } from '../ui/nameLabel';
 import {
   FISHING_ROD_ID,
   rollCatch,
@@ -125,6 +126,8 @@ export class IslandScene extends Phaser.Scene {
   private buildingSprites = new Map<string, BuildingSprite>();
   private savageSprites = new Map<string, Phaser.GameObjects.Image>();
   private animalSprites = new Map<string, Phaser.GameObjects.Image>();
+  private animalLabels = new Map<string, Phaser.GameObjects.Text>();
+  private savageLabels = new Map<string, Phaser.GameObjects.Text>();
   private animalDeadAt = new Map<string, number>();
   private animalRefillAt = 0;
   private laborerSprites = new Map<string, Phaser.GameObjects.Image>();
@@ -1027,6 +1030,8 @@ export class IslandScene extends Phaser.Scene {
       if (!ids.has(id)) {
         sprite.destroy();
         this.animalSprites.delete(id);
+        this.animalLabels.get(id)?.destroy();
+        this.animalLabels.delete(id);
       }
     }
     const bob = bobOffset(this.time.now);
@@ -1045,6 +1050,10 @@ export class IslandScene extends Phaser.Scene {
         const spec = animalSprite(animal.type);
         sprite = this.add.image(animal.x, animal.y, spec.texture, spec.frame).setOrigin(0.5, 1);
         this.animalSprites.set(animal.id, sprite);
+        this.animalLabels.set(
+          animal.id,
+          worldNameLabel(this, ANIMALS[animal.type]?.name ?? animal.type),
+        );
       }
       sprite.setPosition(animal.x, animal.y - (animal.mode === 'dead' ? 0 : bob));
       sprite.setDepth(depthFor(animal.y));
@@ -1055,6 +1064,15 @@ export class IslandScene extends Phaser.Scene {
       sprite.setFlipX(animal.x < this.state.player.x);
       if (animal.mode === 'retaliate') sprite.setTint(0xffb4a0);
       else sprite.clearTint();
+
+      const label = this.animalLabels.get(animal.id);
+      if (label) {
+        const offset = large ? 18 : 12;
+        label
+          .setPosition(animal.x, animal.y + offset * 0.35)
+          .setDepth(depthFor(animal.y) + 1)
+          .setAlpha(animal.mode === 'dead' ? 0.3 : 0.9);
+      }
     }
   }
 
@@ -1062,11 +1080,14 @@ export class IslandScene extends Phaser.Scene {
     return { tileAt: (tx, ty) => this.terrainAt(tx, ty) };
   }
 
-  private syncSavages(): void {    const ids = new Set(this.state.savages.map((s) => s.id));
+  private syncSavages(): void {
+    const ids = new Set(this.state.savages.map((s) => s.id));
     for (const [id, sprite] of this.savageSprites) {
       if (!ids.has(id)) {
         sprite.destroy();
         this.savageSprites.delete(id);
+        this.savageLabels.get(id)?.destroy();
+        this.savageLabels.delete(id);
       }
     }
     const bob = bobOffset(this.time.now);
@@ -1077,6 +1098,7 @@ export class IslandScene extends Phaser.Scene {
           .image(savage.x, savage.y, SAVAGE_TEXTURE, SAVAGE_FRAME)
           .setOrigin(0.5, 1);
         this.savageSprites.set(savage.id, sprite);
+        this.savageLabels.set(savage.id, worldNameLabel(this, '野人'));
       }
       sprite.setPosition(savage.x, savage.y - (savage.mode === 'dead' ? 0 : bob));
       sprite.setDepth(depthFor(savage.y));
@@ -1085,6 +1107,13 @@ export class IslandScene extends Phaser.Scene {
       if (savage.lastHitAgo < 0.08) sprite.setTintFill(0xffffff);
       else if (savage.mode === 'stunned') sprite.setTint(0x8fd4ff);
       else sprite.clearTint();
+      const label = this.savageLabels.get(savage.id);
+      if (label) {
+        label
+          .setPosition(savage.x, savage.y + 2)
+          .setDepth(depthFor(savage.y) + 1)
+          .setAlpha(savage.mode === 'dead' ? 0.3 : 0.9);
+      }
     }
   }
 
@@ -1592,6 +1621,16 @@ export class IslandScene extends Phaser.Scene {
     if (hot && WEAPONS[hot]) damageTool(this.state, hot, 1);
   }
 
+  /** Red flash, shake and floating damage when the player loses HP. */
+  private playerHurtFeedback(dealt: number): void {
+    if (dealt < 1) return;
+    spawnDamageNumber(this, this.player.x, this.player.y - 8, dealt, 'player');
+    spawnHitSpark(this, this.player.x, this.player.y, 0xff5a5a);
+    this.player.setTintFill(0xff6b6b);
+    this.time.delayedCall(90, () => this.player.clearTint());
+    this.cameras.main.shake(90, 0.003);
+  }
+
   private drawSwing(
     angle: number,
     _range: number,
@@ -1770,7 +1809,9 @@ export class IslandScene extends Phaser.Scene {
     advanceTime(this.state, dt, this.bus);
     tickNeeds(this.state, dt);
     if (this.state.player.hp < this.lastHp - 0.01) {
+      const dealt = this.lastHp - this.state.player.hp;
       playSfx(this, this.state, 'hurt');
+      this.playerHurtFeedback(dealt);
       if (this.fishing) this.cancelFishing('受击，收竿了');
     }
     this.lastHp = this.state.player.hp;

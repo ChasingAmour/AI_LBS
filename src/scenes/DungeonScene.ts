@@ -45,6 +45,7 @@ import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
 import { enemySprite } from '../ui/assets';
 import { spawnDamageNumber, spawnHitSpark, spawnWeaponAttack } from '../ui/combatFx';
+import { worldNameLabel } from '../ui/nameLabel';
 import { makeText } from '../ui/text';
 
 const BOSS_NAMES: Record<1 | 2 | 3, string> = {
@@ -53,12 +54,21 @@ const BOSS_NAMES: Record<1 | 2 | 3, string> = {
   3: '船长亡魂',
 };
 
+const ENEMY_NAMES: Record<string, string> = {
+  crab: '沙蟹',
+  hermit: '寄居蟹',
+  snake: '海蛇',
+  rat: '老鼠',
+  ghost: '幽灵',
+};
+
 const STEP = 1 / 60;
 const TILE = 16;
 
 interface EnemyView {
   state: DungeonEnemy;
   sprite: Phaser.GameObjects.Image;
+  label: Phaser.GameObjects.Text;
 }
 
 export class DungeonScene extends Phaser.Scene {
@@ -294,7 +304,12 @@ export class DungeonScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setScale(scale)
       .setDepth(9002);
-    this.enemies.push({ state: enemy, sprite });
+    const name =
+      enemy.rank === 'boss'
+        ? BOSS_NAMES[this.floorData.floor]
+        : ENEMY_NAMES[enemy.type] ?? enemy.type;
+    const label = worldNameLabel(this, name, enemy.rank === 'boss' ? 12 : 10).setDepth(9003);
+    this.enemies.push({ state: enemy, sprite, label });
   }
 
   private spawnChests(): void {
@@ -572,13 +587,12 @@ export class DungeonScene extends Phaser.Scene {
       if (special) this.applySpecial(view, special);
       view.sprite.setPosition(enemy.x, enemy.y).setDepth(depthFor(enemy.y));
       view.sprite.setAlpha(enemy.dead ? 0.25 : 1);
+      view.label
+        .setPosition(enemy.x, enemy.y + (enemy.rank === 'boss' ? 6 : 2))
+        .setDepth(depthFor(enemy.y) + 1)
+        .setAlpha(enemy.dead ? 0.2 : 0.9);
       const hit = enemyAttack(enemy, Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y));
-      if (hit > 0) {
-        const before = this.state.player.hp;
-        applyDamage(this.state, hit);
-        const dealt = before - this.state.player.hp;
-        if (dealt > 0) spawnDamageNumber(this, this.player.x, this.player.y, dealt, 'player');
-      }
+      if (hit > 0) applyDamage(this.state, hit);
     }
     this.drawTelegraphs();
     this.updateBossFight();
@@ -592,7 +606,11 @@ export class DungeonScene extends Phaser.Scene {
 
     tickTorchFuel(this.state, dt);
     tickNeeds(this.state, dt);
-    if (this.state.player.hp < this.lastHp - 0.01) playSfx(this, this.state, 'hurt');
+    if (this.state.player.hp < this.lastHp - 0.01) {
+      const dealt = this.lastHp - this.state.player.hp;
+      playSfx(this, this.state, 'hurt');
+      this.playerHurtFeedback(dealt);
+    }
     this.lastHp = this.state.player.hp;
     advanceTime(this.state, dt, this.bus);
     tickLabor(this.state, dt);
@@ -663,6 +681,16 @@ export class DungeonScene extends Phaser.Scene {
       applyDamage(this.state, 20);
       this.game.events.emit('ui:banner', '塌落的木板砸中了你！');
     }
+  }
+
+  /** Red flash, shake and floating damage when the player loses HP. */
+  private playerHurtFeedback(dealt: number): void {
+    if (dealt < 1) return;
+    spawnDamageNumber(this, this.player.x, this.player.y - 8, dealt, 'player');
+    spawnHitSpark(this, this.player.x, this.player.y, 0xff5a5a);
+    this.player.setTintFill(0xff6b6b);
+    this.time.delayedCall(90, () => this.player.clearTint());
+    this.cameras.main.shake(90, 0.003);
   }
 
   private attackAtAngle(angle: number): void {
