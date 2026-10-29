@@ -58,6 +58,7 @@ export class Hud {
   private compactIcons: Phaser.GameObjects.Image[] = [];
   private rowObjects: Phaser.GameObjects.GameObject[] = [];
   private compactToggle!: Phaser.GameObjects.Text;
+  private compactZone!: Phaser.GameObjects.Zone;
   private compact = false;
   private slots: HotbarSlot[] = [];
   private lastTextAt = 0;
@@ -242,6 +243,15 @@ export class Hud {
       this.setCompact(!this.compact);
       this.scene.game.events.emit('ui:hudCompact', this.compact);
     });
+    this.compactZone = this.scene.add
+      .zone(this.compactToggle.x, this.compactToggle.y, 28, 28)
+      .setDepth(8003)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+    this.compactZone.on('pointerdown', () => {
+      this.setCompact(!this.compact);
+      this.scene.game.events.emit('ui:hudCompact', this.compact);
+    });
   }
 
   /** Collapses the four status rows into thin coloured lines. */
@@ -266,6 +276,7 @@ export class Hud {
           ? HUD.statusCompact.y + HUD.statusCompact.h
           : HUD.status.y + HUD.status.h) - 14,
       );
+    this.compactZone.setPosition(this.compactToggle.x, this.compactToggle.y);
   }
 
   private createHotbar(): void {
@@ -284,7 +295,7 @@ export class Hud {
         .setScrollFactor(0);
       const icon = this.scene.add
         .image(rect.x + rect.size / 2, rect.y + rect.size / 2, 'icon-stick')
-        .setDisplaySize(32, 32)
+        .setDisplaySize(26, 26)
         .setDepth(8002)
         .setScrollFactor(0)
         .setVisible(false);

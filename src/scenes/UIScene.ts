@@ -12,6 +12,7 @@ import { isTouchDevice, prefersTouchLayout } from '../core/platform';
 import { CROPS } from '../data/farming';
 import { countItem } from '../systems/inventorySystem';
 import { plantCrop } from '../systems/farmingSystem';
+import { makeText } from '../ui/text';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -29,6 +30,7 @@ export class UIScene extends Phaser.Scene {
   private adventure!: AdventurePanel;
   private touch?: TouchControls;
   private touchMenu?: TouchMenu;
+  private closeButton?: Phaser.GameObjects.Container;
   private music?: MusicManager;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
@@ -74,6 +76,7 @@ export class UIScene extends Phaser.Scene {
       });
     if (touchLayout) {
       this.touch = new TouchControls(this);
+      this.closeButton = this.makeCloseButton();
       this.touch.setEnabled(Boolean(state!.settings.touchControls));
       this.touchMenu = new TouchMenu(this, {
         inventory: () => this.withState((s) => this.inventory.toggle(s)),
@@ -215,7 +218,9 @@ export class UIScene extends Phaser.Scene {
     );
     const uiOpen = Boolean(this.registry.get('uiOpen'));
     this.touch?.setPanelOpen(uiOpen);
+    this.touch?.setBuildMode(Boolean(this.registry.get('buildSelection')));
     this.touch?.setEnabled(Boolean(state?.settings.touchControls));
+    this.closeButton?.setVisible(uiOpen && !this.scene.isActive('GuideScene'));
     this.registry.set('touchEnabled', Boolean(this.touch) && Boolean(state?.settings.touchControls));
     const uiPanel: UiPanel = this.inventory.isOpen
       ? 'inventory'
@@ -249,6 +254,11 @@ export class UIScene extends Phaser.Scene {
   };
 
   private onTouchMenu = (): void => {
+    if (this.registry.get('buildSelection')) {
+      this.game.events.emit('ui:cancelBuild');
+      return;
+    }
+    if (this.scene.isActive('GuideScene')) return;
     if (this.anyPanelOpen()) this.closeAllPanels();
     else this.touchMenu?.toggle();
   };
@@ -261,6 +271,22 @@ export class UIScene extends Phaser.Scene {
       this.adventure.isOpen ||
       Boolean(this.touchMenu?.isOpen)
     );
+  }
+
+  private makeCloseButton(): Phaser.GameObjects.Container {
+    const root = this.add.container(622, 334).setDepth(9600).setScrollFactor(0).setVisible(false);
+    const circle = this.add
+      .circle(0, 0, 14, 0x3a2412, 0.95)
+      .setStrokeStyle(2, 0xb8792a, 1);
+    const text = makeText(this, 0, 0, '×', {
+      size: 24,
+      origin: [0.5, 0.5],
+      color: '#f0e6d2',
+    });
+    const zone = this.add.zone(0, 0, 34, 34).setInteractive({ useHandCursor: true });
+    zone.on('pointerdown', () => this.closeAllPanels());
+    root.add([circle, text, zone]);
+    return root;
   }
 
   private closeAllPanels(): void {

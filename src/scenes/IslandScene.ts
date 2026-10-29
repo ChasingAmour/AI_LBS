@@ -893,15 +893,21 @@ export class IslandScene extends Phaser.Scene {
     this.game.events.on('ui:touchAttack', this.onTouchAttack, this);
     this.game.events.on('ui:touchInteract', this.onTouchInteract, this);
     this.game.events.on('ui:cancelFishing', this.onCancelFishing, this);
+    this.game.events.on('ui:cancelBuild', this.onCancelBuild, this);
     this.events.once('shutdown', () => {
       this.game.events.off('ui:touchAttack', this.onTouchAttack, this);
       this.game.events.off('ui:touchInteract', this.onTouchInteract, this);
       this.game.events.off('ui:cancelFishing', this.onCancelFishing, this);
+      this.game.events.off('ui:cancelBuild', this.onCancelBuild, this);
     });
   }
 
   private onCancelFishing = (): void => {
     this.cancelFishing('已收竿');
+  };
+
+  private onCancelBuild = (): void => {
+    this.cancelBuild();
   };
 
   private onBus(event: string, handler: (payload?: unknown) => void): void {

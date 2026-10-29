@@ -31,6 +31,7 @@ export class InventoryOverlay {
   private tooltipHeight = 54;
   private tooltipWidth = 148;
   private lastTap = { key: '', at: 0 };
+  private tooltipTimer?: Phaser.Time.TimerEvent;
   private state: GameState | null = null;
   private open = false;
 
@@ -472,6 +473,15 @@ export class InventoryOverlay {
     this.tooltipWidth = w;
     this.root.add(container);
     this.positionTooltip(px, py);
+    this.tooltipTimer?.remove();
+    this.tooltipTimer = this.scene.time.delayedCall(4000, () => this.hideTooltip());
+  }
+
+  private hideTooltip(): void {
+    this.tooltipTimer?.remove();
+    this.tooltipTimer = undefined;
+    this.tooltip?.destroy();
+    this.tooltip = null;
   }
 
   private touchArmed(key: string): boolean {
@@ -482,13 +492,9 @@ export class InventoryOverlay {
     return armed;
   }
 
-  private positionTooltip(px: number, py: number): void {    if (!this.tooltip) return;
+  private positionTooltip(px: number, py: number): void {
+    if (!this.tooltip) return;
     const point = clampTooltip(px + 14, py + 14, this.tooltipWidth, this.tooltipHeight, 640, 360);
     this.tooltip.setPosition(point.x, point.y);
-  }
-
-  private hideTooltip(): void {
-    this.tooltip?.destroy(true);
-    this.tooltip = null;
   }
 }

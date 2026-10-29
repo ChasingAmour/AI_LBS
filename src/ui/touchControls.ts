@@ -11,10 +11,12 @@ export class TouchControls {
   private interactText: Phaser.GameObjects.Text;
   private sprintRing: Phaser.GameObjects.Arc;
   private menuLabel: Phaser.GameObjects.Text;
+  private buildCancel: Phaser.GameObjects.Container;
   private playObjects: Phaser.GameObjects.GameObject[] = [];
   private activePointer: number | null = null;
   private enabled = true;
   private panelOpen = false;
+  private buildMode = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -83,6 +85,30 @@ export class TouchControls {
     this.playObjects.push(this.interactText);
 
     this.menuLabel = this.menuButton();
+
+    this.buildCancel = scene.add
+      .container(TOUCH.menu.x, 320)
+      .setVisible(false);
+    const cancelCircle = scene.add
+      .circle(0, 0, 20, 0x8a2f20, 0.95)
+      .setStrokeStyle(2, 0xffb08a, 1);
+    const cancelText = makeText(scene, 0, 0, '×', {
+      size: 24,
+      origin: [0.5, 0.5],
+      color: '#fff3d6',
+      shadow: true,
+    });
+    const cancelHint = makeText(scene, 0, 24, '取消', {
+      origin: [0.5, 0],
+      color: COLORS.cream,
+      shadow: true,
+    });
+    const cancelZone = scene.add
+      .zone(0, 0, 46, 46)
+      .setInteractive(new Phaser.Geom.Circle(23, 23, 23), Phaser.Geom.Circle.Contains);
+    cancelZone.on('pointerdown', () => scene.game.events.emit('ui:cancelBuild'));
+    this.buildCancel.add([cancelCircle, cancelText, cancelHint, cancelZone]);
+    this.root.add(this.buildCancel);
   }
 
   private button(
@@ -172,12 +198,19 @@ export class TouchControls {
     }
   }
 
+  setBuildMode(active: boolean): void {
+    if (active === this.buildMode) return;
+    this.buildMode = active;
+    this.applyVisibility();
+  }
+
   /** The menu/close button stays visible so settings can always be reopened. */
   private applyVisibility(): void {
     const show = this.enabled && !this.panelOpen;
     for (const object of this.playObjects) {
       (object as unknown as { setVisible: (value: boolean) => void }).setVisible(show);
     }
+    this.buildCancel.setVisible(show && this.buildMode);
   }
 
   setInteractLabel(label: string): void {
