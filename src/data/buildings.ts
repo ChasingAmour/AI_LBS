@@ -8,7 +8,7 @@ export interface BuildingDef {
   name: string;
   cost: BuildingCost[];
   hp: number;
-  unlockLevel: 0 | 1 | 2 | 3;
+  unlockLevel: 0 | 1 | 2 | 3 | 4 | 5;
   /** blocks savage movement */
   blocks: boolean;
   /** only one may exist; placing it founds the camp */
@@ -117,5 +117,77 @@ export const BUILDINGS: Record<string, BuildingDef> = {
     hp: 40,
     unlockLevel: 1,
     blocks: false,
+  },
+  stone_house: {
+    id: 'stone_house',
+    name: '石屋',
+    cost: [
+      { baseId: 'stone', count: 30 },
+      { baseId: 'wood', count: 20 },
+      { baseId: 'cloth', count: 6 },
+    ],
+    hp: 300,
+    unlockLevel: 3,
+    blocks: true,
+  },
+  watchtower: {
+    id: 'watchtower',
+    name: '瞭望塔',
+    cost: [
+      { baseId: 'wood', count: 25 },
+      { baseId: 'stone', count: 15 },
+      { baseId: 'rope', count: 4 },
+    ],
+    hp: 150,
+    unlockLevel: 3,
+    blocks: true,
+  },
+  furnace: {
+    id: 'furnace',
+    name: '熔炉',
+    cost: [
+      { baseId: 'stone', count: 30 },
+      { baseId: 'clay', count: 15 },
+      { baseId: 'iron_ingot', count: 2 },
+    ],
+    hp: 250,
+    unlockLevel: 3,
+    blocks: true,
+  },
+  dock: {
+    id: 'dock',
+    name: '码头',
+    cost: [
+      { baseId: 'wood', count: 40 },
+      { baseId: 'rope', count: 8 },
+      { baseId: 'stone', count: 10 },
+    ],
+    hp: 200,
+    unlockLevel: 4,
+    blocks: true,
+  },
+  warehouse: {
+    id: 'warehouse',
+    name: '仓库',
+    cost: [
+      { baseId: 'stone', count: 40 },
+      { baseId: 'wood', count: 30 },
+      { baseId: 'iron_ingot', count: 5 },
+    ],
+    hp: 400,
+    unlockLevel: 4,
+    blocks: true,
+  },
+  lighthouse: {
+    id: 'lighthouse',
+    name: '灯塔',
+    cost: [
+      { baseId: 'stone', count: 60 },
+      { baseId: 'iron_ingot', count: 10 },
+      { baseId: 'torch', count: 6 },
+    ],
+    hp: 500,
+    unlockLevel: 4,
+    blocks: true,
   },
 };

@@ -3,16 +3,27 @@ import type { EventBus } from '../core/eventBus';
 import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import {
-  CATEGORY_NAMES,
   CATEGORY_ORDER,
   RECIPES,
   STATION_NAMES,
   recipeCategory,
   type Recipe,
+  type RecipeCategory,
+  type Station,
 } from '../data/recipes';
 import { canCraft, craft } from '../systems/craftingSystem';
 import { gearPreviewText } from '../systems/equipmentSystem';
-import type { Panel, PanelRow } from './panel';
+import type { Panel, PanelRow, PanelTab } from './panel';
+
+const TAB_NAMES: Record<RecipeCategory, string> = {
+  material: '材料',
+  tool: '工具',
+  weapon: '武器',
+  armor: '防具',
+  food: '食物',
+  medicine: '药品',
+  smelting: '冶炼',
+};
 
 function costText(recipe: Recipe): string {
   return recipe.inputs
@@ -20,66 +31,87 @@ function costText(recipe: Recipe): string {
     .join(' + ');
 }
 
-function statusText(state: GameState, recipe: Recipe, nearStation: boolean): string {
-  const stationOk = recipe.station === 'hand' || nearStation;
-  const check = canCraft(state, recipe.id, stationOk);
-  if (check.ok) return '点击合成';
-  if (state.camp.level < recipe.unlockLevel) return `营地 Lv${recipe.unlockLevel} 解锁`;
-  if (recipe.station !== 'hand' && !nearStation) return `靠近${STATION_NAMES[recipe.station]}`;
-  return check.reason ?? '暂时无法合成';
+/** Only unlocked recipes for the station the player is actually using. */
+export function stationRecipes(state: GameState, station: Station): Recipe[] {
+  return Object.values(RECIPES).filter(
+    (recipe) => recipe.station === station && recipe.unlockLevel <= state.camp.level,
+  );
 }
 
-export function craftRows(
+function recipeRow(
   state: GameState,
-  nearStation: boolean,
+  recipe: Recipe,
   refresh: () => void,
   bus?: EventBus,
-): PanelRow[] {
-  const rows: PanelRow[] = [];
+): PanelRow {
+  const check = canCraft(state, recipe.id, true);
+  const outputName =
+    ITEMS[recipe.output]?.name ?? EQUIPMENT[recipe.output]?.name ?? recipe.output;
+  return {
+    label: outputName,
+    detail: `${costText(recipe)} · ${check.ok ? '点击合成' : (check.reason ?? '材料不足')}`,
+    sub: EQUIPMENT[recipe.output] ? gearPreviewText(recipe.output) : undefined,
+    disabled: !check.ok,
+    onClick: () => {
+      if (craft(state, recipe.id, true, bus)) refresh();
+    },
+  };
+}
+
+export function craftTabs(
+  state: GameState,
+  station: Station,
+  refresh: () => void,
+  bus?: EventBus,
+): PanelTab[] {
+  const tabs: PanelTab[] = [];
   for (const category of CATEGORY_ORDER) {
-    const recipes = Object.values(RECIPES).filter(
+    const recipes = stationRecipes(state, station).filter(
       (recipe) => recipeCategory(recipe.id) === category,
     );
     if (recipes.length === 0) continue;
-    rows.push({ label: `— ${CATEGORY_NAMES[category]}（${recipes.length}）—`, disabled: true });
-    for (const recipe of recipes) {
-      const stationOk = recipe.station === 'hand' || nearStation;
-      const check = canCraft(state, recipe.id, stationOk);
-      const outputName =
-        ITEMS[recipe.output]?.name ?? EQUIPMENT[recipe.output]?.name ?? recipe.output;
-      rows.push({
-        label: outputName,
-        detail: `${STATION_NAMES[recipe.station]} · ${costText(recipe)} · ${statusText(
-          state,
-          recipe,
-          nearStation,
-        )}`,
-        sub: EQUIPMENT[recipe.output] ? gearPreviewText(recipe.output) : undefined,
-        disabled: !check.ok,
-        onClick: () => {
-          if (craft(state, recipe.id, stationOk, bus)) refresh();
-        },
-      });
-    }
+    tabs.push({
+      label: `${TAB_NAMES[category]} ${recipes.length}`,
+      rows: recipes.map((recipe) => recipeRow(state, recipe, refresh, bus)),
+    });
   }
-  return rows;
+  return tabs;
+}
+
+/** Kept for callers/tests that just want a flat row list. */
+export function craftRows(
+  state: GameState,
+  station: Station,
+  refresh: () => void,
+  bus?: EventBus,
+): PanelRow[] {
+  return craftTabs(state, station, refresh, bus).flatMap((tab) => tab.rows);
 }
 
 export function openCraftPanel(
   panel: Panel,
   state: GameState,
-  nearStation: boolean,
+  station: Station,
   bus?: EventBus,
 ): void {
   if (panel.isOpen) {
     panel.close();
     return;
   }
-  const refresh = () =>
-    panel.open(craftTitle(), craftRows(state, nearStation, refresh, bus), 'craft');
-  panel.open(craftTitle(), craftRows(state, nearStation, refresh, bus), 'craft');
-}
-
-function craftTitle(): string {
-  return `合成 (C) · 共 ${Object.keys(RECIPES).length} 个配方`;
+  const refresh = () => panel.updateTabs(craftTabs(state, station, refresh, bus));
+  const tabs = craftTabs(state, station, refresh, bus);
+  const total = tabs.reduce((sum, tab) => sum + tab.rows.length, 0);
+  const title =
+    total > 0
+      ? `${STATION_NAMES[station]}配方 · 共 ${total} 个`
+      : `${STATION_NAMES[station]}配方`;
+  if (tabs.length === 0) {
+    panel.openTabs(
+      title,
+      [{ label: '暂无', rows: [{ label: '暂无可制作的配方', disabled: true }] }],
+      'craft',
+    );
+    return;
+  }
+  panel.openTabs(title, tabs, 'craft');
 }

@@ -47,7 +47,8 @@ export function isWalkableTile(tile: number): boolean {
     tile === TILE.grass ||
     tile === TILE.forest ||
     tile === TILE.rock ||
-    tile === TILE.clay
+    tile === TILE.clay ||
+    tile === TILE.path
   );
 }
 

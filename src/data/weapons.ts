@@ -97,6 +97,24 @@ export const WEAPONS: Record<string, WeaponDef> = {
     cooldownSec: 0.8,
     maxDurability: 55,
   },
+  antler_spear: {
+    id: 'antler_spear',
+    name: '鹿角矛',
+    pattern: { kind: 'thrust', range: 54, width: 14 },
+    damage: 15,
+    stun: 7,
+    cooldownSec: 0.82,
+    maxDurability: 60,
+  },
+  venom_spear: {
+    id: 'venom_spear',
+    name: '毒牙矛',
+    pattern: { kind: 'thrust', range: 56, width: 15 },
+    damage: 17,
+    stun: 6,
+    cooldownSec: 0.8,
+    maxDurability: 65,
+  },
 };
 
 export function weaponFor(baseId: string | null): WeaponDef {

@@ -163,6 +163,21 @@ export function deriveStats(state: GameState): DerivedStats {
       case 'iron_wall':
         stats.defense += 3;
         break;
+      case 'soft_step':
+        stats.moveMul *= 1.04;
+        break;
+      case 'glide':
+        stats.moveMul *= 1.05;
+        break;
+      case 'gore':
+        stats.savageMul += 0.12;
+        break;
+      case 'venom_edge':
+        stats.poisonStacks = Math.max(1, stats.poisonStacks);
+        break;
+      case 'quiet_step':
+        stats.hungerMul *= 0.92;
+        break;
     }
   }
 

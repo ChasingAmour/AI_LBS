@@ -64,7 +64,6 @@ import {
   tickTorchFuel,
 } from '../systems/resourceSystem';
 import { BUILDINGS, campRingBounds, canPlace, hasCampFlag, placeBuilding, placementBanner } from '../systems/buildingSystem';
-import { checkCampUpgrade } from '../systems/campSystem';
 import { captureSavage } from '../systems/captureSystem';
 import { settleLaborRations, tickLabor } from '../systems/laborSystem';
 import { resolveRaidDawn, spawnRaid, updateSavageAi } from '../systems/raidSystem';
@@ -242,6 +241,16 @@ export class IslandScene extends Phaser.Scene {
     return isWalkableTile(this.terrainAtWorld(x, y));
   }
 
+  /** Player movement allows wading in shallow water but never cliffs or deep sea. */
+  private canWalkAt(x: number, y: number): boolean {
+    const tile = this.terrainAtWorld(x, y);
+    return (
+      tile !== TILE.deepWater &&
+      tile !== TILE.cliff &&
+      (isWalkableTile(tile) || tile === TILE.shallowWater || tile === TILE.stream)
+    );
+  }
+
   /** One baked 512×512 ground canvas per visible 32×32 chunk. */
   private bakeChunk(cx: number, cy: number): void {
     const key = chunkKey(cx, cy);
@@ -300,21 +309,68 @@ export class IslandScene extends Phaser.Scene {
           w: !isWater(this.terrainAt(worldTx - 1, worldTy)),
         };
         const sprite = terrainSprite(tile, neighbors, variantFor(worldTx, worldTy, seed));
-        if (sprite.texture === 'battle') {
-          ctx.drawImage(water, 0, 0, WORLD.tile, WORLD.tile, x, y, WORLD.tile, WORLD.tile);
-        } else {
-          drawFrame(sprite.texture, sprite.frame, x, y);
-        }
-        if (sprite.shade) {
-          ctx.fillStyle = rgba(sprite.shade.color, sprite.shade.alpha);
+        if (tile === TILE.cliff) {
+          const roll = (worldTx * 928371 + worldTy * 12379) % 9;
+          ctx.fillStyle = roll < 3 ? '#3b362f' : roll < 6 ? '#332f29' : '#45403a';
           ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
-        }
-        if (sprite.foam) {
-          ctx.fillStyle = 'rgba(255,255,255,0.7)';
-          if (sprite.foam & 1) ctx.fillRect(x, y, WORLD.tile, 1);
-          if (sprite.foam & 2) ctx.fillRect(x + WORLD.tile - 1, y, 1, WORLD.tile);
-          if (sprite.foam & 4) ctx.fillRect(x, y + WORLD.tile - 1, WORLD.tile, 1);
-          if (sprite.foam & 8) ctx.fillRect(x, y, 1, WORLD.tile);
+          ctx.fillStyle = 'rgba(120,112,100,0.35)';
+          ctx.fillRect(x + 3, y + 4, 1, 11);
+          ctx.fillRect(x + 9, y + 2, 1, 12);
+          ctx.fillRect(x + 14, y + 5, 1, 9);
+          const above = this.terrainAt(worldTx, worldTy - 1);
+          const below = this.terrainAt(worldTx, worldTy + 1);
+          if (above !== TILE.cliff) {
+            ctx.fillStyle = 'rgba(235,225,196,0.5)';
+            ctx.fillRect(x, y, WORLD.tile, 4);
+            ctx.fillStyle = 'rgba(120,112,100,0.4)';
+            ctx.fillRect(x, y + 4, WORLD.tile, 2);
+          }
+          if (below !== TILE.cliff) {
+            ctx.fillStyle = 'rgba(12,10,8,0.65)';
+            ctx.fillRect(x, y + WORLD.tile - 4, WORLD.tile, 4);
+          }
+        } else if (tile === TILE.path) {
+          const roll = (worldTx * 7919 + worldTy * 104729) % 7;
+          ctx.fillStyle = roll < 3 ? '#b68a52' : roll < 6 ? '#a97d47' : '#c19a60';
+          ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
+          ctx.fillStyle = 'rgba(90,58,28,0.3)';
+          ctx.fillRect(x + 3, y + 4, 2, 2);
+          ctx.fillRect(x + 10, y + 11, 2, 1);
+          ctx.fillStyle = 'rgba(230,200,150,0.35)';
+          ctx.fillRect(x + 6, y + 8, 3, 2);
+          ctx.fillRect(x + 12, y + 2, 2, 2);
+        } else if (tile === TILE.rock) {
+          const roll = (worldTx * 3907 + worldTy * 7919) % 11;
+          ctx.fillStyle = roll < 4 ? '#9a9488' : roll < 8 ? '#918b7f' : '#898379';
+          ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
+          if (roll === 0 || roll === 7) {
+            ctx.fillStyle = 'rgba(79,138,60,0.4)';
+            ctx.fillRect(x + 2, y + 10, 5, 3);
+            ctx.fillRect(x + 9, y + 3, 4, 2);
+          }
+          ctx.fillStyle = 'rgba(190,182,168,0.3)';
+          ctx.fillRect(x + 2, y + 2, 4, 2);
+          ctx.fillRect(x + 9, y + 7, 4, 2);
+          ctx.fillStyle = 'rgba(60,56,50,0.3)';
+          ctx.fillRect(x + 5, y + 6, 2, 4);
+          ctx.fillRect(x + 11, y + 11, 2, 2);
+        } else {
+          if (sprite.texture === 'battle') {
+            ctx.drawImage(water, 0, 0, WORLD.tile, WORLD.tile, x, y, WORLD.tile, WORLD.tile);
+          } else {
+            drawFrame(sprite.texture, sprite.frame, x, y);
+          }
+          if (sprite.shade) {
+            ctx.fillStyle = rgba(sprite.shade.color, sprite.shade.alpha);
+            ctx.fillRect(x, y, WORLD.tile, WORLD.tile);
+          }
+          if (sprite.foam) {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            if (sprite.foam & 1) ctx.fillRect(x, y, WORLD.tile, 1);
+            if (sprite.foam & 2) ctx.fillRect(x + WORLD.tile - 1, y, 1, WORLD.tile);
+            if (sprite.foam & 4) ctx.fillRect(x, y + WORLD.tile - 1, WORLD.tile, 1);
+            if (sprite.foam & 8) ctx.fillRect(x, y, 1, WORLD.tile);
+          }
         }
       }
     }
@@ -388,7 +444,8 @@ export class IslandScene extends Phaser.Scene {
       this.textures.exists('palm') &&
       this.textures.exists('hut') &&
       this.textures.exists('flag') &&
-      this.textures.exists('workbench')
+      this.textures.exists('workbench') &&
+      this.textures.exists('lighthouse')
     ) {
       return;
     }
@@ -398,6 +455,9 @@ export class IslandScene extends Phaser.Scene {
     g.clear();
 
     this.drawWorkbench(g);
+    g.clear();
+
+    this.drawCampBuildings(g);
     g.clear();
 
     this.drawHut(g);
@@ -493,7 +553,111 @@ export class IslandScene extends Phaser.Scene {
     g.generateTexture('animal-fish', 12, 8);
     g.clear();
 
+    this.drawMoreAnimals(g);
     this.drawOres(g);
+  }
+
+  /** Additional wildlife: predators, grazers, birds and sea creatures. */
+  private drawMoreAnimals(g: Phaser.GameObjects.Graphics): void {
+    const quadruped = (
+      key: string,
+      body: number,
+      shade: number,
+      head: number,
+      extra?: () => void,
+    ): void => {
+      g.fillStyle(0x2b2118).fillRect(2, 7, 12, 7);
+      g.fillStyle(body).fillRect(3, 8, 10, 5);
+      g.fillStyle(shade).fillRect(3, 12, 10, 2);
+      g.fillStyle(head).fillRect(11, 5, 4, 5);
+      g.fillStyle(0x2b2118).fillRect(13, 6, 1, 1);
+      g.fillStyle(0x2b2118).fillRect(4, 14, 2, 2).fillRect(9, 14, 2, 2);
+      extra?.();
+      g.generateTexture(key, 16, 16);
+      g.clear();
+    };
+
+    quadruped('animal-goat', 0xd0c8b8, 0xa89f8e, 0xe0d8c8, () => {
+      g.fillStyle(0xc9a24a).fillRect(12, 2, 1, 4).fillRect(15, 3, 1, 3);
+    });
+    quadruped('animal-deer', 0x9a6a3a, 0x7a4e28, 0xb07a4a, () => {
+      g.fillStyle(0xc9a24a).fillRect(12, 1, 1, 5).fillRect(15, 2, 1, 4);
+      g.fillRect(13, 2, 2, 1);
+    });
+    quadruped('animal-wolf', 0x8a9098, 0x626870, 0x9aa0a8, () => {
+      g.fillStyle(0x3a4048).fillTriangle(12, 5, 13, 1, 15, 5);
+      g.fillStyle(0x2b2118).fillRect(3, 6, 2, 4);
+    });
+    quadruped('animal-wild-dog', 0xb08a5a, 0x8a6a3c, 0xc9a06a, () => {
+      g.fillStyle(0x6b4420).fillRect(2, 6, 2, 4);
+    });
+    quadruped('animal-bear', 0x5c4030, 0x3d2a1e, 0x6f4e3a, () => {
+      g.fillStyle(0x3d2a1e).fillRect(3, 4, 4, 4);
+      g.fillStyle(0x2b2118).fillRect(2, 9, 2, 5);
+    });
+    quadruped('animal-tiger', 0xe0913f, 0xb8722a, 0xf0b05a, () => {
+      g.fillStyle(0x2b2118).fillRect(4, 8, 1, 4).fillRect(7, 8, 1, 4).fillRect(10, 8, 1, 4);
+      g.fillStyle(0x2b2118).fillRect(12, 6, 1, 1);
+    });
+
+    // crocodile: long low body and snout
+    g.fillStyle(0x2b2118).fillRect(1, 10, 14, 5);
+    g.fillStyle(0x4f7f3f).fillRect(2, 11, 12, 3);
+    g.fillStyle(0x6f9f4f).fillRect(11, 9, 4, 3);
+    g.fillStyle(0x2b2118).fillRect(13, 9, 1, 1);
+    g.fillStyle(0x3f6f2f).fillRect(3, 14, 2, 2).fillRect(9, 14, 2, 2);
+    g.generateTexture('animal-crocodile', 16, 16);
+    g.clear();
+
+    // turtle: shell dome
+    g.fillStyle(0x2b2118).fillEllipse(8, 10, 14, 9);
+    g.fillStyle(0x6f8f5f).fillEllipse(8, 9, 11, 7);
+    g.fillStyle(0x4f6f3f).fillRect(5, 8, 6, 1).fillRect(7, 6, 1, 6);
+    g.fillStyle(0xc9a24a).fillRect(1, 10, 2, 2).fillRect(13, 10, 2, 2);
+    g.generateTexture('animal-turtle', 16, 16);
+    g.clear();
+
+    // snake: S-curve body with a raised head
+    g.fillStyle(0x2b2118).fillRect(3, 11, 9, 3);
+    g.fillRect(9, 8, 3, 4);
+    g.fillRect(11, 5, 3, 4);
+    g.fillStyle(0x6f9f4f).fillRect(4, 12, 8, 1);
+    g.fillRect(10, 9, 1, 3);
+    g.fillRect(12, 6, 1, 3);
+    g.fillStyle(0xc9a24a).fillRect(12, 5, 2, 2);
+    g.fillStyle(0x2b2118).fillRect(13, 5, 1, 1);
+    g.generateTexture('animal-snake', 16, 16);
+    g.clear();
+
+    // monkey: small body and curling tail
+    g.fillStyle(0x2b2118).fillRect(4, 7, 8, 7);
+    g.fillStyle(0x8a5a2b).fillRect(5, 8, 6, 5);
+    g.fillStyle(0xc9a24a).fillRect(5, 5, 4, 4);
+    g.fillStyle(0x2b2118).fillRect(6, 6, 1, 1);
+    g.fillStyle(0x8a5a2b).fillRect(12, 8, 2, 4).fillRect(13, 6, 1, 3);
+    g.generateTexture('animal-monkey', 16, 16);
+    g.clear();
+
+    const bird = (key: string, body: number, wing: number, beak: number): void => {
+      g.fillStyle(0x2b2118).fillEllipse(7, 9, 11, 8);
+      g.fillStyle(body).fillEllipse(7, 8, 9, 6);
+      g.fillStyle(wing).fillEllipse(5, 8, 5, 4);
+      g.fillStyle(body).fillCircle(12, 6, 3);
+      g.fillStyle(0x2b2118).fillRect(13, 5, 1, 1);
+      g.fillStyle(beak).fillTriangle(15, 6, 13, 7, 15, 8);
+      g.generateTexture(key, 16, 16);
+      g.clear();
+    };
+    bird('animal-parrot', 0x4f9f5f, 0xd4533f, 0xc9a24a);
+    bird('animal-eagle', 0x6b4a2c, 0x4a3320, 0xc9a24a);
+    bird('animal-pelican', 0xf0e6d2, 0xd8cfb6, 0xe0913f);
+
+    // jellyfish: translucent dome with trailing tentacles
+    g.fillStyle(0xc9a0e0).fillEllipse(8, 6, 11, 7);
+    g.fillStyle(0xe8d0f8).fillRect(4, 5, 8, 3);
+    g.fillStyle(0xc9a0e0).fillRect(5, 9, 1, 5).fillRect(8, 9, 1, 6).fillRect(11, 9, 1, 4);
+    g.generateTexture('animal-jellyfish', 16, 16);
+    g.clear();
   }
 
   /** Three 16×16 ore rocks: copper flecks, iron veins and coal seams. */
@@ -615,6 +779,63 @@ export class IslandScene extends Phaser.Scene {
     g.fillStyle(0x8a5a2b).fillRect(16, 7, 6, 2);
     g.fillStyle(0x6b4420).fillRect(18, 9, 2, 1);
     g.generateTexture('workbench', 24, 16);
+  }
+
+  /** Camp progression buildings: stone house, tower, furnace, dock, warehouse, lighthouse. */
+  private drawCampBuildings(g: Phaser.GameObjects.Graphics): void {
+    // 28×28 stone house with red roof.
+    g.fillStyle(0x6f6a5f).fillRect(3, 14, 22, 13);
+    g.fillStyle(0x8a8478).fillRect(4, 15, 20, 10);
+    g.fillStyle(0x4a2e14).fillRect(12, 19, 5, 8);
+    g.fillStyle(0xb03a2e).fillTriangle(1, 15, 14, 3, 27, 15);
+    g.fillStyle(0xd4533f).fillTriangle(3, 14, 14, 5, 25, 14);
+    g.fillStyle(0xf0e6d2).fillRect(6, 17, 3, 3).fillRect(19, 17, 3, 3);
+    g.generateTexture('stone-house', 28, 28);
+    g.clear();
+
+    // 16×32 watchtower.
+    g.fillStyle(0x5a3a1c).fillRect(3, 10, 3, 22).fillRect(10, 10, 3, 22);
+    g.fillStyle(0x8a5a2b).fillRect(2, 8, 12, 4).fillRect(1, 2, 14, 3);
+    g.fillStyle(0xc9a24a).fillRect(3, 6, 10, 2);
+    g.fillStyle(0x6b4420).fillRect(4, 14, 8, 1).fillRect(4, 20, 8, 1);
+    g.fillStyle(0xb03a2e).fillTriangle(8, 0, 1, 3, 15, 3);
+    g.generateTexture('watchtower', 16, 32);
+    g.clear();
+
+    // 16×16 furnace with a glowing mouth.
+    g.fillStyle(0x6f6a5f).fillRect(1, 4, 14, 12);
+    g.fillStyle(0x8a8478).fillRect(2, 5, 12, 9);
+    g.fillStyle(0x2b2118).fillRect(5, 9, 6, 6);
+    g.fillStyle(0xd9772f).fillRect(6, 11, 4, 4);
+    g.fillStyle(0xffd479).fillRect(7, 12, 2, 2);
+    g.fillStyle(0x3a2412).fillRect(5, 2, 6, 3);
+    g.generateTexture('furnace', 16, 16);
+    g.clear();
+
+    // 32×16 dock planks.
+    g.fillStyle(0x5a3a1c).fillRect(0, 8, 32, 3);
+    g.fillStyle(0x8a5a2b).fillRect(0, 10, 32, 4);
+    g.fillStyle(0xc9a24a).fillRect(1, 11, 30, 1);
+    for (const x of [4, 12, 20, 28]) g.fillStyle(0x6b4420).fillRect(x, 8, 2, 7);
+    g.generateTexture('dock', 32, 16);
+    g.clear();
+
+    // 28×24 warehouse.
+    g.fillStyle(0x6f6a5f).fillRect(2, 7, 24, 16);
+    g.fillStyle(0x8a8478).fillRect(3, 8, 22, 13);
+    g.fillStyle(0x4a2e14).fillRect(10, 13, 8, 10);
+    g.fillStyle(0xc9a24a).fillRect(12, 15, 4, 1).fillRect(12, 18, 4, 1);
+    g.fillStyle(0xb03a2e).fillTriangle(0, 8, 14, 1, 28, 8);
+    g.generateTexture('warehouse', 28, 24);
+    g.clear();
+
+    // 16×34 lighthouse.
+    g.fillStyle(0xf0e6d2).fillRect(4, 5, 8, 29);
+    g.fillStyle(0xb03a2e).fillRect(4, 10, 8, 4).fillRect(4, 20, 8, 4);
+    g.fillStyle(0x8a97a8).fillRect(3, 2, 10, 4);
+    g.fillStyle(0xffd479).fillRect(5, 3, 6, 2);
+    g.fillStyle(0x6f6a5f).fillRect(2, 32, 12, 2);
+    g.generateTexture('lighthouse', 16, 34);
   }
 
   /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
@@ -795,14 +1016,15 @@ export class IslandScene extends Phaser.Scene {
       }
       let sprite = this.animalSprites.get(animal.id);
       if (!sprite) {
-        sprite = this.add
-          .image(animal.x, animal.y, animalSprite(animal.type).texture)
-          .setOrigin(0.5, 1);
+        const spec = animalSprite(animal.type);
+        sprite = this.add.image(animal.x, animal.y, spec.texture, spec.frame).setOrigin(0.5, 1);
         this.animalSprites.set(animal.id, sprite);
       }
       sprite.setPosition(animal.x, animal.y - (animal.mode === 'dead' ? 0 : bob));
       sprite.setDepth(depthFor(animal.y));
-      sprite.setScale(animal.type === 'boar' ? 1.4 : 1);
+      const big = animal.type === 'bear' || animal.type === 'tiger' || animal.type === 'crocodile';
+      const large = ANIMALS[animal.type]?.size === 'large';
+      sprite.setScale(big ? 1.8 : large ? 1.4 : 1);
       sprite.setAlpha(animal.mode === 'dead' ? 0.35 : 1);
       sprite.setFlipX(animal.x < this.state.player.x);
       if (animal.mode === 'retaliate') sprite.setTint(0xffb4a0);
@@ -1082,7 +1304,6 @@ export class IslandScene extends Phaser.Scene {
     this.clearBuildPreview();
     this.game.events.emit('ui:banner', placementBanner(type));
     if (type === 'flag') this.bus.emit('camp:flagPlaced', { x: building.x, y: building.y });
-    checkCampUpgrade(this.state, this.bus);
     refreshTutorial(this.state, this.bus);
     this.bus.emit('save:requested', { reason: 'build' });
   }
@@ -1385,10 +1606,10 @@ export class IslandScene extends Phaser.Scene {
     else {
       const length = rawLength || 1;
       const input = { x: dx / length, y: dy / length };
-      if (this.terrainAtWorld(this.player.x + input.x * 12, this.player.y - 4) === TILE.deepWater) {
+      if (!this.canWalkAt(this.player.x + input.x * 12, this.player.y - 4)) {
         input.x = 0;
       }
-      if (this.terrainAtWorld(this.player.x, this.player.y - 4 + input.y * 12) === TILE.deepWater) {
+      if (!this.canWalkAt(this.player.x, this.player.y - 4 + input.y * 12)) {
         input.y = 0;
       }
       const tile = this.terrainAtWorld(this.player.x, this.player.y - 4);
@@ -1499,7 +1720,7 @@ export class IslandScene extends Phaser.Scene {
 
   private isNearStation(): boolean {
     return this.state.buildings.some((building) => {
-      if (!['workbench', 'campfire', 'drying_rack'].includes(building.type)) return false;
+      if (!['workbench', 'campfire', 'drying_rack', 'furnace'].includes(building.type)) return false;
       const bx = building.x * 16 + 8;
       const by = building.y * 16 + 16;
       return Math.hypot(this.player.x - bx, this.player.y - by) <= 48;
@@ -1525,7 +1746,6 @@ export class IslandScene extends Phaser.Scene {
     tickTorchFuel(this.state, dt);
     this.discoverLandmarks();
     refreshTutorial(this.state, this.bus);
-    checkCampUpgrade(this.state, this.bus);
 
     if (this.state.player.dead && !this.deathLaunched) {
       this.deathLaunched = true;
@@ -2022,7 +2242,7 @@ export class IslandScene extends Phaser.Scene {
     }
     if (building.type === 'workbench') {
       this.registry.set('nearStation', true);
-      this.game.events.emit('ui:panel', 'craft');
+      this.game.events.emit('ui:craftAt', 'workbench');
       return;
     }
     if (building.type === 'storage') {
@@ -2032,18 +2252,23 @@ export class IslandScene extends Phaser.Scene {
       this.game.events.emit('ui:banner', contents ? `储物箱：${contents}` : '储物箱是空的');
       return;
     }
-    if (building.type === 'campfire') {
+    if (building.type === 'flag') {
+      this.game.events.emit('ui:panel', 'camp');
+      return;
+    }
+    if (building.type === 'campfire' || building.type === 'furnace') {
       const bx = building.x * 16 + 8;
       const by = building.y * 16 + 16;
       const nearby = this.state.world.groundLoot.filter(
         (loot) => loot.x !== undefined && loot.y !== undefined && Math.hypot(loot.x - bx, loot.y - by) < 48,
       );
-      if (nearby.length === 0) {
-        this.game.events.emit('ui:banner', '营火噼啪作响');
-        return;
-      }
       for (const loot of nearby) pickUpGroundLoot(this.state, loot.baseId);
-      this.game.events.emit('ui:banner', '拾取了营火旁的物资');
+      if (nearby.length > 0) this.game.events.emit('ui:banner', '拾取了营火旁的物资');
+      this.game.events.emit('ui:craftAt', 'campfire');
+      return;
+    }
+    if (building.type === 'drying_rack') {
+      this.game.events.emit('ui:craftAt', 'dryingRack');
     }
   }
 

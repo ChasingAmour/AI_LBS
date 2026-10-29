@@ -20,13 +20,13 @@ import { countItem } from '../../src/systems/inventorySystem';
 import { itemIcon } from '../../src/ui/itemIcons';
 
 describe('equipment rolls', () => {
-  it('defines the 18 approved bases', () => {
-    expect(Object.keys(EQUIPMENT)).toHaveLength(18);
+  it('defines the 23 approved bases', () => {
+    expect(Object.keys(EQUIPMENT)).toHaveLength(23);
     expect(EQUIPMENT.captain_boots.slot).toBe('boots');
   });
 
   it('keeps crafted gear and dungeon loot in separate pools', () => {
-    expect(CRAFTED_EQUIPMENT).toHaveLength(12);
+    expect(CRAFTED_EQUIPMENT).toHaveLength(17);
     expect(LOOT_EQUIPMENT).toHaveLength(6);
     const crafted = CRAFTED_EQUIPMENT.map((base) => base.id);
     expect(new Set(crafted).size).toBe(crafted.length);

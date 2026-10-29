@@ -118,7 +118,7 @@ export interface GameState {
     wreckEntrance: { x: number; y: number };
     groundLoot: ItemStack[];
   };
-  camp: { level: 0 | 1 | 2 | 3; center: { x: number; y: number } };
+  camp: { level: 0 | 1 | 2 | 3 | 4 | 5; center: { x: number; y: number } };
   buildings: BuildingInstance[];
   laborers: LaborerState[];
   dungeon: {

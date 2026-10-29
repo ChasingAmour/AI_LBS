@@ -13,6 +13,8 @@ const TERRAIN_COLOR: Record<number, number> = {
   [TILE.forest]: 0x4f8a3c,
   [TILE.rock]: 0x8a8478,
   [TILE.clay]: 0xb07a4f,
+  [TILE.cliff]: 0x5a534a,
+  [TILE.path]: 0xc49a62,
 };
 
 const PARCHMENT = 0xf0dfb8;

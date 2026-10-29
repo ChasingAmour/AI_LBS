@@ -38,10 +38,13 @@ function landTile(region: number, height: number, wx: number, wy: number, seed: 
     case 1:
       return detail > 0.35 ? TILE.forest : TILE.grass;
     case 2:
+      if (height > 0.86) return TILE.rock;
+      if (height > 0.8) return TILE.cliff;
       return height > 0.72 ? TILE.rock : TILE.grass;
     case 3:
       return detail > 0.62 ? TILE.clay : TILE.grass;
     case 4:
+      if (height > 0.86) return TILE.cliff;
       return detail > 0.45 ? TILE.rock : TILE.grass;
     default:
       return detail > 0.62 ? TILE.forest : TILE.grass;
@@ -72,6 +75,56 @@ export function generateTerrain(seed: number): TerrainData {
   return { width: widthTiles, height: heightTiles, terrain, regions, hash: fnv1a(terrain) };
 }
 
+/** Rasterises the landmark trails into dirt paths, cutting ramps through cliffs. */
+function carveTrails(base: TerrainData, trails: Trail[], protectedCenter: Vec2): void {
+  const cx = Math.floor(protectedCenter.x / 16);
+  const cy = Math.floor(protectedCenter.y / 16);
+  const carve = (tx: number, ty: number): void => {
+    if (tx < 0 || ty < 0 || tx >= base.width || ty >= base.height) return;
+    if (Math.abs(tx - cx) <= 2 && Math.abs(ty - cy) <= 2) return;
+    const index = ty * base.width + tx;
+    const tile = base.terrain[index];
+    if (
+      tile === TILE.sand ||
+      tile === TILE.grass ||
+      tile === TILE.forest ||
+      tile === TILE.rock ||
+      tile === TILE.clay ||
+      tile === TILE.cliff
+    ) {
+      base.terrain[index] = TILE.path;
+    }
+  };
+  for (const trail of trails) {
+    for (let i = 1; i < trail.points.length; i++) {
+      const from = trail.points[i - 1];
+      const to = trail.points[i];
+      let x0 = Math.floor(from.x / 16);
+      let y0 = Math.floor(from.y / 16);
+      const x1 = Math.floor(to.x / 16);
+      const y1 = Math.floor(to.y / 16);
+      const dx = Math.abs(x1 - x0);
+      const dy = -Math.abs(y1 - y0);
+      const sx = x0 < x1 ? 1 : -1;
+      const sy = y0 < y1 ? 1 : -1;
+      let error = dx + dy;
+      for (let guard = 0; guard < 500; guard++) {
+        carve(x0, y0);
+        if (x0 === x1 && y0 === y1) break;
+        const e2 = 2 * error;
+        if (e2 >= dy) {
+          error += dy;
+          x0 += sx;
+        }
+        if (e2 <= dx) {
+          error += dx;
+          y0 += sy;
+        }
+      }
+    }
+  }
+}
+
 /** Terrain plus landmarks, trails, rivers and the spawn point. */
 export function generateIsland(seed: number): IslandData {
   const base = generateTerrain(seed);
@@ -79,6 +132,7 @@ export function generateIsland(seed: number): IslandData {
   const trails = buildTrails(landmarks, seed);
   const spring = landmarks.find((landmark) => landmark.kind === 'spring');
   const river = spring ? carveRiver(base, spring, seed, campCenter) : null;
+  carveTrails(base, trails, campCenter);
 
   return {
     ...base,

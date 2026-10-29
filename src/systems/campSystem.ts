@@ -26,25 +26,36 @@ export function getCaptiveCap(state: GameState): number {
   return CAMP_LEVELS.find((l) => l.level === state.camp.level)?.captiveCap ?? 0;
 }
 
+export function campLevelName(state: GameState): string {
+  if (state.camp.level === 0) return '荒野';
+  return CAMP_LEVELS.find((l) => l.level === state.camp.level)?.name ?? `Lv${state.camp.level}`;
+}
+
 export function getNextCampLevel(state: GameState): CampLevelDef | null {
   if (state.camp.level >= CAMP_MAX_LEVEL) return null;
   return CAMP_LEVELS.find((l) => l.level === state.camp.level + 1) ?? null;
 }
 
-export function checkCampUpgrade(state: GameState, bus: EventBus): 0 | 1 | 2 | 3 {
-  if (!hasCampFlag(state)) return state.camp.level;
-  let changed = false;
-  for (const def of CAMP_LEVELS) {
-    if (def.level <= state.camp.level) continue;
-    if (def.level !== state.camp.level + 1) break;
-    if (!meets(state, def)) break;
-    state.camp.level = def.level;
-    changed = true;
-    bus.emit('camp:levelUp', { level: def.level, captiveCap: def.captiveCap });
-  }
-  if (changed) {
-    bus.emit('save:requested', { reason: 'campLevel' });
-  }
+export function canUpgradeCamp(state: GameState): boolean {
+  if (!hasCampFlag(state)) return false;
+  const next = getNextCampLevel(state);
+  return next !== null && meets(state, next);
+}
+
+/** Manual upgrade from the flag: one level per interaction. */
+export function upgradeCamp(state: GameState, bus: EventBus): boolean {
+  if (!canUpgradeCamp(state)) return false;
+  const next = getNextCampLevel(state);
+  if (!next) return false;
+  state.camp.level = next.level;
+  bus.emit('camp:levelUp', { level: next.level, captiveCap: next.captiveCap });
+  bus.emit('save:requested', { reason: 'campLevel' });
+  return true;
+}
+
+/** Kept for tests and older callers; upgrades at most one level. */
+export function checkCampUpgrade(state: GameState, bus: EventBus): 0 | 1 | 2 | 3 | 4 | 5 {
+  upgradeCamp(state, bus);
   return state.camp.level;
 }
 

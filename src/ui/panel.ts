@@ -12,6 +12,11 @@ export interface PanelRow {
   onClick?: () => void;
 }
 
+export interface PanelTab {
+  label: string;
+  rows: PanelRow[];
+}
+
 export type PanelStyle = 'list' | 'craft' | 'build' | 'labor';
 
 interface PanelGeometry {
@@ -26,7 +31,7 @@ interface PanelGeometry {
 
 const GEOMETRY: Record<PanelStyle, PanelGeometry> = {
   list: { width: 420, height: 300, x: 110, y: 30, header: 44, perPage: 8, step: 1 },
-  craft: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 9, step: 1 },
+  craft: { width: 560, height: 352, x: 40, y: 4, header: 76, perPage: 8, step: 1 },
   build: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 8, step: 2 },
   labor: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 4, step: 1 },
 };
@@ -44,6 +49,9 @@ export class Panel {
   private chrome: Phaser.GameObjects.Graphics;
   private titleText: Phaser.GameObjects.Text;
   private rowObjects: Phaser.GameObjects.GameObject[] = [];
+  private tabObjects: Phaser.GameObjects.GameObject[] = [];
+  private tabs: PanelTab[] = [];
+  private tabIndex = 0;
   private rows: PanelRow[] = [];
   private visible = false;
   private currentTitle = '';
@@ -82,6 +90,22 @@ export class Panel {
   }
 
   open(title: string, rows: PanelRow[], style: PanelStyle = 'list'): void {
+    this.tabs = [];
+    this.tabIndex = 0;
+    this.clearTabs();
+    this.openRows(title, rows, style);
+  }
+
+  /** Opens a crafting-style panel with clickable category tabs. */
+  openTabs(title: string, tabs: PanelTab[], style: PanelStyle = 'craft'): void {
+    this.clearTabs();
+    this.tabs = tabs;
+    this.tabIndex = 0;
+    this.openRows(title, tabs[0]?.rows ?? [], style);
+    this.renderTabs();
+  }
+
+  private openRows(title: string, rows: PanelRow[], style: PanelStyle): void {
     this.visible = true;
     this.currentTitle = title;
     this.currentStyle = style;
@@ -95,11 +119,24 @@ export class Panel {
     this.renderRows();
   }
 
+  /** Rebuilds rows after a craft without jumping back to the first tab. */
+  updateTabs(tabs: PanelTab[]): void {
+    if (tabs.length === 0) return;
+    this.tabs = tabs;
+    this.tabIndex = Math.min(this.tabIndex, tabs.length - 1);
+    this.rows = tabs[this.tabIndex].rows;
+    this.scroll = 0;
+    this.renderTabs();
+    this.renderRows();
+  }
+
   close(): void {
     this.visible = false;
     this.currentTitle = '';
     this.container.setVisible(false);
     this.clearRows();
+    this.clearTabs();
+    this.tabs = [];
   }
 
   toggle(title: string, rows: PanelRow[], style: PanelStyle = 'list'): void {
@@ -123,6 +160,45 @@ export class Panel {
   private clearRows(): void {
     for (const object of this.rowObjects) object.destroy();
     this.rowObjects = [];
+  }
+
+  private clearTabs(): void {
+    for (const object of this.tabObjects) object.destroy();
+    this.tabObjects = [];
+  }
+
+  private setTab(index: number): void {
+    const tab = this.tabs[index];
+    if (!tab) return;
+    this.tabIndex = index;
+    this.rows = tab.rows;
+    this.scroll = 0;
+    this.renderTabs();
+    this.renderRows();
+  }
+
+  private renderTabs(): void {
+    this.clearTabs();
+    if (this.tabs.length === 0) return;
+    let x = 16;
+    const y = 38;
+    this.tabs.forEach((tab, index) => {
+      const active = index === this.tabIndex;
+      const text = makeText(this.scene, x, y, tab.label, {
+        color: active ? COLORS.goldDark : COLORS.inkSoft,
+      });
+      text.setInteractive({ useHandCursor: true });
+      text.on('pointerdown', () => this.setTab(index));
+      this.tabObjects.push(text);
+      const width = Math.max(28, text.width);
+      if (active) {
+        const underline = this.scene.add.graphics();
+        underline.fillStyle(TINTS.goldDark, 0.9).fillRect(x, y + 16, width, 2);
+        this.tabObjects.push(underline);
+      }
+      x += width + 14;
+    });
+    this.container.add(this.tabObjects);
   }
 
   private renderRows(): void {

@@ -92,16 +92,41 @@ describe('camp system', () => {
     expect(getCaptiveCap(s)).toBe(3);
   });
 
-  it('upgrades to lv3 with twelve stone walls and a drying rack', () => {
+  it('upgrades to lv3 with walls, a drying rack and two farms', () => {
     const s = createNewGame(1);
     withFlag(s);
     s.camp.level = 2;
     s.buildings.push({ id: 'rack', type: 'drying_rack', x: 0, y: 0, hp: 60 });
+    for (let i = 0; i < 2; i++) {
+      s.buildings.push({ id: `farm${i}`, type: 'farm_plot', x: i, y: 0, hp: 40 });
+    }
     for (let i = 0; i < 12; i++) {
       s.buildings.push({ id: `w${i}`, type: 'stone_wall', x: i, y: 0, hp: 200 });
     }
     expect(checkCampUpgrade(s, new EventBus())).toBe(3);
     expect(getCaptiveCap(s)).toBe(6);
+  });
+
+  it('upgrades to lv4 with a stone house, tower and furnace', () => {
+    const s = createNewGame(1);
+    withFlag(s);
+    s.camp.level = 3;
+    for (const type of ['stone_house', 'watchtower', 'furnace']) {
+      s.buildings.push({ id: type, type, x: 0, y: 0, hp: 100 });
+    }
+    expect(checkCampUpgrade(s, new EventBus())).toBe(4);
+    expect(getCaptiveCap(s)).toBe(9);
+  });
+
+  it('upgrades to lv5 with dock, warehouse and lighthouse', () => {
+    const s = createNewGame(1);
+    withFlag(s);
+    s.camp.level = 4;
+    for (const type of ['dock', 'warehouse', 'lighthouse']) {
+      s.buildings.push({ id: type, type, x: 0, y: 0, hp: 100 });
+    }
+    expect(checkCampUpgrade(s, new EventBus())).toBe(5);
+    expect(getCaptiveCap(s)).toBe(12);
   });
 
   it('reports partial fence progress', () => {
@@ -118,9 +143,9 @@ describe('camp system', () => {
     expect(row).toMatchObject({ have: 3, need: 8, done: false });
   });
 
-  it('shows the max level message at lv3', () => {
+  it('shows the max level message at lv5', () => {
     const s = createNewGame(1);
-    s.camp.level = 3;
+    s.camp.level = 5;
     expect(getNextCampLevel(s)).toBeNull();
     expect(getCampChecklist(s)[0].label).toContain('满级');
   });

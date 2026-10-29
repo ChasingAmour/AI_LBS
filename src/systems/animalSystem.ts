@@ -98,20 +98,26 @@ export function updateAnimalAi(
   if (!def) return;
 
   if (animal.mode === 'wander') {
-    animal.wanderTimer -= dtSec;
-    if (animal.wanderTimer <= 0) {
-      animal.wanderDir = (animal.wanderDir + 1.9 + (animal.x % 7) / 7) % (Math.PI * 2);
-      animal.wanderTimer = 2 + (animal.y % 3);
-    }
-    const nx = animal.x + Math.cos(animal.wanderDir) * def.wanderSpeed * dtSec;
-    const ny = animal.y + Math.sin(animal.wanderDir) * def.wanderSpeed * dtSec;
-    if (def.habitat.includes(world.tileAt(Math.floor(nx / TILE), Math.floor(ny / TILE)))) {
-      animal.x = nx;
-      animal.y = ny;
+    const playerDist = distance(animal.x, animal.y, state.player.x, state.player.y);
+    if (def.aggressive && playerDist <= (def.aggroRange ?? 80)) {
+      animal.mode = 'retaliate';
+      animal.disengageTimer = 0;
     } else {
-      animal.wanderDir = (animal.wanderDir + Math.PI) % (Math.PI * 2);
+      animal.wanderTimer -= dtSec;
+      if (animal.wanderTimer <= 0) {
+        animal.wanderDir = (animal.wanderDir + 1.9 + (animal.x % 7) / 7) % (Math.PI * 2);
+        animal.wanderTimer = 2 + (animal.y % 3);
+      }
+      const nx = animal.x + Math.cos(animal.wanderDir) * def.wanderSpeed * dtSec;
+      const ny = animal.y + Math.sin(animal.wanderDir) * def.wanderSpeed * dtSec;
+      if (def.habitat.includes(world.tileAt(Math.floor(nx / TILE), Math.floor(ny / TILE)))) {
+        animal.x = nx;
+        animal.y = ny;
+      } else {
+        animal.wanderDir = (animal.wanderDir + Math.PI) % (Math.PI * 2);
+      }
+      return;
     }
-    return;
   }
 
   const dx = state.player.x - animal.x;

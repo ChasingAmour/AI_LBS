@@ -93,6 +93,8 @@ const ARMOR_STYLES: Record<string, ArmorStyle> = {
   captain_coat: { base: '#2f4f7a', trim: '#c9a24a', pattern: 'coat' },
   copper_armor: { base: '#b87333', trim: '#e0a060', pattern: 'plate' },
   iron_armor: { base: '#8a97a8', trim: '#c9d4e0', pattern: 'plate' },
+  leather_armor: { base: '#9a6a3a', trim: '#c9a24a', pattern: 'stitch' },
+  feather_cloak: { base: '#d8cfb6', trim: '#c9a24a', pattern: 'coat' },
 };
 
 const BOOT_COLORS: Record<string, { base: string; trim: string }> = {
@@ -100,6 +102,7 @@ const BOOT_COLORS: Record<string, { base: string; trim: string }> = {
   wading_shoes: { base: '#2f6b3f', trim: '#6fbf4f' },
   canvas_boots: { base: '#d0ba8e', trim: '#8a6a3c' },
   captain_boots: { base: '#4a2e14', trim: '#c9a24a' },
+  leather_boots: { base: '#9a6a3a', trim: '#c9a24a' },
 };
 
 function ensureGearTextures(scene: Phaser.Scene): void {

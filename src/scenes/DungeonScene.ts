@@ -749,6 +749,8 @@ export class DungeonScene extends Phaser.Scene {
       anchor_hammer: { damage: 12, range: 40 },
       iron_spear: { damage: 20, range: 58 },
       copper_spear: { damage: 16, range: 55 },
+      antler_spear: { damage: 15, range: 54 },
+      venom_spear: { damage: 17, range: 56 },
     };
     return (base && map[base]) || { damage: 4, range: 24 };
   }

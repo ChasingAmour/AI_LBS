@@ -56,20 +56,41 @@ const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
   stone_wall: { texture: TEXTURE.battle, frame: 96, w: 16, h: 16 },
   drying_rack: { texture: TEXTURE.town, frame: 46, w: 16, h: 16 },
   farm_plot: { texture: 'farm-plot', w: 16, h: 16 },
+  stone_house: { texture: 'stone-house', w: 28, h: 28 },
+  watchtower: { texture: 'watchtower', w: 16, h: 32 },
+  furnace: { texture: 'furnace', w: 16, h: 16 },
+  dock: { texture: 'dock', w: 32, h: 16 },
+  warehouse: { texture: 'warehouse', w: 28, h: 24 },
+  lighthouse: { texture: 'lighthouse', w: 16, h: 34 },
 };
 
 const FALLBACK_NODE: NodeSpriteSpec = { texture: TEXTURE.farm, frame: 78 };
 const FALLBACK_BUILDING: BuildingSpriteSpec = { texture: TEXTURE.dungeon, frame: 101, w: 16, h: 16 };
 
 /** Hand-drawn animal textures created in IslandScene.makeWorldTextures. */
-const ANIMAL_SPRITES: Record<string, { texture: string }> = {
+const ANIMAL_SPRITES: Record<string, { texture: string; frame?: number }> = {
   chicken: { texture: 'animal-chicken' },
   rabbit: { texture: 'animal-rabbit' },
   boar: { texture: 'animal-boar' },
   fish: { texture: 'animal-fish' },
+  goat: { texture: 'animal-goat' },
+  deer: { texture: 'animal-deer' },
+  wolf: { texture: 'animal-wolf' },
+  bear: { texture: 'animal-bear' },
+  tiger: { texture: 'animal-tiger' },
+  wild_dog: { texture: 'animal-wild-dog' },
+  crocodile: { texture: 'animal-crocodile' },
+  turtle: { texture: 'animal-turtle' },
+  monkey: { texture: 'animal-monkey' },
+  parrot: { texture: 'animal-parrot' },
+  eagle: { texture: 'animal-eagle' },
+  pelican: { texture: 'animal-pelican' },
+  crab: { texture: TEXTURE.dungeon, frame: 110 },
+  snake: { texture: 'animal-snake' },
+  jellyfish: { texture: 'animal-jellyfish' },
 };
 
-export function animalSprite(type: string): { texture: string } {
+export function animalSprite(type: string): { texture: string; frame?: number } {
   return ANIMAL_SPRITES[type] ?? { texture: 'animal-chicken' };
 }
 

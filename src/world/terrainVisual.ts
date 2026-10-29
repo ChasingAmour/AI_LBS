@@ -49,11 +49,15 @@ const GROUND_FRAMES: Record<number, number[]> = {
   [TILE.forest]: [0, 1, 2],
   [TILE.rock]: [48, 49, 50],
   [TILE.clay]: [12, 13, 14],
+  [TILE.cliff]: [48, 49, 50],
+  [TILE.path]: [25, 40, 41],
 };
 
 const SHADE: Record<number, { color: number; alpha: number }> = {
   [TILE.forest]: { color: 0x2f5a2a, alpha: 0.22 },
   [TILE.clay]: { color: 0x8a5a2b, alpha: 0.3 },
+  [TILE.cliff]: { color: 0x2b2620, alpha: 0.46 },
+  [TILE.path]: { color: 0x8a5a2b, alpha: 0.42 },
 };
 
 /** Stable per-tile variant; weighted toward the plain frame so the ground stays calm. */

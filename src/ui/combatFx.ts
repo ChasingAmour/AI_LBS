@@ -11,6 +11,8 @@ const WEAPON_COLORS: Record<string, number> = {
   anchor_hammer: 0xc9d4e0,
   copper_spear: 0xe0a060,
   iron_spear: 0xd8e8ff,
+  antler_spear: 0xe0c07a,
+  venom_spear: 0x8aff6a,
   stone_axe: 0xc9d4e0,
   copper_axe: 0xe0a060,
   iron_axe: 0xd8e8ff,

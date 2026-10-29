@@ -14,6 +14,8 @@ import { countItem } from '../systems/inventorySystem';
 import { plantCrop } from '../systems/farmingSystem';
 import { makeText } from '../ui/text';
 import { openCraftPanel } from '../ui/craftPanel';
+import { openCampPanel } from '../ui/campPanel';
+import type { Station } from '../data/recipes';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
 import type { EventBus } from '../core/eventBus';
@@ -34,6 +36,8 @@ export class UIScene extends Phaser.Scene {
   private music?: MusicManager;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
+  private craftStationHandler = (station: Station): void =>
+    this.withState((state) => this.openCraft(state, station));
   private hudCompactHandler = (compact: boolean): void => {
     const state = this.state();
     if (!state) return;
@@ -41,7 +45,7 @@ export class UIScene extends Phaser.Scene {
     const bus = this.registry.get('bus') as EventBus | undefined;
     bus?.emit('save:requested', { reason: 'settings' });
   };
-  private panelKind: 'build' | 'craft' | 'labor' | 'seed' | null = null;
+  private panelKind: 'build' | 'craft' | 'camp' | 'labor' | 'seed' | null = null;
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
 
   constructor() {
@@ -168,6 +172,7 @@ export class UIScene extends Phaser.Scene {
 
     this.game.events.on('ui:banner', this.bannerHandler);
     this.game.events.on('ui:panel', this.panelHandler);
+    this.game.events.on('ui:craftAt', this.craftStationHandler);
     this.game.events.on('ui:hudCompact', this.hudCompactHandler);
     this.game.events.on('ui:seedPicker', this.seedPickerHandler);
     this.input.on('pointerdown', () => {
@@ -176,6 +181,7 @@ export class UIScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.game.events.off('ui:banner', this.bannerHandler);
       this.game.events.off('ui:panel', this.panelHandler);
+      this.game.events.off('ui:craftAt', this.craftStationHandler);
       this.game.events.off('ui:hudCompact', this.hudCompactHandler);
       this.game.events.off('ui:touchMenu', this.onTouchMenu);
       this.game.events.off('ui:seedPicker', this.seedPickerHandler);
@@ -324,7 +330,16 @@ export class UIScene extends Phaser.Scene {
       else if (kind === 'craft') this.openCraft(state);
       else if (kind === 'build') this.openBuild(state);
       else if (kind === 'labor') this.openLabor(state);
+      else if (kind === 'camp') this.openCamp(state);
     });
+  }
+
+  private openCamp(state: GameState): void {
+    playSfx(this, state, 'open');
+    this.inventory.close();
+    this.map.close();
+    this.panelKind = 'camp';
+    openCampPanel(this.panel, state, this.registry.get('bus') as EventBus | undefined);
   }
 
   /** M key and minimap click: close other modals, then toggle the map. */
@@ -335,12 +350,17 @@ export class UIScene extends Phaser.Scene {
     this.withState((state) => this.map.toggle(state));
   }
 
-  private openCraft(state: GameState): void {
+  private openCraft(state: GameState, station: Station = 'hand'): void {
     playSfx(this, state, 'open');
     this.inventory.close();
     this.map.close();
     this.panelKind = 'craft';
-    openCraftPanel(this.panel, state, this.nearStation(), this.registry.get('bus') as EventBus | undefined);
+    openCraftPanel(
+      this.panel,
+      state,
+      station,
+      this.registry.get('bus') as EventBus | undefined,
+    );
   }
 
   private openBuild(state: GameState): void {
@@ -392,10 +412,6 @@ export class UIScene extends Phaser.Scene {
   private withState(action: (state: GameState) => void): void {
     const state = this.state();
     if (state) action(state);
-  }
-
-  private nearStation(): boolean {
-    return Boolean(this.registry.get('nearStation'));
   }
 
   private selectBuild(type: string): void {

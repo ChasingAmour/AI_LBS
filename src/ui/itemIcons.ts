@@ -54,6 +54,16 @@ const GENERATED = new Set([
   'tropical_fish',
   'seaweed',
   'waterskin',
+  'hide',
+  'leather',
+  'feather',
+  'venom_sac',
+  'turtle_shell',
+  'antler',
+  'crab_meat',
+  'jellyfish',
+  'crab_soup',
+  'jelly_salad',
 ]);
 
 /** Hand-drawn 16×16 icons for items the sheets do not cover. */
@@ -288,6 +298,68 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x6b4420).fillRect(5, 12, 6, 2);
     g.fillStyle(0x3f8fd0).fillRect(6, 8, 4, 3);
   });
+  make('icon-hide', () => {
+    g.fillStyle(0x8a5a2b).fillPoints(
+      [
+        { x: 3, y: 4 },
+        { x: 13, y: 3 },
+        { x: 12, y: 12 },
+        { x: 4, y: 13 },
+      ],
+      true,
+    );
+    g.fillStyle(0xc9a24a).fillRect(6, 6, 4, 4);
+    g.fillStyle(0x6b4420).fillRect(4, 10, 2, 2);
+  });
+  make('icon-leather', () => {
+    g.fillStyle(0x9a6a3a).fillRect(3, 4, 10, 8);
+    g.fillStyle(0xc9a24a).fillRect(4, 5, 8, 2);
+    g.fillStyle(0x6b4420).fillRect(5, 9, 6, 1);
+    g.fillStyle(0xf0e6d2).fillRect(6, 7, 1, 1).fillRect(10, 7, 1, 1);
+  });
+  make('icon-feather', () => {
+    g.fillStyle(0xf0e6d2).fillTriangle(10, 2, 5, 11, 12, 9);
+    g.fillStyle(0xc9d4e0).fillRect(8, 5, 1, 6);
+    g.fillStyle(0x8a97a8).fillRect(8, 12, 2, 2);
+  });
+  make('icon-venom_sac', () => {
+    g.fillStyle(0x6fbf4f).fillEllipse(8, 9, 10, 8);
+    g.fillStyle(0x4f9f5f).fillEllipse(7, 7, 6, 4);
+    g.fillStyle(0x2b2118).fillRect(7, 3, 2, 3);
+    g.fillStyle(0xd8ff8a).fillRect(6, 9, 2, 2);
+  });
+  make('icon-turtle_shell', () => {
+    g.fillStyle(0x6f8f5f).fillEllipse(8, 8, 13, 10);
+    g.fillStyle(0x4f6f3f).fillRect(4, 7, 8, 1).fillRect(7, 4, 1, 8);
+    g.fillStyle(0xc9a24a).fillRect(2, 10, 2, 2).fillRect(12, 10, 2, 2);
+  });
+  make('icon-antler', () => {
+    g.fillStyle(0xc9a24a).fillRect(7, 5, 2, 9);
+    g.fillStyle(0xe0c07a).fillRect(4, 2, 2, 5).fillRect(7, 3, 2, 2).fillRect(10, 2, 2, 5);
+    g.fillStyle(0x8a6a3c).fillRect(5, 6, 2, 1).fillRect(9, 6, 2, 1);
+  });
+  make('icon-crab_meat', () => {
+    g.fillStyle(0xd86a52).fillEllipse(8, 9, 10, 7);
+    g.fillStyle(0xf0a080).fillEllipse(7, 7, 5, 3);
+    g.fillStyle(0xf0e6d2).fillRect(4, 11, 2, 2).fillRect(10, 11, 2, 2);
+  });
+  make('icon-jellyfish', () => {
+    g.fillStyle(0xc9a0e0).fillEllipse(8, 6, 11, 7);
+    g.fillStyle(0xe8d0f8).fillRect(4, 5, 8, 3);
+    g.fillStyle(0xc9a0e0).fillRect(5, 9, 1, 5).fillRect(8, 9, 1, 6).fillRect(11, 9, 1, 4);
+  });
+  make('icon-crab_soup', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0xd86a52).fillEllipse(7, 8, 6, 3);
+    g.fillStyle(0xf0e6d2).fillRect(4, 8, 2, 1);
+  });
+  make('icon-jelly_salad', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0x2f6b3f).fillRect(4, 6, 3, 4).fillRect(9, 5, 3, 5);
+    g.fillStyle(0xc9a0e0).fillEllipse(7, 7, 4, 3);
+  });
 
   for (const base of Object.values(EQUIPMENT)) {
     const key = `icon-${base.id}`;
@@ -395,6 +467,33 @@ function paintEquipmentIcon(g: Phaser.GameObjects.Graphics, id: string): void {
       g.fillStyle(0x4a2e14).fillRect(3, 7, 4, 7).fillRect(9, 7, 4, 7);
       g.fillStyle(0x2b1d12).fillRect(3, 13, 4, 1).fillRect(9, 13, 4, 1);
       g.fillStyle(0xc9a24a).fillRect(4, 8, 3, 1).fillRect(10, 8, 3, 1);
+      break;
+    case 'antler_spear':
+      g.fillStyle(0x8a5a2b).fillRect(7, 4, 2, 11);
+      g.fillStyle(0xc9a24a).fillRect(5, 2, 2, 6).fillRect(9, 2, 2, 6);
+      g.fillStyle(0xe0c07a).fillTriangle(8, 1, 5, 5, 11, 5);
+      break;
+    case 'venom_spear':
+      g.fillStyle(0x8a5a2b).fillRect(7, 4, 2, 11);
+      g.fillStyle(0x6fbf4f).fillTriangle(8, 1, 5, 6, 11, 6);
+      g.fillStyle(0xd8ff8a).fillRect(7, 2, 1, 4);
+      g.fillStyle(0x4f9f5f).fillRect(6, 6, 4, 1);
+      break;
+    case 'leather_armor':
+      g.fillStyle(0x9a6a3a).fillRect(3, 5, 10, 8);
+      g.fillStyle(0xc9a24a).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0x6b4420).fillRect(7, 6, 1, 7).fillRect(4, 8, 8, 1);
+      break;
+    case 'feather_cloak':
+      g.fillStyle(0xd8cfb6).fillRect(3, 4, 10, 10);
+      g.fillStyle(0xf0e6d2).fillRect(3, 4, 3, 3).fillRect(10, 4, 3, 3);
+      g.fillStyle(0xc9a24a).fillRect(7, 5, 2, 8);
+      g.fillStyle(0x8a97a8).fillRect(5, 8, 1, 4).fillRect(10, 7, 1, 5);
+      break;
+    case 'leather_boots':
+      g.fillStyle(0x9a6a3a).fillRect(3, 8, 4, 6).fillRect(9, 8, 4, 6);
+      g.fillStyle(0x6b4420).fillRect(3, 13, 4, 1).fillRect(9, 13, 4, 1);
+      g.fillStyle(0xc9a24a).fillRect(4, 9, 3, 1).fillRect(10, 9, 3, 1);
       break;
   }
 }

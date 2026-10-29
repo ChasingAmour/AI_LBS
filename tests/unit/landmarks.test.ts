@@ -8,7 +8,7 @@ const tileAt = (x: number, y: number) =>
   island.terrain[Math.floor(y / 16) * island.width + Math.floor(x / 16)];
 const walkable = (x: number, y: number) => {
   const t = tileAt(x, y);
-  return t === TILE.sand || t === TILE.grass || t === TILE.forest || t === TILE.rock || t === TILE.clay;
+  return t === TILE.sand || t === TILE.grass || t === TILE.forest || t === TILE.rock || t === TILE.clay || t === TILE.path;
 };
 
 describe('generateIsland', () => {

@@ -42,6 +42,7 @@ export type UiPanel =
   | 'inventory'
   | 'build'
   | 'craft'
+  | 'camp'
   | 'labor'
   | 'map'
   | 'adventure'
