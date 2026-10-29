@@ -23,5 +23,5 @@ export function openBuildMenu(
   state: GameState,
   onSelect: (type: string) => void,
 ): void {
-  panel.toggle('建造 (B)', buildRows(state, onSelect));
+  panel.toggle('建造 (B)', buildRows(state, onSelect), 'build');
 }

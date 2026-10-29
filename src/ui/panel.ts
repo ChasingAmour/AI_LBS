@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { makeText } from './text';
 import { COLORS, TINTS } from './theme';
-import { visibleRows } from './widgets/scrollList';
+import { pageLabel, visibleRows } from './widgets/scrollList';
 
 export interface PanelRow {
   label: string;
@@ -10,43 +10,61 @@ export interface PanelRow {
   onClick?: () => void;
 }
 
-const PANEL_WIDTH = 420;
-const PANEL_HEIGHT = 300;
-const ROW_HEIGHT = 28;
-const HEADER_HEIGHT = 44;
-const MAX_ROWS = Math.floor((PANEL_HEIGHT - HEADER_HEIGHT - 12) / ROW_HEIGHT);
+export type PanelStyle = 'list' | 'build' | 'labor';
 
-/** Parchment modal list used by craft, build and labor. */
+interface PanelGeometry {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  header: number;
+  perPage: number;
+  step: number;
+}
+
+const GEOMETRY: Record<PanelStyle, PanelGeometry> = {
+  list: { width: 420, height: 300, x: 110, y: 30, header: 44, perPage: 8, step: 1 },
+  build: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 8, step: 2 },
+  labor: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 4, step: 1 },
+};
+
+const CARD = {
+  build: { w: 258, h: 62, gapX: 14, gapY: 12, x: 14 },
+  labor: { w: 528, h: 64, gapX: 0, gapY: 4, x: 16 },
+} as const;
+
+/** Parchment modal used by craft (list), build (2×4 cards) and labour (scroll cards). */
 export class Panel {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
+  private backdrop: Phaser.GameObjects.Rectangle;
   private chrome: Phaser.GameObjects.Graphics;
   private titleText: Phaser.GameObjects.Text;
   private rowObjects: Phaser.GameObjects.GameObject[] = [];
   private rows: PanelRow[] = [];
   private visible = false;
   private currentTitle = '';
+  private currentStyle: PanelStyle = 'list';
   private scroll = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.chrome = scene.add.graphics();
     this.titleText = makeText(scene, 16, 12, '', { size: 24, color: COLORS.ink });
-    const backdrop = scene.add
-      .rectangle(-110, -30, 640, 360, 0x0b0906, 0.45)
-      .setOrigin(0, 0);
+    this.backdrop = scene.add.rectangle(0, 0, 640, 360, 0x0b0906, 0.45).setOrigin(0, 0);
     this.container = scene.add
-      .container(110, 30, [backdrop, this.chrome, this.titleText])
+      .container(GEOMETRY.list.x, GEOMETRY.list.y, [this.backdrop, this.chrome, this.titleText])
       .setDepth(9000)
       .setScrollFactor(0)
       .setVisible(false);
 
     scene.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {
-      if (!this.visible || this.rows.length <= MAX_ROWS) return;
+      const geo = GEOMETRY[this.currentStyle];
+      if (!this.visible || this.rows.length <= geo.perPage) return;
       this.scroll = Phaser.Math.Clamp(
-        this.scroll + (dy > 0 ? 1 : -1),
+        this.scroll + (dy > 0 ? geo.step : -geo.step),
         0,
-        Math.max(0, this.rows.length - MAX_ROWS),
+        Math.max(0, this.rows.length - geo.perPage),
       );
       this.renderRows();
     });
@@ -56,12 +74,19 @@ export class Panel {
     return this.visible;
   }
 
-  open(title: string, rows: PanelRow[]): void {
+  get style(): PanelStyle {
+    return this.currentStyle;
+  }
+
+  open(title: string, rows: PanelRow[], style: PanelStyle = 'list'): void {
     this.visible = true;
     this.currentTitle = title;
+    this.currentStyle = style;
     this.rows = rows;
     this.scroll = 0;
     this.titleText.setText(title);
+    this.container.setPosition(GEOMETRY[style].x, GEOMETRY[style].y);
+    this.backdrop.setPosition(-GEOMETRY[style].x, -GEOMETRY[style].y);
     this.container.setVisible(true);
     this.drawChrome();
     this.renderRows();
@@ -74,21 +99,22 @@ export class Panel {
     this.clearRows();
   }
 
-  toggle(title: string, rows: PanelRow[]): void {
+  toggle(title: string, rows: PanelRow[], style: PanelStyle = 'list'): void {
     if (this.visible && this.currentTitle === title) {
       this.close();
       return;
     }
-    this.open(title, rows);
+    this.open(title, rows, style);
   }
 
   private drawChrome(): void {
+    const geo = GEOMETRY[this.currentStyle];
     this.chrome.clear();
-    this.chrome.fillStyle(0x000000, 0.35).fillRect(3, 4, PANEL_WIDTH, PANEL_HEIGHT);
-    this.chrome.fillStyle(TINTS.parchment, 1).fillRect(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
-    this.chrome.lineStyle(2, TINTS.woodDark, 1).strokeRect(1, 1, PANEL_WIDTH - 2, PANEL_HEIGHT - 2);
-    this.chrome.lineStyle(1, TINTS.cream, 0.8).strokeRect(5, 5, PANEL_WIDTH - 10, PANEL_HEIGHT - 10);
-    this.chrome.fillStyle(TINTS.goldDark, 0.5).fillRect(8, HEADER_HEIGHT - 2, PANEL_WIDTH - 16, 1);
+    this.chrome.fillStyle(0x000000, 0.35).fillRect(3, 4, geo.width, geo.height);
+    this.chrome.fillStyle(TINTS.parchment, 1).fillRect(0, 0, geo.width, geo.height);
+    this.chrome.lineStyle(2, TINTS.woodDark, 1).strokeRect(1, 1, geo.width - 2, geo.height - 2);
+    this.chrome.lineStyle(1, TINTS.cream, 0.8).strokeRect(5, 5, geo.width - 10, geo.height - 10);
+    this.chrome.fillStyle(TINTS.goldDark, 0.5).fillRect(8, geo.header - 2, geo.width - 16, 1);
   }
 
   private clearRows(): void {
@@ -98,17 +124,44 @@ export class Panel {
 
   private renderRows(): void {
     this.clearRows();
-    const { start, end } = visibleRows(this.rows.length, this.scroll, MAX_ROWS);
+    const geo = GEOMETRY[this.currentStyle];
+    const { start, end } = visibleRows(this.rows.length, this.scroll, geo.perPage);
 
+    if (this.currentStyle === 'list') {
+      this.renderList(start, end, geo);
+    } else {
+      this.renderCards(start, end);
+    }
+
+    if (this.rows.length > geo.perPage) {
+      const cardMode = this.currentStyle !== 'list';
+      const hint = makeText(
+        this.scene,
+        cardMode ? geo.width - 16 : geo.width / 2,
+        cardMode ? 18 : geo.height - 16,
+        cardMode ? `滚轮翻页 ${pageLabel(this.rows.length, this.scroll, geo.perPage)}` : '滚轮翻页',
+        {
+          origin: cardMode ? [1, 0] : [0.5, 0],
+          color: COLORS.muted,
+        },
+      );
+      this.rowObjects.push(hint);
+    }
+
+    this.container.add(this.rowObjects);
+  }
+
+  private renderList(start: number, end: number, geo: PanelGeometry): void {
+    const rowHeight = 28;
     for (let index = start; index < end; index++) {
       const row = this.rows[index];
-      const y = HEADER_HEIGHT + (index - start) * ROW_HEIGHT;
+      const y = geo.header + (index - start) * rowHeight;
       const color = row.disabled ? COLORS.muted : COLORS.ink;
       const text = makeText(this.scene, 16, y + 7, row.label, { color });
       this.rowObjects.push(text);
 
       if (row.detail) {
-        const detail = makeText(this.scene, PANEL_WIDTH - 16, y + 8, row.detail, {
+        const detail = makeText(this.scene, geo.width - 16, y + 8, row.detail, {
           origin: [1, 0],
           color: row.disabled ? COLORS.muted : COLORS.inkSoft,
         });
@@ -125,15 +178,66 @@ export class Panel {
         });
       }
     }
+  }
 
-    if (this.rows.length > MAX_ROWS) {
-      const hint = makeText(this.scene, PANEL_WIDTH / 2, PANEL_HEIGHT - 16, '滚轮翻页', {
-        origin: [0.5, 0],
-        color: COLORS.muted,
+  private renderCards(start: number, end: number): void {
+    const isBuild = this.currentStyle === 'build';
+    const card = isBuild ? CARD.build : CARD.labor;
+    const geo = GEOMETRY[this.currentStyle];
+
+    for (let index = start; index < end; index++) {
+      const row = this.rows[index];
+      const slot = index - start;
+      const col = isBuild ? slot % 2 : 0;
+      const line = isBuild ? Math.floor(slot / 2) : slot;
+      const x = card.x + col * (card.w + card.gapX);
+      const y = geo.header + line * (card.h + card.gapY);
+
+      const g = this.scene.add.graphics();
+      const fill = row.disabled ? 0xe6d6b2 : 0xf8ecd0;
+      g.fillStyle(fill, 1).fillRect(x, y, card.w, card.h);
+      g.lineStyle(1, row.disabled ? TINTS.muted : TINTS.wood, 1).strokeRect(
+        x + 0.5,
+        y + 0.5,
+        card.w - 1,
+        card.h - 1,
+      );
+      if (!row.disabled) {
+        g.lineStyle(1, TINTS.goldDark, 0.7).strokeRect(x + 3.5, y + 3.5, card.w - 7, card.h - 7);
+      }
+      this.rowObjects.push(g);
+
+      const nameColor = row.disabled ? COLORS.muted : COLORS.ink;
+      const name = makeText(this.scene, x + 10, y + 8, row.label, {
+        color: nameColor,
       });
-      this.rowObjects.push(hint);
-    }
+      this.rowObjects.push(name);
 
-    this.container.add(this.rowObjects);
+      if (row.detail) {
+        const detail = makeText(this.scene, x + 10, y + (isBuild ? 26 : 30), row.detail, {
+          color: row.disabled ? COLORS.muted : COLORS.inkSoft,
+        });
+        detail.setWordWrapWidth(card.w - 22);
+        detail.setLineSpacing(0);
+        this.rowObjects.push(detail);
+      }
+
+      if (!row.disabled && row.onClick) {
+        const hover = this.scene.add.graphics().setVisible(false);
+        hover.lineStyle(2, TINTS.goldDark, 1).strokeRect(x + 1, y + 1, card.w - 2, card.h - 2);
+        this.rowObjects.push(hover);
+
+        const zone = this.scene.add
+          .zone(x + card.w / 2, y + card.h / 2, card.w, card.h)
+          .setInteractive({ useHandCursor: true });
+        zone.on('pointerover', () => hover.setVisible(true));
+        zone.on('pointerout', () => hover.setVisible(false));
+        zone.on('pointerdown', () => {
+          row.onClick?.();
+          if (this.visible) this.renderRows();
+        });
+        this.rowObjects.push(zone);
+      }
+    }
   }
 }

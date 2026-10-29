@@ -683,6 +683,25 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  /** Only nodes near the camera are drawn; the island has hundreds of them. */
+  private cullNodes(): void {
+    const view = this.cameras.main.worldView;
+    const pad = 64;
+    for (const [id, entry] of this.nodeSprites) {
+      const node = this.state.world.nodes[id];
+      if (!node) continue;
+      const onScreen =
+        node.x >= view.x - pad &&
+        node.x <= view.right + pad &&
+        node.y >= view.y - pad &&
+        node.y <= view.bottom + pad;
+      entry.sprite.setVisible(onScreen);
+      const def = RESOURCE_NODES[node.type];
+      const depleted = def ? (this.state.world.nodeStates[id]?.remaining ?? def.maxHits) <= 0 : false;
+      entry.shadow.setVisible(onScreen && !depleted);
+    }
+  }
+
   private syncBuildings(): void {
     const ids = new Set(this.state.buildings.map((b) => b.id));
     for (const [id, sprite] of this.buildingSprites) {
@@ -1243,6 +1262,7 @@ export class IslandScene extends Phaser.Scene {
     if (this.time.now - this.lastNodeSync >= 250) {
       this.lastNodeSync = this.time.now;
       this.syncNodes();
+      this.cullNodes();
     }
 
     const night = nightAlpha(this.state.time.clockMin);

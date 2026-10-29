@@ -52,6 +52,23 @@ export class UIScene extends Phaser.Scene {
     this.adventure = new AdventurePanel(this);
     this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
+    // Dev-only QA shortcut: /AI_LBS/?panel=map&zoom=2 opens the map.
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const panelKind = params.get('panel');
+      if (panelKind === 'map') {
+        this.withState((state) => {
+          this.map.toggle(state);
+          const zoom = Number(params.get('zoom'));
+          if (zoom > 1) this.map.setZoom(state, zoom);
+        });
+      } else if (panelKind === 'build') {
+        this.withState((state) => this.openBuild(state));
+      } else if (panelKind === 'labor') {
+        this.withState((state) => this.openLabor(state));
+      }
+    }
+
     const notice = this.registry.get('loadNotice') as string | undefined;
     if (notice) {
       this.registry.set('loadNotice', null);

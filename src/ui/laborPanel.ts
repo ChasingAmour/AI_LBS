@@ -37,6 +37,6 @@ export function openLaborPanel(panel: Panel, state: GameState): void {
     panel.close();
     return;
   }
-  const refresh = () => panel.open('劳工 (L)', laborRows(state, refresh));
-  panel.open('劳工 (L)', laborRows(state, refresh));
+  const refresh = () => panel.open('劳工 (L)', laborRows(state, refresh), 'labor');
+  panel.open('劳工 (L)', laborRows(state, refresh), 'labor');
 }
