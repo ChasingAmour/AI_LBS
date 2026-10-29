@@ -2,6 +2,7 @@ import type { GameState, ItemStack } from '../core/gameState';
 import { BUILDINGS } from '../data/buildings';
 import { ITEMS } from '../data/items';
 import { RESOURCE_NODES, nodeDefForId } from '../data/spawns';
+import { cropDef } from '../data/farming';
 import { addItem, countItem } from './inventorySystem';
 import { deriveStats } from './statsSystem';
 
@@ -13,6 +14,7 @@ export type InteractKind =
   | 'dungeon'
   | 'groundLoot'
   | 'fishing'
+  | 'farm'
   | 'node'
   | 'water';
 
@@ -30,6 +32,8 @@ export interface InteractOptions {
   /** a rod is selected and water is within reach */
   nearWater?: boolean;
   hasRod?: boolean;
+  /** a waterskin is not full and fresh water is within reach */
+  canFillWaterskin?: boolean;
 }
 
 /** Panels that can be open while the player is gathering. */
@@ -41,6 +45,7 @@ export type UiPanel =
   | 'map'
   | 'adventure'
   | 'menu'
+  | 'seed'
   | 'pause'
   | null;
 
@@ -122,6 +127,20 @@ export function findInteractTarget(
     const bx = building.x * 16 + 8;
     const by = building.y * 16 + 16;
     if (distance(px, py, bx, by) > BUILDING_RADIUS) continue;
+    if (building.type === 'farm_plot') {
+      let label = '种植';
+      if (building.crop) {
+        const def = cropDef(building.crop.seedId);
+        if (def && building.crop.growth >= def.growPoints) label = '收获';
+        else if (building.crop.wateredDay === state.time.day) label = '查看农田';
+        else label = '浇水';
+      }
+      consider(
+        { kind: 'farm', id: building.id, label, x: bx, y: by, durationSec: 0 },
+        2,
+      );
+      continue;
+    }
     const name = BUILDINGS[building.type]?.name ?? building.type;
     let label = `使用 ${name}`;
     if (building.type === 'tent') label = '睡觉';
@@ -196,7 +215,14 @@ export function findInteractTarget(
 
   if (options.onWater) {
     consider(
-      { kind: 'water', id: 'water', label: '喝水', x: px, y: py, durationSec: WATER_CHANNEL },
+      {
+        kind: 'water',
+        id: 'water',
+        label: options.canFillWaterskin ? '装满水袋' : '喝水',
+        x: px,
+        y: py,
+        durationSec: WATER_CHANNEL,
+      },
       6,
     );
   }

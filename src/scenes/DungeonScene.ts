@@ -37,6 +37,7 @@ import { tickTorchFuel } from '../systems/resourceSystem';
 import { advanceTime } from '../systems/timeSystem';
 import { tickLabor, settleLaborRations } from '../systems/laborSystem';
 import { isFloorCleared, markFloorCleared, tickWeekReset } from '../systems/dungeonReset';
+import { tickFarms } from '../systems/farmingSystem';
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
@@ -163,6 +164,7 @@ export class DungeonScene extends Phaser.Scene {
     });
     this.bus.on('time:dayChanged', () => {
       tickWeekReset(this.state, true);
+      tickFarms(this.state, this.state.time.day - 1);
       settleLaborRations(this.state);
       this.save();
     });

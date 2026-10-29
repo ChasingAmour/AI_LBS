@@ -9,6 +9,9 @@ import { AdventurePanel } from '../ui/adventurePanel';
 import { TouchControls } from '../ui/touchControls';
 import { TouchMenu } from '../ui/touchMenu';
 import { isTouchDevice, prefersTouchLayout } from '../core/platform';
+import { CROPS } from '../data/farming';
+import { countItem } from '../systems/inventorySystem';
+import { plantCrop } from '../systems/farmingSystem';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
 import { openLaborPanel } from '../ui/laborPanel';
@@ -36,7 +39,7 @@ export class UIScene extends Phaser.Scene {
     const bus = this.registry.get('bus') as EventBus | undefined;
     bus?.emit('save:requested', { reason: 'settings' });
   };
-  private panelKind: 'build' | 'craft' | 'labor' | null = null;
+  private panelKind: 'build' | 'craft' | 'labor' | 'seed' | null = null;
   private busHandlers: { event: string; handler: (payload: any) => void }[] = [];
 
   constructor() {
@@ -149,6 +152,7 @@ export class UIScene extends Phaser.Scene {
     this.game.events.on('ui:banner', this.bannerHandler);
     this.game.events.on('ui:panel', this.panelHandler);
     this.game.events.on('ui:hudCompact', this.hudCompactHandler);
+    this.game.events.on('ui:seedPicker', this.seedPickerHandler);
     this.input.on('pointerdown', () => {
       if (this.registry.get('uiOpen')) playSfx(this, this.state(), 'click');
     });
@@ -157,6 +161,7 @@ export class UIScene extends Phaser.Scene {
       this.game.events.off('ui:panel', this.panelHandler);
       this.game.events.off('ui:hudCompact', this.hudCompactHandler);
       this.game.events.off('ui:touchMenu', this.onTouchMenu);
+      this.game.events.off('ui:seedPicker', this.seedPickerHandler);
       this.music?.destroy();
     });
 
@@ -216,6 +221,10 @@ export class UIScene extends Phaser.Scene {
     this.busHandlers.push({ event, handler });
     this.events.once('shutdown', () => bus.off(event, handler));
   }
+
+  private seedPickerHandler = (buildingId: string): void => {
+    this.withState((state) => this.openSeedPicker(state, buildingId));
+  };
 
   private onTouchMenu = (): void => {
     if (this.anyPanelOpen()) this.closeAllPanels();
@@ -279,6 +288,32 @@ export class UIScene extends Phaser.Scene {
     this.map.close();
     this.panelKind = 'labor';
     openLaborPanel(this.panel, state);
+  }
+
+  private openSeedPicker(state: GameState, buildingId: string): void {
+    const available = Object.values(CROPS)
+      .map((def) => ({ def, count: countItem(state, def.seedId) }))
+      .filter((entry) => entry.count > 0);
+    if (available.length === 0) {
+      this.hud.showBanner('需要浆果或椰子做种子');
+      return;
+    }
+    this.closeAllPanels();
+    playSfx(this, state, 'open');
+    this.panelKind = 'seed';
+    this.panel.open(
+      '选择种子',
+      available.map(({ def, count }) => ({
+        label: `${def.name} ×${count}`,
+        detail: `浇水 ${def.growPoints / 2} 天成熟`,
+        onClick: () => {
+          if (plantCrop(state, buildingId, def.seedId)) {
+            this.hud.showBanner(`种下了${def.name}`);
+            this.panel.close();
+          }
+        },
+      })),
+    );
   }
 
   private state(): GameState | null {

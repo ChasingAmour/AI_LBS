@@ -82,6 +82,26 @@ describe('interaction system', () => {
     ).toBe('node');
   });
 
+  it('labels an empty farm as planting and a ripe crop as harvest', () => {
+    const s = createNewGame(1);
+    s.buildings.push({ id: 'b_farm', type: 'farm_plot', x: 6, y: 6, hp: 40 });
+    const empty = findInteractTarget(s, 6 * 16 + 8, 6 * 16 + 16, { onWater: false });
+    expect(empty?.kind).toBe('farm');
+    expect(empty?.label).toContain('种植');
+
+    s.buildings[0].crop = { seedId: 'berries', growth: 4, wateredDay: 1, plantedDay: 1 };
+    const ripe = findInteractTarget(s, 6 * 16 + 8, 6 * 16 + 16, { onWater: false });
+    expect(ripe?.label).toContain('收获');
+  });
+
+  it('offers a waterskin refill when asked', () => {
+    const s = createNewGame(1);
+    expect(findInteractTarget(s, 0, 0, { onWater: true })?.label).toBe('喝水');
+    expect(
+      findInteractTarget(s, 0, 0, { onWater: true, canFillWaterskin: true })?.label,
+    ).toBe('装满水袋');
+  });
+
   it('labels a depleted node and keeps chests interactable', () => {
     const s = createNewGame(1);
     s.world.nodes = {

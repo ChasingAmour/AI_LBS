@@ -49,6 +49,9 @@ import {
   tickFishing,
   type FishingSession,
 } from '../systems/fishingSystem';
+import { cropDef } from '../data/farming';
+import { cropStage, fillWaterskin, harvestCrop, tickFarms, waterCrop } from '../systems/farmingSystem';
+import { cropTexture } from '../ui/farmArt';
 import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
   gatherNode,
@@ -132,6 +135,7 @@ export class IslandScene extends Phaser.Scene {
   private fishingLine?: Phaser.GameObjects.Graphics;
   private fishingBobber?: Phaser.GameObjects.Arc;
   private fishingMark?: Phaser.GameObjects.Text;
+  private cropSprites = new Map<string, Phaser.GameObjects.Image>();
   private channel: { target: InteractTarget; elapsed: number } | null = null;
   private accumulator = 0;
   private nextAttackAt = 0;
@@ -740,6 +744,7 @@ export class IslandScene extends Phaser.Scene {
         this.buildingLights.set(building.id, light);
       }
     }
+    this.syncCrops();
   }
 
   private syncAnimals(): void {
@@ -918,6 +923,7 @@ export class IslandScene extends Phaser.Scene {
     });
     this.bus.on('time:dayChanged', () => {
       tickWeekReset(this.state, false);
+      tickFarms(this.state, this.state.time.day - 1);
       respawnNodes(this.state);
       const rations = settleLaborRations(this.state);
       if (rations.fled.length > 0) {
@@ -1452,10 +1458,15 @@ export class IslandScene extends Phaser.Scene {
       onWater,
       nearWater,
       hasRod: this.hasFishingRod(),
+      canFillWaterskin: this.nearFreshWater() && this.hasPartialWaterskin(),
     });
     if (!target) return;
     if (target.kind === 'fishing') {
       this.startFishingSession();
+      return;
+    }
+    if (target.kind === 'farm') {
+      this.useFarm(target.id);
       return;
     }
     if (target.kind === 'dungeon') {
@@ -1636,6 +1647,91 @@ export class IslandScene extends Phaser.Scene {
     }
   }
 
+  private hasPartialWaterskin(): boolean {
+    return this.state.inventory.some(
+      (item) => item.baseId === 'waterskin' && (item.durability ?? 0) < 3,
+    );
+  }
+
+  private nearFreshWater(): boolean {
+    const spring = this.island.landmarks.find((landmark) => landmark.kind === 'spring');
+    if (spring && Math.hypot(this.player.x - spring.x, this.player.y - spring.y) <= 64) {
+      return true;
+    }
+    const tileX = Math.floor(this.player.x / WORLD.tile);
+    const tileY = Math.floor(this.player.y / WORLD.tile);
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        if (this.terrainAt(tileX + dx, tileY + dy) === TILE.stream) return true;
+      }
+    }
+    return false;
+  }
+
+  private useFarm(buildingId: string): void {
+    const building = this.state.buildings.find((entry) => entry.id === buildingId);
+    if (!building || building.type !== 'farm_plot') return;
+    if (!building.crop) {
+      this.game.events.emit('ui:seedPicker', buildingId);
+      return;
+    }
+    const def = cropDef(building.crop.seedId);
+    if (!def) return;
+    if (building.crop.growth >= def.growPoints) {
+      const items = harvestCrop(this.state, buildingId, this.rng);
+      if (items) {
+        collectLoot(this.state, items, this.player.x, this.player.y);
+        const names = items
+          .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
+          .join('、');
+        this.game.events.emit('ui:banner', `收获了 ${names}`);
+        playSfx(this, this.state, 'pickup');
+        this.syncCrops();
+      }
+      return;
+    }
+    if (building.crop.wateredDay === this.state.time.day) {
+      this.game.events.emit('ui:banner', '今天已经浇过水了');
+      return;
+    }
+    if (waterCrop(this.state, buildingId)) {
+      this.game.events.emit('ui:banner', '浇了水，作物长得更快');
+      playSfx(this, this.state, 'pickup');
+    } else {
+      this.game.events.emit('ui:banner', '水袋空了，去溪边装水');
+    }
+  }
+
+  /** Keeps one crop overlay per farm plot in sync with its growth stage. */
+  private syncCrops(): void {
+    const farms = new Map(
+      this.state.buildings
+        .filter((building) => building.type === 'farm_plot')
+        .map((building) => [building.id, building]),
+    );
+    for (const [id, sprite] of this.cropSprites) {
+      const building = farms.get(id);
+      if (!building?.crop) {
+        sprite.destroy();
+        this.cropSprites.delete(id);
+      }
+    }
+    for (const building of farms.values()) {
+      if (!building.crop) continue;
+      const stage = cropStage(building.crop);
+      const key = cropTexture(building.crop.seedId, stage);
+      const x = building.x * 16 + 8;
+      const y = building.y * 16 + 16;
+      let sprite = this.cropSprites.get(building.id);
+      if (!sprite) {
+        sprite = this.add.image(x, y, key).setOrigin(0.5, 1);
+        this.cropSprites.set(building.id, sprite);
+      }
+      if (sprite.texture.key !== key) sprite.setTexture(key);
+      sprite.setPosition(x, y).setDepth(depthFor(y) + 1);
+    }
+  }
+
   private gatherEnergyCost(nodeType: string): number {    if (nodeType === 'tree') return 5;
     if (nodeType === 'rock' || nodeType === 'clay') return 6;
     return 1;
@@ -1671,8 +1767,16 @@ export class IslandScene extends Phaser.Scene {
         this.openChest(target);
         break;
       case 'water':
-        drinkFreshWater(this.state);
-        this.game.events.emit('ui:banner', '你喝了几口水，口渴 +40');
+        if (target.label === '装满水袋' && fillWaterskin(this.state)) {
+          this.game.events.emit('ui:banner', '水袋装满了');
+          playSfx(this, this.state, 'pickup');
+        } else {
+          drinkFreshWater(this.state);
+          this.game.events.emit('ui:banner', '你喝了几口水，口渴 +40');
+        }
+        break;
+      case 'farm':
+        this.useFarm(target.id);
         break;
       case 'savage':
         this.capture(target);

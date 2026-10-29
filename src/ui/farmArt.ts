@@ -19,11 +19,12 @@ export function ensureFarmArt(scene: Phaser.Scene): void {
   ];
   for (const [seed, fruit] of seeds) {
     for (let stage = 1; stage <= 3; stage++) {
-      const height = 3 + stage * 2;
+      const height = stage === 1 ? 6 : 3 + stage * 2;
       g.fillStyle(0x2f6b3f).fillRect(7, 14 - height, 2, height);
+      g.fillStyle(0x4f9f5f).fillRect(5, 14 - height, 2, 2).fillRect(9, 13 - height, 2, 2);
       if (stage >= 2) {
-        g.fillStyle(0x4f9f5f).fillRect(4, 12 - stage, 3, 2);
-        g.fillStyle(0x4f9f5f).fillRect(9, 13 - stage, 3, 2);
+        g.fillStyle(0x4f9f5f).fillRect(3, 11 - stage, 3, 2);
+        g.fillStyle(0x4f9f5f).fillRect(10, 12 - stage, 3, 2);
       }
       if (stage === 3) {
         g.fillStyle(fruit).fillCircle(5, 8, 2).fillCircle(11, 9, 2);
