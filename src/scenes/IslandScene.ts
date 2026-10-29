@@ -41,6 +41,7 @@ import {
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
+import { canChop } from '../systems/toolCombat';
 import {
   FISHING_ROD_ID,
   rollCatch,
@@ -51,6 +52,7 @@ import {
 } from '../systems/fishingSystem';
 import { cropDef } from '../data/farming';
 import { cropStage, fillWaterskin, harvestCrop, tickFarms, waterCrop } from '../systems/farmingSystem';
+import { grantXp } from '../systems/levelSystem';
 import { cropTexture } from '../ui/farmArt';
 import { damageTool, ensureHotbar } from '../systems/inventorySystem';
 import {
@@ -941,6 +943,7 @@ export class IslandScene extends Phaser.Scene {
     this.onBus('time:dayChanged', () => {
       tickWeekReset(this.state, false);
       tickFarms(this.state, this.state.time.day - 1);
+      grantXp(this.state, 10, this.bus);
       respawnNodes(this.state);
       const rations = settleLaborRations(this.state);
       if (rations.fled.length > 0) {
@@ -991,8 +994,43 @@ export class IslandScene extends Phaser.Scene {
       ...this.state.animals
         .filter((animal) => animal.mode !== 'dead')
         .map((animal) => ({ x: animal.x, y: animal.y })),
+      ...this.treeTargets(),
     ];
     this.attackAtAngle(autoAimAngle(this.player, targets, this.state.player.facing, 96));
+  }
+
+  private treeTargets(): Array<{ id: string; x: number; y: number }> {
+    return Object.entries(this.state.world.nodes)
+      .filter(([id, node]) => {
+        if (node.type !== 'tree') return false;
+        const def = RESOURCE_NODES.tree;
+        const remaining = this.state.world.nodeStates[id]?.remaining ?? def.maxHits;
+        return remaining > 0;
+      })
+      .map(([id, node]) => ({ id, x: node.x, y: node.y }));
+  }
+
+  /** Axe swings chop the nearest tree in the arc instead of hitting enemies. */
+  private nearestTree(angle: number): { id: string; x: number; y: number } | null {
+    const hits = computeHitTargets(
+      { x: this.player.x, y: this.player.y, angle },
+      { kind: 'arc', range: 36, angleDeg: 90 },
+      this.treeTargets(),
+    );
+    if (hits.length === 0) return null;
+    return this.treeTargets()
+      .filter((tree) => hits.includes(tree.id))
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - this.player.x, a.y - this.player.y) -
+          Math.hypot(b.x - this.player.x, b.y - this.player.y),
+      )[0];
+  }
+
+  private hasAxe(): boolean {
+    return this.state.inventory.some(
+      (item) => item.baseId === 'stone_axe' && (item.durability ?? 0) > 0,
+    );
   }
 
   private placeSelectedBuilding(type: string, pointer: Phaser.Input.Pointer): void {
@@ -1148,6 +1186,42 @@ export class IslandScene extends Phaser.Scene {
     const haste = now < this.hasteUntil ? 0.7 : 1;
     this.nextAttackAt = now + weapon.cooldownSec * 1000 * haste;
 
+    const tree = this.nearestTree(angle);
+    if (tree) {
+      this.nextAttackAt = now + 700;
+      const selected = this.state.hotbar[this.state.hotbarIndex];
+      if (!canChop(selected, 'tree') || !this.hasAxe()) {
+        this.game.events.emit('ui:banner', '空手砍不动树，需要石斧');
+        this.drawSwing(angle, 36);
+        return;
+      }
+      if (!spendEnergy(this.state, 5)) {
+        this.game.events.emit('ui:banner', '精力不足，先休息一下');
+        this.drawSwing(angle, 36);
+        return;
+      }
+      const result = gatherNode(this.state, tree.id, this.rng);
+      this.state.rngState = this.rng.state();
+      damageTool(this.state, 'stone_axe', 1);
+      if (result.items.length > 0) {
+        collectLoot(this.state, result.items, tree.x, tree.y);
+        const names = result.items
+          .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
+          .join('、');
+        this.game.events.emit('ui:banner', `砍下 ${names}`);
+        playSfx(this, this.state, 'chop');
+      } else if (result.depleted) {
+        this.game.events.emit('ui:banner', '树被砍倒了');
+        playSfx(this, this.state, 'chop');
+      } else {
+        this.game.events.emit('ui:banner', '继续砍树');
+        playSfx(this, this.state, 'chop');
+      }
+      this.syncNodes();
+      this.drawSwing(angle, 36);
+      return;
+    }
+
     const targets = [
       ...this.state.savages
         .filter((savage) => savage.mode !== 'dead')
@@ -1171,6 +1245,7 @@ export class IslandScene extends Phaser.Scene {
         if (result === 'dead') {
           this.game.events.emit('ui:banner', `猎到了${ANIMALS[animal.type]?.name ?? '野兽'}`);
           playSfx(this, this.state, 'enemy_die');
+          grantXp(this.state, animal.type === 'boar' ? 18 : 8, this.bus);
           if (stats.killHaste) this.hasteUntil = now + 2000;
         }
         continue;
@@ -1189,6 +1264,7 @@ export class IslandScene extends Phaser.Scene {
       } else if (result === 'dead') {
         this.game.events.emit('ui:banner', '野人倒下了');
         playSfx(this, this.state, 'enemy_die');
+        grantXp(this.state, 25, this.bus);
         if (stats.killHaste) this.hasteUntil = now + 2000;
       }
     }
@@ -1431,6 +1507,7 @@ export class IslandScene extends Phaser.Scene {
       if (Math.hypot(this.player.x - landmark.x, this.player.y - landmark.y) > 120) continue;
       this.state.world.discovered.push(landmark.id);
       this.game.events.emit('ui:banner', `发现了${LANDMARK_NAMES[landmark.kind]}`);
+      grantXp(this.state, 15, this.bus);
     }
   }
 
@@ -1628,6 +1705,7 @@ export class IslandScene extends Phaser.Scene {
       const items = rollCatch(this.rng);
       this.state.rngState = this.rng.state();
       collectLoot(this.state, items, this.player.x, this.player.y);
+      grantXp(this.state, 4, this.bus);
       const names = items
         .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
         .join('、');
@@ -1711,6 +1789,7 @@ export class IslandScene extends Phaser.Scene {
       if (items) {
         this.state.rngState = this.rng.state();
         collectLoot(this.state, items, this.player.x, this.player.y);
+        grantXp(this.state, 5, this.bus);
         const names = items
           .map((item) => `${ITEMS[item.baseId]?.name ?? item.baseId}×${item.count}`)
           .join('、');
@@ -1836,6 +1915,7 @@ export class IslandScene extends Phaser.Scene {
     spendEnergy(this.state, this.gatherEnergyCost(node.type));
     const result = gatherNode(this.state, target.id, this.rng);
     this.state.rngState = this.rng.state();
+    grantXp(this.state, 2, this.bus);
     if (result.items.length > 0) {
       playSfx(this, this.state, node.type === 'tree' ? 'chop' : node.type === 'rock' || node.type === 'clay' ? 'mine' : 'pickup');
       const leftover = collectLoot(this.state, result.items, node.x, node.y);

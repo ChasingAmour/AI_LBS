@@ -117,6 +117,17 @@ describe('dungeon enemies', () => {
     expect(boss.sightRange).toBeGreaterThan(elite.sightRange);
   });
 
+  it('levels and armor rise with rank and stay capped', () => {
+    const normal = createDungeonEnemy('crab', 0, 0, 'n');
+    const elite = createDungeonEnemy('crab', 0, 0, 'e', 'elite');
+    const boss = createDungeonEnemy('crab', 0, 0, 'b', 'boss');
+    expect(elite.level).toBe(normal.level + 2);
+    expect(boss.level).toBe(normal.level + 4);
+    expect(elite.armor).toBe(5);
+    expect(boss.armor).toBe(10);
+    expect(boss.armor).toBeLessThanOrEqual(60);
+  });
+
   it('技能有预警，预警结束后才结算', () => {
     const enemy = createDungeonEnemy('crab', 0, 0, 'b', 'boss');
     const player = { x: 40, y: 0 };

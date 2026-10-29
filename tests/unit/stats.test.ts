@@ -19,6 +19,16 @@ function equip(slot: 'weapon' | 'armor' | 'boots', baseId: string, rarity: 'comm
 }
 
 describe('derived stats', () => {
+  it('adds level base attributes before gear', () => {
+    const state = createNewGame(1);
+    state.player.level = 5;
+    const stats = deriveStats(state);
+    expect(stats.attack).toBe(12);
+    expect(stats.defense).toBe(4);
+    expect(stats.armor).toBe(8);
+    expect(stats.moveMul).toBeCloseTo(1.04);
+  });
+
   it('aggregates base stats and affixes', () => {
     const { state } = equip('weapon', 'captain_cutlass', 'epic', 4);
     const stats = deriveStats(state);

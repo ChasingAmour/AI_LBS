@@ -85,6 +85,10 @@ export interface GameState {
     thirst: number;
     energy: number;
     facing: 'up' | 'down' | 'left' | 'right';
+    /** character level, 1..20 */
+    level: number;
+    /** experience toward the next level */
+    xp: number;
     dead?: boolean;
     healing?: { timeLeft: number; perSecond: number } | null;
   };
@@ -159,6 +163,8 @@ export function createNewGame(seed: number = Date.now()): GameState {
       thirst: 100,
       energy: 100,
       facing: 'down',
+      level: 1,
+      xp: 0,
     },
     inventory: [],
     hotbar: Array.from({ length: 8 }, () => null),

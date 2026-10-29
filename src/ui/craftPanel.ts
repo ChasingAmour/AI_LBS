@@ -1,4 +1,5 @@
 import type { GameState } from '../core/gameState';
+import type { EventBus } from '../core/eventBus';
 import { ITEMS } from '../data/items';
 import { RECIPES, type Station } from '../data/recipes';
 import { canCraft, craft, recipesFor } from '../systems/craftingSystem';
@@ -18,7 +19,12 @@ function costText(recipeId: string): string {
     .join(' + ');
 }
 
-export function craftRows(state: GameState, nearStation: boolean, refresh: () => void): PanelRow[] {
+export function craftRows(
+  state: GameState,
+  nearStation: boolean,
+  refresh: () => void,
+  bus?: EventBus,
+): PanelRow[] {
   const rows: PanelRow[] = [];
   for (const { station, label } of STATIONS) {
     const recipes = recipesFor(station, state.camp.level);
@@ -33,7 +39,7 @@ export function craftRows(state: GameState, nearStation: boolean, refresh: () =>
         detail: check.ok ? `${costText(recipe.id)} · 点击合成` : check.reason,
         disabled: !check.ok,
         onClick: () => {
-          if (craft(state, recipe.id, stationOk)) refresh();
+          if (craft(state, recipe.id, stationOk, bus)) refresh();
         },
       });
     }
@@ -41,11 +47,16 @@ export function craftRows(state: GameState, nearStation: boolean, refresh: () =>
   return rows;
 }
 
-export function openCraftPanel(panel: Panel, state: GameState, nearStation: boolean): void {
+export function openCraftPanel(
+  panel: Panel,
+  state: GameState,
+  nearStation: boolean,
+  bus?: EventBus,
+): void {
   if (panel.isOpen) {
     panel.close();
     return;
   }
-  const refresh = () => panel.open('合成 (C)', craftRows(state, nearStation, refresh));
-  panel.open('合成 (C)', craftRows(state, nearStation, refresh));
+  const refresh = () => panel.open('合成 (C)', craftRows(state, nearStation, refresh, bus));
+  panel.open('合成 (C)', craftRows(state, nearStation, refresh, bus));
 }

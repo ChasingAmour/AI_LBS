@@ -169,7 +169,9 @@ export function applyHitToAnimal(
   if (animal.mode === 'dead') return 'dead';
   const def = ANIMALS[animal.type];
   const raw = (weapon.damage + (mods.attack ?? 0)) * (mods.savageMul ?? 1);
-  animal.hp -= Math.max(1, Math.round(raw));
+  const defense = def?.defense ?? 0;
+  const armor = def?.armor ?? 0;
+  animal.hp -= Math.max(1, Math.round((raw - defense) * (1 - armor / 100)));
   animal.disengageTimer = 0;
   if (def?.flees) {
     // Fish dart away from the player instead of fighting back.

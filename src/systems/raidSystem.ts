@@ -72,7 +72,7 @@ export function updateSavageAi(state: GameState, savage: SavageState, dtSec: num
   const dy = state.player.y - savage.y;
   const distance = Math.hypot(dx, dy) || 1;
   if (distance > 20) {
-    const speed = 40;
+    const speed = savage.speed ?? 40;
     savage.x += (dx / distance) * speed * dtSec;
     savage.y += (dy / distance) * speed * dtSec;
     return;
@@ -80,7 +80,7 @@ export function updateSavageAi(state: GameState, savage: SavageState, dtSec: num
 
   savage.attackCooldown = (savage.attackCooldown ?? 0) - dtSec;
   if (savage.attackCooldown <= 0) {
-    applyDamage(state, 8, { kind: 'savage', id: savage.id });
+    applyDamage(state, savage.attack ?? 8, { kind: 'savage', id: savage.id });
     savage.attackCooldown = 1;
   }
 }

@@ -14,11 +14,11 @@ const BOOTS = '#8a5a2b';
 
 function drawLeg(ctx: CanvasRenderingContext2D, x: number, top: number): void {
   ctx.fillStyle = OUTLINE;
-  ctx.fillRect(x - 1, top - 1, 6, 8);
+  ctx.fillRect(x - 1, top - 1, 6, 6);
   ctx.fillStyle = OVERALLS;
-  ctx.fillRect(x, top, 4, 4);
+  ctx.fillRect(x, top, 4, 2);
   ctx.fillStyle = BOOTS;
-  ctx.fillRect(x, top + 4, 4, 2);
+  ctx.fillRect(x, top + 2, 4, 3);
 }
 
 function paintFrame(
@@ -35,17 +35,17 @@ function paintFrame(
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(source, cutX, cutY, 16, 16, 0, 0, 16, 16);
 
-  // Rebuild the lower body so the legs can alternate without touching the torso.
-  ctx.clearRect(3, 10, 10, 6);
+  // Rebuild only the lower body so the legs stay below the torso.
+  ctx.clearRect(3, 11, 10, 5);
   if (variant === 0) {
-    drawLeg(ctx, 3, 11);
-    drawLeg(ctx, 9, 11);
+    drawLeg(ctx, 3, 12);
+    drawLeg(ctx, 9, 12);
   } else if (variant === 1) {
-    drawLeg(ctx, 3, 11);
-    drawLeg(ctx, 9, 10);
-  } else {
-    drawLeg(ctx, 3, 10);
+    drawLeg(ctx, 3, 12);
     drawLeg(ctx, 9, 11);
+  } else {
+    drawLeg(ctx, 3, 11);
+    drawLeg(ctx, 9, 12);
   }
   texture.refresh();
 }

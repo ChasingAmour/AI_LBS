@@ -13,6 +13,14 @@ export interface SavageState {
   stun: number;
   /** flat damage reduction, defaults to 0 */
   defense?: number;
+  /** percentage damage reduction, defaults to 0 */
+  armor?: number;
+  /** monster level shown in combat UI */
+  level?: number;
+  /** damage per bite/attack */
+  attack?: number;
+  /** movement speed in px/s */
+  speed?: number;
   /** seconds of stun remaining, null when not stunned */
   stunnedUntil: number | null;
   /** seconds since the last hit taken */
@@ -29,6 +37,11 @@ export function createSavage(id: string, x: number, y: number, hp = 60): SavageS
     y,
     hp,
     stun: 0,
+    defense: 0,
+    armor: 5,
+    level: 3,
+    attack: 8,
+    speed: 40,
     stunnedUntil: null,
     lastHitAgo: 0,
     mode: 'attack',

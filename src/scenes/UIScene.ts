@@ -176,6 +176,10 @@ export class UIScene extends Phaser.Scene {
       this.listen(bus, 'labor:fled', () => this.hud.showBanner('有劳工因断粮逃跑了'));
       this.listen(bus, 'camp:levelUp', (payload) => this.hud.showBanner(`营地升级到 Lv${payload.level}`));
       this.listen(bus, 'tutorial:advanced', () => this.hud.showBanner('目标完成'));
+      this.listen(bus, 'player:levelUp', (payload) => {
+        playSfx(this, this.state(), 'legendary');
+        this.hud.showBanner(`升级！Lv${payload.level}`, 3200);
+      });
     }
   }
 
@@ -275,7 +279,7 @@ export class UIScene extends Phaser.Scene {
     this.inventory.close();
     this.map.close();
     this.panelKind = 'craft';
-    openCraftPanel(this.panel, state, this.nearStation());
+    openCraftPanel(this.panel, state, this.nearStation(), this.registry.get('bus') as EventBus | undefined);
   }
 
   private openBuild(state: GameState): void {

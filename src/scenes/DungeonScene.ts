@@ -38,6 +38,7 @@ import { advanceTime } from '../systems/timeSystem';
 import { tickLabor, settleLaborRations } from '../systems/laborSystem';
 import { isFloorCleared, markFloorCleared, tickWeekReset } from '../systems/dungeonReset';
 import { tickFarms } from '../systems/farmingSystem';
+import { grantXp } from '../systems/levelSystem';
 import { resolveRaidDawn } from '../systems/raidSystem';
 import { saveGame } from '../systems/saveSystem';
 import { playSfx } from '../systems/audio';
@@ -166,6 +167,7 @@ export class DungeonScene extends Phaser.Scene {
     this.bus.on('time:dayChanged', () => {
       tickWeekReset(this.state, true);
       tickFarms(this.state, this.state.time.day - 1);
+      grantXp(this.state, 10, this.bus);
       settleLaborRations(this.state);
       this.save();
     });
@@ -478,7 +480,7 @@ export class DungeonScene extends Phaser.Scene {
     this.bossBar.fillStyle(0x1b120b, 0.88).fillRect(180, 54, width, 12);
     this.bossBar.lineStyle(1, 0xd8b25a, 1).strokeRect(180, 54, width, 12);
     this.bossBar.fillStyle(0xb03a2e, 1).fillRect(182, 56, (width - 4) * ratio, 8);
-    this.bossLabel.setText(BOSS_NAMES[this.floorData.floor]);
+    this.bossLabel.setText(`Lv${boss.level} ${BOSS_NAMES[this.floorData.floor]}`);
   }
 
   private setBossDoor(closed: boolean): void {
@@ -505,6 +507,7 @@ export class DungeonScene extends Phaser.Scene {
     if (isFloorCleared(this.state, this.floorData.floor)) return;
     if (this.enemies.some((view) => !view.state.dead)) return;
     markFloorCleared(this.state, this.floorData.floor);
+    grantXp(this.state, 30, this.bus);
     this.updateExitMarker();
     this.game.events.emit('ui:banner', '本层已清空，出口已标记');
     this.save();
@@ -684,6 +687,11 @@ export class DungeonScene extends Phaser.Scene {
       playSfx(this, this.state, 'hit');
       if (result === 'dead') {
         playSfx(this, this.state, 'enemy_die');
+        grantXp(
+          this.state,
+          enemy.rank === 'boss' ? 80 : enemy.rank === 'elite' ? 25 : 8,
+          this.bus,
+        );
         this.game.events.emit('ui:banner', '敌人倒下了');
       }
     }

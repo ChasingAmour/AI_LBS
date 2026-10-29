@@ -303,6 +303,8 @@ export function upgradeToV5(state: GameState): GameState {
   state.settings.touchControls = state.settings.touchControls !== false;
   state.settings.hudCompact = state.settings.hudCompact === true;
   state.animals = Array.isArray(state.animals) ? state.animals : [];
+  state.player.level = typeof state.player.level === 'number' ? state.player.level : 1;
+  state.player.xp = typeof state.player.xp === 'number' ? state.player.xp : 0;
   return state;
 }
 
@@ -352,6 +354,10 @@ function validateCore(data: Record<string, unknown>): GameState {
   requireNumber(player.hunger, 'player.hunger', 0, 100);
   requireNumber(player.thirst, 'player.thirst', 0, 100);
   requireNumber(player.energy, 'player.energy', 0, 1000);
+  if (player.level === undefined) player.level = 1;
+  if (player.xp === undefined) player.xp = 0;
+  requireNumber(player.level, 'player.level', 1, 20);
+  requireNumber(player.xp, 'player.xp', 0, 1_000_000_000);
 
   requireArray(data.inventory, 'inventory');
   const hotbar = requireArray(data.hotbar, 'hotbar');

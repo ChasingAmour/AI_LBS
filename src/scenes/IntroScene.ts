@@ -142,22 +142,122 @@ export class IntroScene extends Phaser.Scene {
     const g = this.add.graphics();
     this.card.add(g);
     switch (scene) {
+      case 'york':
+        this.drawYork(g);
+        break;
       case 'harbor':
         this.drawHarbor(g);
+        break;
+      case 'escape':
+        this.drawEscape(g);
         break;
       case 'storm':
         this.drawStorm(g);
         break;
-      case 'drift':
-        this.drawDrift(g);
+      case 'wreck':
+        this.drawWreck(g);
         break;
-      case 'beach':
-        this.drawBeach(g);
+      case 'raft':
+        this.drawRaft(g);
         break;
-      case 'island':
-        this.drawIsland(g);
+      case 'supplies':
+        this.drawSupplies(g);
+        break;
+      case 'date':
+        this.drawDate(g);
         break;
     }
+  }
+
+  private drawYork(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x2a3550, 0xc98a5a, 10);
+    g.fillStyle(0x1b2230, 1).fillRect(0, 150, 640, 82);
+    for (const [x, w, h] of [[40, 90, 92], [150, 70, 74], [240, 100, 104], [370, 80, 84], [480, 110, 96]]) {
+      g.fillStyle(0x2a1b12, 1).fillRect(x, 232 - h, w, h);
+      g.fillStyle(0x4a2f18, 1).fillTriangle(x - 8, 232 - h, x + w + 8, 232 - h, x + w / 2, 232 - h - 26);
+      g.fillStyle(0xf0c07a, 0.9).fillRect(x + 14, 232 - h + 18, 12, 14);
+      g.fillRect(x + w - 28, 232 - h + 18, 12, 14);
+    }
+    g.fillStyle(0x151a20, 1).fillRect(0, 232, 640, 22);
+    g.fillStyle(0x2f7f96, 0.8).fillRect(540, 196, 100, 36);
+    g.fillStyle(0x2a1b12, 1).fillRect(580, 170, 3, 26).fillRect(610, 176, 3, 20);
+    g.fillStyle(0xd8c8a0, 0.8).fillTriangle(583, 170, 600, 178, 583, 184);
+  }
+
+  private drawEscape(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x0b1830, 0x2f5f7a, 10);
+    g.fillStyle(0xf0dfb8, 0.85).fillCircle(520, 52, 18);
+    g.fillStyle(0x1d4a5e, 1).fillRect(0, 156, 640, 76);
+    this.waves(g, 166, 0x5f9fb0, 0.5);
+    g.fillStyle(0x3a2412, 1).fillTriangle(220, 196, 330, 196, 310, 214);
+    g.fillRect(230, 194, 90, 6);
+    g.fillStyle(0x2b2118, 1).fillRect(244, 176, 4, 20).fillRect(300, 176, 4, 20);
+    g.fillStyle(0xd8c8a0, 0.9).fillTriangle(256, 176, 290, 186, 256, 192);
+    g.fillStyle(0x2b2118, 1).fillCircle(262, 188, 3).fillCircle(286, 188, 3);
+    g.fillStyle(0x0e1116, 0.85).fillRect(440, 148, 90, 10);
+    g.fillRect(470, 120, 30, 28);
+    g.fillStyle(0xd8c8a0, 0.7).fillRect(506, 128, 2, 20);
+  }
+
+  private drawWreck(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x1b2c46, 0x8a6a6a, 10);
+    g.fillStyle(0x2f7f96, 1).fillRect(0, 142, 640, 50);
+    this.waves(g, 150, 0x8fd3df, 0.55);
+    g.fillStyle(0xd9a05e, 1).fillRect(0, 190, 640, 42);
+    g.lineStyle(3, 0x3a2412, 1);
+    g.beginPath();
+    g.moveTo(360, 196);
+    g.lineTo(430, 150);
+    g.lineTo(470, 158);
+    g.strokePath();
+    g.lineStyle(2, 0x3a2412, 0.9);
+    for (let i = 0; i < 6; i++) {
+      g.lineBetween(370 + i * 14, 194 - i * 4, 404 + i * 12, 166 - i * 2);
+    }
+    g.fillStyle(0x2b2118, 1).fillRect(300, 198, 10, 5).fillRect(314, 196, 6, 4);
+    g.fillStyle(0x3a2412, 1).fillRect(200, 200, 22, 10);
+  }
+
+  private drawRaft(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x16324a, 0x5f8fa0, 10);
+    g.fillStyle(0x1d4a5e, 1).fillRect(0, 150, 640, 82);
+    this.waves(g, 162, 0x6fb0c0, 0.55);
+    g.fillStyle(0x5a3a1e, 1).fillRect(220, 188, 200, 14);
+    for (let i = 0; i < 5; i++) g.lineStyle(1, 0x2a1b12, 1).lineBetween(220 + i * 40, 188, 220 + i * 40, 202);
+    g.fillStyle(0x6b4420, 1).fillRect(250, 166, 44, 22);
+    g.fillStyle(0x3a2412, 1).fillRect(310, 172, 26, 16);
+    g.fillStyle(0xc9a24a, 1).fillRect(360, 170, 8, 18);
+    g.lineStyle(1, 0xd8c8a0, 0.7).lineBetween(226, 188, 196, 160);
+    g.fillStyle(0x2a1b12, 1).fillRect(470, 160, 4, 30).fillRect(500, 166, 3, 24);
+  }
+
+  private drawSupplies(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x2b3f63, 0xe8a86a, 10);
+    g.fillStyle(0xf0c07a, 0.9).fillCircle(500, 78, 22);
+    g.fillStyle(0x2f7f96, 1).fillRect(0, 150, 640, 40);
+    g.fillStyle(0xd9a05e, 1).fillRect(0, 186, 640, 46);
+    g.fillStyle(0x6b4420, 1).fillRect(220, 186, 56, 30);
+    g.lineStyle(2, 0x3a2412, 1).strokeRect(220, 186, 56, 30);
+    g.fillStyle(0x8a5a2b, 1).fillRect(292, 176, 34, 40);
+    g.fillStyle(0xc9a24a, 1).fillRect(292, 190, 34, 4).fillRect(292, 202, 34, 4);
+    g.fillStyle(0x8a97a8, 1).fillRect(348, 196, 18, 4).fillRect(354, 188, 4, 14);
+    g.fillStyle(0x3a2412, 1).fillRect(380, 180, 46, 36);
+    g.fillStyle(0xc9a24a, 1).fillRect(384, 184, 38, 4);
+    g.fillStyle(0x2b2118, 1).fillRect(420, 202, 10, 4).fillRect(424, 194, 4, 12);
+    g.fillStyle(0x2f6b3f, 1).fillRect(470, 196, 26, 6).fillRect(476, 188, 4, 10);
+  }
+
+  private drawDate(g: Phaser.GameObjects.Graphics): void {
+    this.sky(g, 0x1d3557, 0xd98a5a, 10);
+    g.fillStyle(0x2f7f96, 1).fillRect(0, 154, 640, 78);
+    this.waves(g, 166, 0x8fd3df, 0.55);
+    g.fillStyle(0xd9a05e, 1).fillRect(0, 202, 640, 30);
+    g.fillStyle(0x6b4420, 1).fillRect(300, 116, 8, 92);
+    g.fillStyle(0x8a5a2b, 1).fillRect(290, 160, 28, 10);
+    g.fillStyle(0x4a2f18, 1).fillRect(296, 136, 16, 3).fillRect(296, 144, 12, 3).fillRect(296, 152, 14, 3);
+    g.fillStyle(0x2f6b3f, 1).fillTriangle(240, 210, 270, 210, 255, 184);
+    g.fillStyle(0x3f8a4f, 1).fillTriangle(230, 220, 280, 220, 255, 194);
+    g.fillStyle(0x2b2118, 0.9).fillRect(360, 214, 56, 8);
   }
 
   private sky(g: Phaser.GameObjects.Graphics, top: number, bottom: number, bands = 12): void {
@@ -230,53 +330,6 @@ export class IntroScene extends Phaser.Scene {
     g.strokePath();
     this.ship(g, 260, 168, 1.5);
     g.fillStyle(0x0a0d12, 0.55).fillRect(0, 0, 640, ART_H);
-  }
-
-  private drawDrift(g: Phaser.GameObjects.Graphics): void {
-    this.sky(g, 0x050b17, 0x123046);
-    g.fillStyle(0xffe9a8, 0.8);
-    for (const [x, y] of [[80, 40], [160, 70], [300, 30], [420, 62], [540, 38], [600, 90], [220, 110]]) {
-      g.fillCircle(x, y, 1.5);
-    }
-    g.fillStyle(0xf0dfb8, 0.9).fillCircle(520, 48, 16);
-    g.fillStyle(0x0c2434, 1).fillRect(0, 150, 640, 82);
-    this.waves(g, 158, 0x2f6f8f, 0.6);
-    g.fillStyle(0x5a3a1e, 1).fillRect(288, 176, 64, 34);
-    g.lineStyle(2, 0x2a1b12, 1).strokeRect(288, 176, 64, 34);
-    g.lineBetween(288, 176, 352, 210).lineBetween(352, 176, 288, 210);
-    g.fillStyle(0xc9a24a, 1).fillRect(292, 180, 56, 4);
-    g.fillStyle(0x0a0d12, 1).fillTriangle(300, 100, 312, 104, 304, 108);
-    g.fillTriangle(322, 96, 334, 100, 326, 104);
-  }
-
-  private drawBeach(g: Phaser.GameObjects.Graphics): void {
-    this.sky(g, 0x2b3f63, 0xe8a86a, 10);
-    g.fillStyle(0xf0c07a, 0.9).fillCircle(470, 84, 22);
-    g.fillStyle(0x2f7f96, 1).fillRect(0, 142, 640, 52);
-    this.waves(g, 150, 0x8fd3df, 0.7);
-    g.fillStyle(0xd9a05e, 1).fillRect(0, 184, 640, 48);
-    g.fillStyle(0x6b4420, 1).fillRect(300, 184, 48, 26);
-    g.lineStyle(2, 0x3a2412, 1).strokeRect(300, 184, 48, 26);
-    g.fillStyle(0x3a2412, 1).fillRect(392, 172, 10, 6).fillRect(388, 178, 18, 4);
-    g.fillStyle(0x2b2118, 1).fillRect(380, 170, 8, 4);
-    g.fillStyle(0x2b2118, 1).fillRect(436, 164, 54, 8);
-    g.fillStyle(0x4a2f18, 1).fillRect(452, 152, 8, 20);
-    g.lineStyle(1, 0x2b2118, 0.8).lineBetween(460, 152, 490, 166);
-  }
-
-  private drawIsland(g: Phaser.GameObjects.Graphics): void {
-    this.sky(g, 0x1d3557, 0x6fa8b8, 10);
-    g.fillStyle(0x2f7f96, 1).fillRect(0, 130, 640, 102);
-    this.waves(g, 144, 0x8fd3df, 0.6);
-    g.fillStyle(0x3f7a3a, 1).fillEllipse(320, 196, 430, 130);
-    g.fillStyle(0x2f5f2c, 1).fillEllipse(250, 186, 160, 60).fillEllipse(430, 190, 150, 54);
-    g.fillStyle(0xd9a05e, 1).fillEllipse(320, 232, 420, 34);
-    g.fillStyle(0x4a2f18, 1).fillRect(452, 120, 10, 72);
-    g.fillStyle(0x2b2118, 1).fillTriangle(430, 130, 500, 138, 452, 150);
-    g.lineStyle(1, 0xd8c8a0, 0.6).lineBetween(462, 122, 500, 166);
-    g.fillStyle(0x6b4420, 1).fillRect(140, 204, 10, 30);
-    g.fillStyle(0x2f6b3f, 1).fillTriangle(130, 204, 160, 204, 145, 176);
-    g.fillStyle(0x3f8a4f, 1).fillTriangle(120, 218, 168, 218, 145, 186);
   }
 
   private finish(): void {

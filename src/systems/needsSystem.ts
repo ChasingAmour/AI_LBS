@@ -54,7 +54,10 @@ export function drinkFreshWater(state: GameState): void {
 export function applyDamage(state: GameState, amount: number, attacker?: DamageSource): void {
   if (amount <= 0) return;
   const stats = deriveStats(state);
-  const reduced = Math.max(1, amount - stats.defense);
+  const reduced = Math.max(
+    1,
+    Math.round((amount - stats.defense) * (1 - stats.armor / 100)),
+  );
   state.player.hp = clamp100(state.player.hp - reduced);
   damageEquipped(state, 'armor', 1);
   if (attacker?.kind === 'savage' && stats.thorns > 0) {

@@ -105,7 +105,8 @@ export function applyHitToSavage(
   savage.lastHitAgo = 0;
   const rawDamage = (weapon.damage + (mods.attack ?? 0)) * (mods.savageMul ?? 1);
   const defense = mods.armorPierce ? 0 : (savage.defense ?? 0);
-  savage.hp -= Math.max(1, Math.round(rawDamage - defense));
+  const armor = savage.armor ?? 0;
+  savage.hp -= Math.max(1, Math.round((rawDamage - defense) * (1 - armor / 100)));
   savage.stun = Math.min(
     100,
     savage.stun + (weapon.stun + (mods.stunBonus ?? 0)) * (mods.stunMul ?? 1),

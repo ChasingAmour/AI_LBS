@@ -6,10 +6,14 @@ export type AnimalSize = 'small' | 'large';
 export interface AnimalDef {
   id: string;
   name: string;
+  level: number;
   size: AnimalSize;
   hp: number;
   /** damage per bite when retaliating */
   damage: number;
+  defense: number;
+  /** percentage damage reduction */
+  armor: number;
   attackCooldownSec: number;
   wanderSpeed: number;
   chaseSpeed: number;
@@ -30,9 +34,12 @@ export const ANIMALS: Record<string, AnimalDef> = {
   chicken: {
     id: 'chicken',
     name: '野鸡',
+    level: 1,
     size: 'small',
     hp: 12,
     damage: 2,
+    defense: 0,
+    armor: 0,
     attackCooldownSec: 1.5,
     wanderSpeed: 20,
     chaseSpeed: 45,
@@ -44,9 +51,12 @@ export const ANIMALS: Record<string, AnimalDef> = {
   rabbit: {
     id: 'rabbit',
     name: '野兔',
+    level: 1,
     size: 'small',
     hp: 10,
     damage: 1,
+    defense: 0,
+    armor: 0,
     attackCooldownSec: 1.5,
     wanderSpeed: 20,
     chaseSpeed: 45,
@@ -58,9 +68,12 @@ export const ANIMALS: Record<string, AnimalDef> = {
   boar: {
     id: 'boar',
     name: '野猪',
+    level: 3,
     size: 'large',
     hp: 60,
     damage: 10,
+    defense: 1,
+    armor: 10,
     attackCooldownSec: 1.5,
     wanderSpeed: 20,
     chaseSpeed: 45,
@@ -72,9 +85,12 @@ export const ANIMALS: Record<string, AnimalDef> = {
   fish: {
     id: 'fish',
     name: '海鱼',
+    level: 1,
     size: 'small',
     hp: 6,
     damage: 0,
+    defense: 0,
+    armor: 0,
     attackCooldownSec: 2,
     wanderSpeed: 22,
     chaseSpeed: 48,

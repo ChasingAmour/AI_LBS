@@ -1,10 +1,12 @@
 import type { GameState } from '../core/gameState';
+import type { EventBus } from '../core/eventBus';
 import { createRng } from '../core/rng';
 import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import { RECIPES, type Recipe, type Station } from '../data/recipes';
 import { rollEquipment } from './equipmentSystem';
 import { addItem, countItem, removeItem } from './inventorySystem';
+import { grantXp } from './levelSystem';
 
 export { RECIPES } from '../data/recipes';
 
@@ -30,13 +32,19 @@ export function canCraft(state: GameState, recipeId: string, nearStation: boolea
   return { ok: true };
 }
 
-export function craft(state: GameState, recipeId: string, nearStation: boolean): boolean {
+export function craft(
+  state: GameState,
+  recipeId: string,
+  nearStation: boolean,
+  bus?: EventBus,
+): boolean {
   if (!canCraft(state, recipeId, nearStation).ok) return false;
   const recipe = RECIPES[recipeId];
 
   for (const input of recipe.inputs) {
     removeItem(state, input.baseId, input.count);
   }
+  grantXp(state, 3, bus);
 
   if (EQUIPMENT[recipe.output]) {
     state.lootRolls += 1;

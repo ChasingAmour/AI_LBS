@@ -1,6 +1,14 @@
 import type { GameState } from '../core/gameState';
 
-export type IntroSceneKind = 'harbor' | 'storm' | 'drift' | 'beach' | 'island';
+export type IntroSceneKind =
+  | 'york'
+  | 'harbor'
+  | 'escape'
+  | 'storm'
+  | 'wreck'
+  | 'raft'
+  | 'supplies'
+  | 'date';
 export type IntroSource = 'main' | 'backup' | 'none';
 
 export interface IntroCard {
@@ -11,29 +19,44 @@ export interface IntroCard {
 
 export const INTRO_STORY: IntroCard[] = [
   {
-    title: '起航',
-    body: '1659 年，英格兰赫尔港。你以鲁滨孙之名登上“希望号”，船上载着布匹与铁器，驶向西印度群岛。',
+    title: '约克，1632',
+    body: '你生于约克一个商人家庭。父亲要你学法律，安稳过一生；你却总盯着港口的桅杆，想去看海。',
+    scene: 'york',
+  },
+  {
+    title: '赫尔，1651',
+    body: '你违背父命登上开往伦敦的船。第一次航行就遇风暴；后来船被摩尔海盗劫走，你成了奴隶。',
     scene: 'harbor',
   },
   {
-    title: '风暴',
-    body: '第 12 夜，加勒比海起了风暴。桅杆折断，货舱进水，船长吼着让人砍断主桅——浪已经把甲板掀成两半。',
+    title: '逃脱',
+    body: '两年后，你带着小仆人佐立划船逃走，被葡萄牙船长救起，在巴西买下一座种植园。',
+    scene: 'escape',
+  },
+  {
+    title: '再次出海，1659',
+    body: '为给种植园补充劳力，你随船前往几内亚。飓风连着刮了十二天，船被推上沙洲。',
     scene: 'storm',
   },
   {
-    title: '漂流',
-    body: '你抓住一只装工具的木箱，被浪打进黑水。三天里，你只看见雨、星光，和一只绕着你打转的海鸟。',
-    scene: 'drift',
+    title: '沉船',
+    body: '巨浪打翻小艇，同伴一个个消失。你被冲上荒岛，成为全船唯一的幸存者。',
+    scene: 'wreck',
   },
   {
-    title: '上岸',
-    body: '第四天黎明，浪把你推上南岸。你咳出海水；木箱卡在礁石间，破船的龙骨半埋在远处的沙里。',
-    scene: 'beach',
+    title: '回船',
+    body: '第二天退潮，你游回搁浅的破船，用桅杆和木板扎成木筏，一趟趟把能用的东西运上岸。',
+    scene: 'raft',
   },
   {
-    title: '荒岛第一天',
-    body: '岛上没有人烟，只有树影和潮声。你从箱里摸到火石和半截绳子——从今天起，先活下来，再想怎么回去。',
-    scene: 'island',
+    title: '物资',
+    body: '面包、火药、工具、帆布和斧头——你把破船拆到只剩龙骨，在岸边堆起第一座物资堆。',
+    scene: 'supplies',
+  },
+  {
+    title: '1659 年 9 月 30 日',
+    body: '你在岸边插下木桩，刻下日期。从这天起，荒岛成了你的王国：先活下来，再想怎么回去。',
+    scene: 'date',
   },
 ];
 

@@ -80,6 +80,16 @@ describe('save v5', () => {
     });
   });
 
+  it('fills level and xp defaults for older saves', () => {
+    const old = JSON.parse(serializeSave(createNewGame(6))) as Record<string, unknown>;
+    old.version = 4;
+    delete (old.player as Record<string, unknown>).level;
+    delete (old.player as Record<string, unknown>).xp;
+    const migrated = validateSave(old);
+    expect(migrated.player.level).toBe(1);
+    expect(migrated.player.xp).toBe(0);
+  });
+
   it('rejects out-of-range music volume and non-boolean touch flag', () => {
     const loud = JSON.parse(serializeSave(createNewGame(3))) as Record<string, unknown>;
     (loud.settings as Record<string, unknown>).musicVolume = 2;

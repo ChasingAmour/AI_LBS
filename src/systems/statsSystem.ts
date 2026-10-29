@@ -1,10 +1,13 @@
 import type { EquipInstance, GameState } from '../core/gameState';
 import { EQUIPMENT } from '../data/equipment';
 import { countItem, removeItem } from './inventorySystem';
+import { playerBaseStats } from './levelSystem';
 
 export interface DerivedStats {
   attack: number;
   defense: number;
+  /** percentage damage reduction, 0..70 */
+  armor: number;
   stunBonus: number;
   stunMul: number;
   savageMul: number;
@@ -28,6 +31,7 @@ export interface DerivedStats {
 const DEFAULT_STATS: DerivedStats = {
   attack: 0,
   defense: 0,
+  armor: 0,
   stunBonus: 0,
   stunMul: 1,
   savageMul: 1,
@@ -57,6 +61,11 @@ function equippedInstance(state: GameState, slot: 'weapon' | 'armor' | 'boots'):
 /** Aggregates base stats, affixes and legendary traits of equipped, unbroken gear. */
 export function deriveStats(state: GameState): DerivedStats {
   const stats: DerivedStats = { ...DEFAULT_STATS };
+  const base = playerBaseStats(state.player.level ?? 1);
+  stats.attack += base.attack;
+  stats.defense += base.defense;
+  stats.armor += base.armor;
+  stats.moveMul *= base.moveMul;
 
   for (const slot of ['weapon', 'armor', 'boots'] as const) {
     const instance = equippedInstance(state, slot);
@@ -148,6 +157,7 @@ export function deriveStats(state: GameState): DerivedStats {
     }
   }
 
+  stats.armor = Math.min(70, stats.armor);
   return stats;
 }
 

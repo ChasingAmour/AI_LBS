@@ -21,6 +21,8 @@ export interface DungeonEnemy {
   damage: number;
   speed: number;
   defense: number;
+  armor: number;
+  level: number;
   dead: boolean;
   attackCooldown: number;
   /** how far it can spot the player, in pixels */
@@ -47,13 +49,13 @@ export interface DungeonEnemy {
 
 const DEFS: Record<
   DungeonEnemyType,
-  { hp: number; damage: number; speed: number; defense: number; sight: number }
+  { hp: number; damage: number; speed: number; defense: number; armor: number; level: number; sight: number }
 > = {
-  crab: { hp: 15, damage: 5, speed: 45, defense: 0, sight: 96 },
-  hermit: { hp: 80, damage: 12, speed: 30, defense: 2, sight: 112 },
-  snake: { hp: 40, damage: 10, speed: 80, defense: 1, sight: 150 },
-  rat: { hp: 10, damage: 3, speed: 62, defense: 0, sight: 110 },
-  ghost: { hp: 30, damage: 7, speed: 34, defense: 0, sight: 132 },
+  crab: { hp: 15, damage: 5, speed: 45, defense: 0, armor: 0, level: 1, sight: 96 },
+  hermit: { hp: 80, damage: 12, speed: 30, defense: 2, armor: 10, level: 2, sight: 112 },
+  snake: { hp: 40, damage: 10, speed: 80, defense: 1, armor: 5, level: 2, sight: 150 },
+  rat: { hp: 10, damage: 3, speed: 62, defense: 0, armor: 0, level: 1, sight: 110 },
+  ghost: { hp: 30, damage: 7, speed: 34, defense: 0, armor: 15, level: 2, sight: 132 },
 };
 
 export function createDungeonEnemy(
@@ -90,6 +92,8 @@ export function createDungeonEnemy(
     damage: Math.round(def.damage * damageScale),
     speed: def.speed * (rank === 'boss' ? 0.7 : 1),
     defense: def.defense + (rank === 'boss' ? 3 : rank === 'elite' ? 1 : 0),
+    armor: Math.min(60, def.armor + (rank === 'boss' ? 10 : rank === 'elite' ? 5 : 0)),
+    level: def.level + (rank === 'boss' ? 4 : rank === 'elite' ? 2 : 0),
     dead: false,
     attackCooldown: 0,
     sightRange: def.sight + (rank === 'boss' ? 40 : rank === 'elite' ? 20 : 0),
@@ -235,7 +239,7 @@ export function damageDungeonEnemy(
   enemy.alerted = true;
   const shelled = isShelled(enemy, now);
   const defense = armorPierce ? 0 : enemy.defense;
-  let damage = Math.max(1, amount - defense);
+  let damage = Math.max(1, Math.round((amount - defense) * (1 - enemy.armor / 100)));
   if (shelled) damage = Math.max(1, Math.ceil(damage / 2));
   enemy.hp -= damage;
   if (enemy.hp <= 0) {

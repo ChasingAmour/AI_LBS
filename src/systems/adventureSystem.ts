@@ -2,6 +2,7 @@ import type { GameState } from '../core/gameState';
 import { decodeExplored } from '../core/explored';
 import { EQUIPMENT, RARITY } from '../data/equipment';
 import { deriveStats } from './statsSystem';
+import { xpToNext } from './levelSystem';
 
 export interface AdventureInfo {
   rank: number;
@@ -12,6 +13,13 @@ export interface AdventureInfo {
   days: number;
   cleared: boolean;
   firstClear: boolean;
+  level: number;
+  xp: number;
+  xpNext: number;
+  attack: number;
+  defense: number;
+  armor: number;
+  movePct: number;
 }
 
 /** Adventure rank derived from exploration, landmarks, gear and dungeon clears. */
@@ -34,6 +42,7 @@ export function adventureInfo(state: GameState): AdventureInfo {
     (state.dungeon.firstClearDone ? 40 : 0) +
     (state.dungeon.clearedThisWeek ? 20 : 0) +
     Math.min(30, state.time.day);
+  const stats = deriveStats(state);
   return {
     rank: 1 + Math.floor(score / 60),
     score,
@@ -43,6 +52,13 @@ export function adventureInfo(state: GameState): AdventureInfo {
     days: state.time.day,
     cleared: state.dungeon.clearedThisWeek,
     firstClear: state.dungeon.firstClearDone,
+    level: state.player.level,
+    xp: state.player.xp,
+    xpNext: xpToNext(state.player.level),
+    attack: stats.attack,
+    defense: stats.defense,
+    armor: Math.round(stats.armor),
+    movePct: Math.round((stats.moveMul - 1) * 100),
   };
 }
 
