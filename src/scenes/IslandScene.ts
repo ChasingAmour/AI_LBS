@@ -854,6 +854,11 @@ export class IslandScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.registry.get('touchEnabled') && isTouchControlPoint(pointer.x, pointer.y)) return;
+      const selected = this.registry.get('buildSelection') as string | null;
+      if (selected && this.registry.get('touchEnabled')) {
+        if (!this.registry.get('uiOpen')) this.placeSelectedBuilding(selected, pointer);
+        return;
+      }
       if (pointer.rightButtonDown()) {
         this.cancelBuild();
         return;

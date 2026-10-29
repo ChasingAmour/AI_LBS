@@ -152,6 +152,7 @@ export class MapPanel {
     this.drawSidebar(state, island, explored);
     this.drawZoomButton(state);
     this.drawClickZone(state, island);
+    this.drawZoomButtons(state);
   }
 
   private drawTerrain(
@@ -351,6 +352,28 @@ export class MapPanel {
       this.setZoom(state, next);
     });
     this.root.add(text);
+  }
+
+  private drawZoomButtons(state: GameState): void {
+    const buttons: Array<[string, number]> = [
+      ['−', MAP_RECT.x + 10],
+      ['+', MAP_RECT.x + 30],
+    ];
+    for (const [label, x] of buttons) {
+      const text = makeText(this.scene, x, MAP_RECT.y + 2, label, {
+        size: 24,
+        color: COLORS.ink,
+      });
+      text.setInteractive({ useHandCursor: true });
+      text.on('pointerdown', () => {
+        const next = Math.max(
+          MIN_MAP_ZOOM,
+          Math.min(MAX_MAP_ZOOM, this.view.zoom + (label === '+' ? 0.5 : -0.5)),
+        );
+        this.setZoom(state, next);
+      });
+      this.root.add(text);
+    }
   }
 
   private drawClickZone(state: GameState, island: IslandData | undefined): void {

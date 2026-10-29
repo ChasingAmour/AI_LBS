@@ -36,6 +36,7 @@ export type UiPanel =
   | 'labor'
   | 'map'
   | 'adventure'
+  | 'menu'
   | 'pause'
   | null;
 

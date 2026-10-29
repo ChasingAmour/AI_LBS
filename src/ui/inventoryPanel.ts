@@ -30,6 +30,7 @@ export class InventoryOverlay {
   private tooltip: Phaser.GameObjects.Container | null = null;
   private tooltipHeight = 54;
   private tooltipWidth = 148;
+  private lastTap = { key: '', at: 0 };
   private state: GameState | null = null;
   private open = false;
 
@@ -199,7 +200,11 @@ export class InventoryOverlay {
           this.showGearTooltip(instance, pointer.x, pointer.y),
         );
         zone.on('pointerout', () => this.hideTooltip());
-        zone.on('pointerdown', () => {
+        zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+          if (!this.touchArmed(`slot:${slot}`)) {
+            this.showGearTooltip(instance, pointer.x, pointer.y);
+            return;
+          }
           unequipSlot(state, slot);
           this.rebuild();
         });
@@ -311,6 +316,10 @@ export class InventoryOverlay {
         );
         zone.on('pointerout', () => this.hideTooltip());
         zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+          if (!this.touchArmed(`stack:${item.baseId}`)) {
+            this.showStackTooltip(item.baseId, pointer.x, pointer.y);
+            return;
+          }
           if (pointer.rightButtonDown()) {
             const dropped = item.count;
             state.world.groundLoot.push({
@@ -355,6 +364,10 @@ export class InventoryOverlay {
         );
         zone.on('pointerout', () => this.hideTooltip());
         zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+          if (!this.touchArmed(`gear:${instance.instanceId}`)) {
+            this.showGearTooltip(instance, pointer.x, pointer.y);
+            return;
+          }
           if (pointer.rightButtonDown()) {
             const gained = recycleInstance(state, instance.instanceId);
             if (gained) {
@@ -375,9 +388,10 @@ export class InventoryOverlay {
 
     const capacity = `${state.inventory.length} 种物品 · ${gear.length} 件装备`;
     this.root.add(makeText(this.scene, GRID.x, 286, capacity, { color: COLORS.inkSoft }));
-    this.root.add(
-      makeText(this.scene, GRID.x, 266, '左键穿戴/食用 · 右键回炉/丢弃', { color: COLORS.muted }),
-    );
+    const hint = this.scene.registry.get('touchEnabled')
+      ? '点击查看 · 再次点击穿戴/食用'
+      : '左键穿戴/食用 · 右键回炉/丢弃';
+    this.root.add(makeText(this.scene, GRID.x, 266, hint, { color: COLORS.muted }));
 
     const sortButton = makeText(this.scene, GRID.x, 306, '整理背包（合并 / 按品级排序）', {
       color: COLORS.goldDark,
@@ -460,8 +474,15 @@ export class InventoryOverlay {
     this.positionTooltip(px, py);
   }
 
-  private positionTooltip(px: number, py: number): void {
-    if (!this.tooltip) return;
+  private touchArmed(key: string): boolean {
+    if (!this.scene.registry.get('touchEnabled')) return true;
+    const now = this.scene.time.now;
+    const armed = this.lastTap.key === key && now - this.lastTap.at < 1500;
+    this.lastTap = armed ? { key: '', at: 0 } : { key, at: now };
+    return armed;
+  }
+
+  private positionTooltip(px: number, py: number): void {    if (!this.tooltip) return;
     const point = clampTooltip(px + 14, py + 14, this.tooltipWidth, this.tooltipHeight, 640, 360);
     this.tooltip.setPosition(point.x, point.y);
   }

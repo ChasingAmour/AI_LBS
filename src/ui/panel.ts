@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { makeText } from './text';
 import { COLORS, TINTS } from './theme';
-import { pageLabel, visibleRows } from './widgets/scrollList';
+import { pageLabel, pageWindow, visibleRows } from './widgets/scrollList';
 
 export interface PanelRow {
   label: string;
@@ -134,21 +134,46 @@ export class Panel {
     }
 
     if (this.rows.length > geo.perPage) {
-      const cardMode = this.currentStyle !== 'list';
-      const hint = makeText(
-        this.scene,
-        cardMode ? geo.width - 16 : geo.width / 2,
-        cardMode ? 18 : geo.height - 16,
-        cardMode ? `滚轮翻页 ${pageLabel(this.rows.length, this.scroll, geo.perPage)}` : '滚轮翻页',
-        {
-          origin: cardMode ? [1, 0] : [0.5, 0],
+      if (this.scene.registry.get('touchEnabled')) {
+        this.pageButton('◀', geo.width - 78, 18, -geo.perPage);
+        this.rootPageLabel(geo);
+        this.pageButton('▶', geo.width - 16, 18, geo.perPage);
+      } else {
+        const hint = makeText(this.scene, geo.width / 2, geo.height - 16, '滚轮翻页', {
+          origin: [0.5, 0],
           color: COLORS.muted,
-        },
-      );
-      this.rowObjects.push(hint);
+        });
+        this.rowObjects.push(hint);
+      }
     }
 
     this.container.add(this.rowObjects);
+  }
+
+  private pageButton(label: string, x: number, y: number, delta: number): void {
+    const geo = GEOMETRY[this.currentStyle];
+    const text = makeText(this.scene, x, y, label, {
+      size: 24,
+      origin: [1, 0],
+      color: COLORS.goldDark,
+    });
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => {
+      this.scroll = pageWindow(this.rows.length, this.scroll, geo.perPage, delta);
+      this.renderRows();
+    });
+    this.rowObjects.push(text);
+  }
+
+  private rootPageLabel(geo: PanelGeometry): void {
+    const text = makeText(
+      this.scene,
+      geo.width - 47,
+      20,
+      pageLabel(this.rows.length, this.scroll, geo.perPage),
+      { origin: [0.5, 0], color: COLORS.inkSoft },
+    );
+    this.rowObjects.push(text);
   }
 
   private renderList(start: number, end: number, geo: PanelGeometry): void {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pageLabel, visibleRows } from '../../src/ui/widgets/scrollList';
+import { pageLabel, pageWindow, visibleRows } from '../../src/ui/widgets/scrollList';
 
 describe('visibleRows', () => {
   it('returns all rows when they fit', () => {
@@ -21,5 +21,20 @@ describe('pageLabel', () => {
     expect(pageLabel(20, 0, 8)).toBe('1/3');
     expect(pageLabel(20, 8, 8)).toBe('2/3');
     expect(pageLabel(20, 999, 8)).toBe('3/3');
+  });
+  it('counts a partial last page as a page', () => {
+    expect(pageLabel(10, 0, 8)).toBe('1/2');
+    expect(pageLabel(10, 2, 8)).toBe('2/2');
+  });
+});
+
+describe('pageWindow', () => {
+  it('moves forward and back by a page', () => {
+    expect(pageWindow(20, 0, 8, 8)).toBe(8);
+    expect(pageWindow(20, 8, 8, -8)).toBe(0);
+  });
+  it('clamps at both ends', () => {
+    expect(pageWindow(20, 12, 8, 8)).toBe(12);
+    expect(pageWindow(20, 0, 8, -8)).toBe(0);
   });
 });

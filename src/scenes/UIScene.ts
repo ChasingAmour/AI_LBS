@@ -7,6 +7,7 @@ import { MapPanel } from '../ui/mapPanel';
 import { Minimap } from '../ui/minimap';
 import { AdventurePanel } from '../ui/adventurePanel';
 import { TouchControls } from '../ui/touchControls';
+import { TouchMenu } from '../ui/touchMenu';
 import { isTouchDevice, prefersTouchLayout } from '../core/platform';
 import { openCraftPanel } from '../ui/craftPanel';
 import { openBuildMenu } from '../ui/buildMenu';
@@ -23,6 +24,7 @@ export class UIScene extends Phaser.Scene {
   private minimap!: Minimap;
   private adventure!: AdventurePanel;
   private touch?: TouchControls;
+  private touchMenu?: TouchMenu;
   private bannerHandler = (text: string): void => this.hud.showBanner(text);
   private panelHandler = (kind: string): void => this.openPanel(kind);
   private hudCompactHandler = (compact: boolean): void => {
@@ -56,16 +58,29 @@ export class UIScene extends Phaser.Scene {
     this.hud.setCompact(Boolean(this.state()?.settings.hudCompact));
 
     const state = this.state();
-    const touchEnabled =
+    const touchLayout =
       Boolean(state) &&
-      state!.settings.touchControls &&
       prefersTouchLayout({
         touch: isTouchDevice(),
         width: window.innerWidth,
         height: window.innerHeight,
       });
-    this.registry.set('touchEnabled', touchEnabled);
-    if (touchEnabled) this.touch = new TouchControls(this);
+    if (touchLayout) {
+      this.touch = new TouchControls(this);
+      this.touch.setEnabled(Boolean(state!.settings.touchControls));
+      this.touchMenu = new TouchMenu(this, {
+        inventory: () => this.withState((s) => this.inventory.toggle(s)),
+        craft: () => this.withState((s) => this.openCraft(s)),
+        build: () => this.withState((s) => this.openBuild(s)),
+        labor: () => this.withState((s) => this.openLabor(s)),
+        map: () => this.toggleMap(),
+        adventure: () => this.withState((s) => this.adventure.toggle(s)),
+        pause: () => this.openPause(),
+      });
+      this.game.events.on('ui:touchMenu', this.onTouchMenu);
+    }
+    this.registry.set('touchEnabled', touchLayout && Boolean(state?.settings.touchControls));
+    this.registry.set('touchLayout', touchLayout);
 
     // Dev-only QA shortcut: /AI_LBS/?panel=map&zoom=2 opens the map.
     if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -138,6 +153,7 @@ export class UIScene extends Phaser.Scene {
       this.game.events.off('ui:banner', this.bannerHandler);
       this.game.events.off('ui:panel', this.panelHandler);
       this.game.events.off('ui:hudCompact', this.hudCompactHandler);
+      this.game.events.off('ui:touchMenu', this.onTouchMenu);
     });
 
     const bus = this.registry.get('bus') as EventBus | undefined;
@@ -161,18 +177,27 @@ export class UIScene extends Phaser.Scene {
     }
     this.registry.set(
       'uiOpen',
-      this.panel.isOpen || this.inventory.isOpen || this.map.isOpen || this.adventure.isOpen,
+      this.panel.isOpen ||
+        this.inventory.isOpen ||
+        this.map.isOpen ||
+        this.adventure.isOpen ||
+        Boolean(this.touchMenu?.isOpen),
     );
-    this.touch?.setVisible(!this.registry.get('uiOpen'));
+    const uiOpen = Boolean(this.registry.get('uiOpen'));
+    this.touch?.setPanelOpen(uiOpen);
+    this.touch?.setEnabled(Boolean(state?.settings.touchControls));
+    this.registry.set('touchEnabled', Boolean(this.touch) && Boolean(state?.settings.touchControls));
     const uiPanel: UiPanel = this.inventory.isOpen
       ? 'inventory'
       : this.map.isOpen
         ? 'map'
         : this.adventure.isOpen
           ? 'adventure'
-          : this.panel.isOpen
-            ? (this.panelKind ?? 'build')
-            : null;
+          : this.touchMenu?.isOpen
+            ? 'menu'
+            : this.panel.isOpen
+              ? (this.panelKind ?? 'build')
+              : null;
     this.registry.set('uiPanel', uiPanel);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
@@ -184,6 +209,29 @@ export class UIScene extends Phaser.Scene {
     bus.on(event, handler);
     this.busHandlers.push({ event, handler });
     this.events.once('shutdown', () => bus.off(event, handler));
+  }
+
+  private onTouchMenu = (): void => {
+    if (this.anyPanelOpen()) this.closeAllPanels();
+    else this.touchMenu?.toggle();
+  };
+
+  private anyPanelOpen(): boolean {
+    return (
+      this.panel.isOpen ||
+      this.inventory.isOpen ||
+      this.map.isOpen ||
+      this.adventure.isOpen ||
+      Boolean(this.touchMenu?.isOpen)
+    );
+  }
+
+  private closeAllPanels(): void {
+    this.panel.close();
+    this.inventory.close();
+    this.map.close();
+    this.adventure.close();
+    this.touchMenu?.close();
   }
 
   private openPanel(kind: string): void {

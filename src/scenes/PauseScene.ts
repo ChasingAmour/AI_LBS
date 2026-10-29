@@ -29,8 +29,9 @@ export class PauseScene extends Phaser.Scene {
     this.button(192, '导出存档', () => this.exportFile());
     this.button(232, '导入存档', () => this.importFile());
     this.soundButton();
+    if (this.registry.get('touchLayout')) this.touchButton();
 
-    makeText(this, 320, PANEL.y + PANEL.h - 18, 'Esc 继续 · 存档保存在浏览器 localStorage', {
+    makeText(this, 320, PANEL.y + PANEL.h - 14, 'Esc 继续 · 存档保存在浏览器 localStorage', {
       color: COLORS.muted,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -42,7 +43,7 @@ export class PauseScene extends Phaser.Scene {
   private soundButton(): void {
     const state = this.state();
     const label = (): string => `音效：${state?.settings.muted ? '关' : '开'}（点击切换）`;
-    const text = makeText(this, 320, 266, label(), {
+    const text = makeText(this, 320, 258, label(), {
       color: COLORS.inkSoft,
       align: 'center',
     }).setOrigin(0.5, 0.5);
@@ -50,6 +51,24 @@ export class PauseScene extends Phaser.Scene {
     text.on('pointerdown', () => {
       if (!state) return;
       state.settings.muted = !state.settings.muted;
+      saveGame(state);
+      text.setText(label());
+      playSfx(this, state, 'click');
+    });
+  }
+
+  /** Phones only: keyboard shortcuts can be replaced by the virtual pad. */
+  private touchButton(): void {
+    const state = this.state();
+    if (!state) return;
+    const label = (): string => `触屏控制：${state.settings.touchControls ? '开' : '关'}（点击切换）`;
+    const text = makeText(this, 320, 280, label(), {
+      color: COLORS.inkSoft,
+      align: 'center',
+    }).setOrigin(0.5, 0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => {
+      state.settings.touchControls = !state.settings.touchControls;
       saveGame(state);
       text.setText(label());
       playSfx(this, state, 'click');
