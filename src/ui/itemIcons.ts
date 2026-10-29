@@ -36,6 +36,9 @@ const GENERATED = new Set([
   'captain_cutlass',
   'sea_snake_spear',
   'anchor_hammer',
+  'fishing_rod',
+  'tropical_fish',
+  'seaweed',
 ]);
 
 /** Hand-drawn 16×16 icons for items the sheets do not cover. */
@@ -155,6 +158,26 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x8a97a8).fillRect(3, 7, 10, 5);
     g.fillStyle(0xc9d4e0).fillRect(4, 6, 8, 2);
     g.fillStyle(0x6a7480).fillRect(3, 11, 10, 1);
+  });
+  make('icon-fishing_rod', () => {
+    g.lineStyle(1, 0xc9a24a, 1);
+    g.lineBetween(3, 13, 12, 2);
+    g.lineStyle(1, 0xf0e6d2, 0.9);
+    g.lineBetween(12, 2, 13, 12);
+    g.fillStyle(0x8a97a8).fillRect(12, 12, 2, 2);
+  });
+  make('icon-tropical_fish', () => {
+    g.fillStyle(0xe0913f).fillEllipse(7, 8, 12, 7);
+    g.fillStyle(0xffd479).fillRect(3, 5, 8, 2);
+    g.fillStyle(0xe0913f).fillTriangle(13, 8, 16, 4, 16, 12);
+    g.fillStyle(0xffffff).fillRect(12, 7, 2, 2);
+    g.fillStyle(0x2b2118).fillRect(13, 7, 1, 1);
+  });
+  make('icon-seaweed', () => {
+    g.fillStyle(0x2f6b3f).fillRect(5, 4, 2, 9);
+    g.fillStyle(0x4f9f5f).fillRect(8, 3, 2, 10);
+    g.fillStyle(0x2f6b3f).fillRect(11, 6, 2, 7);
+    g.fillStyle(0x6fbf4f).fillRect(6, 7, 1, 3).fillRect(9, 8, 1, 3);
   });
 
   for (const base of Object.values(EQUIPMENT)) {

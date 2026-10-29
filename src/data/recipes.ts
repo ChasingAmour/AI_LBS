@@ -104,6 +104,18 @@ export const RECIPES: Record<string, Recipe> = {
       { baseId: 'rope', count: 1 },
     ],
   },
+  fishing_rod: {
+    id: 'fishing_rod',
+    output: 'fishing_rod',
+    count: 1,
+    station: 'workbench',
+    unlockLevel: 1,
+    durationSec: 3,
+    inputs: [
+      { baseId: 'wood', count: 3 },
+      { baseId: 'rope', count: 2 },
+    ],
+  },
   straw_shoes: {
     id: 'straw_shoes',
     output: 'straw_shoes',
