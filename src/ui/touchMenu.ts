@@ -3,8 +3,8 @@ import { makeText } from './text';
 import { COLORS, TINTS } from './theme';
 import { drawPanel } from './widgets/panel';
 
-const PANEL = { x: 120, y: 40, w: 400, h: 280 };
-const BTN = { w: 112, h: 56, gap: 10, x: 136, y: 92 };
+const PANEL = { x: 100, y: 16, w: 440, h: 328 };
+const BTN = { w: 128, h: 58, gap: 8, x: 112, y: 70 };
 
 export interface TouchMenuHandlers {
   inventory: () => void;
@@ -14,6 +14,8 @@ export interface TouchMenuHandlers {
   map: () => void;
   adventure: () => void;
   pause: () => void;
+  guide: () => void;
+  toggleTouch: () => void;
 }
 
 /** Phone-only modal that replaces the keyboard shortcuts. */
@@ -36,7 +38,7 @@ export class TouchMenu {
     drawPanel(chrome, PANEL);
     this.root.add(chrome);
     this.root.add(
-      makeText(this.scene, PANEL.x + PANEL.w / 2, PANEL.y + 12, '菜单', {
+      makeText(this.scene, PANEL.x + PANEL.w / 2, PANEL.y + 10, '菜单', {
         size: 24,
         origin: [0.5, 0],
         color: COLORS.ink,
@@ -51,6 +53,8 @@ export class TouchMenu {
       ['地图', handlers.map],
       ['冒险', handlers.adventure],
       ['暂停', handlers.pause],
+      ['操作', handlers.guide],
+      ['按键', handlers.toggleTouch],
       ['全屏', () => this.fullscreen()],
       ['关闭', () => this.close()],
     ];

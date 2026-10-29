@@ -83,11 +83,24 @@ export class UIScene extends Phaser.Scene {
         map: () => this.toggleMap(),
         adventure: () => this.withState((s) => this.adventure.toggle(s)),
         pause: () => this.openPause(),
+        guide: () => this.openGuideFromMenu(),
+        toggleTouch: () => {
+          const state = this.state();
+          if (!state) return;
+          state.settings.touchControls = !state.settings.touchControls;
+          this.registry.set('touchEnabled', Boolean(state.settings.touchControls));
+          this.touch?.setEnabled(Boolean(state.settings.touchControls));
+          const bus = this.registry.get('bus') as EventBus | undefined;
+          bus?.emit('save:requested', { reason: 'settings' });
+        },
       });
       this.game.events.on('ui:touchMenu', this.onTouchMenu);
     }
     this.registry.set('touchEnabled', touchLayout && Boolean(state?.settings.touchControls));
     this.registry.set('touchLayout', touchLayout);
+    if (state && !state.flags.controlsSeen && state.scene === 'island') {
+      this.time.delayedCall(500, () => this.openFirstGuide());
+    }
 
     // Dev-only QA shortcut: /AI_LBS/?panel=map&zoom=2 opens the map.
     if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -197,7 +210,8 @@ export class UIScene extends Phaser.Scene {
         this.inventory.isOpen ||
         this.map.isOpen ||
         this.adventure.isOpen ||
-        Boolean(this.touchMenu?.isOpen),
+        Boolean(this.touchMenu?.isOpen) ||
+        this.scene.isActive('GuideScene'),
     );
     const uiOpen = Boolean(this.registry.get('uiOpen'));
     this.touch?.setPanelOpen(uiOpen);
@@ -255,6 +269,27 @@ export class UIScene extends Phaser.Scene {
     this.map.close();
     this.adventure.close();
     this.touchMenu?.close();
+  }
+
+  private openFirstGuide(): void {
+    const state = this.state();
+    if (!state || state.flags.controlsSeen || this.scene.isActive('GuideScene')) return;
+    this.panel.close();
+    this.inventory.close();
+    this.map.close();
+    this.adventure.close();
+    this.scene.pause('IslandScene');
+    this.scene.launch('GuideScene', { resume: ['IslandScene'] });
+  }
+
+  private openGuideFromMenu(): void {
+    const state = this.state();
+    if (!state || this.scene.isActive('GuideScene')) return;
+    this.closeAllPanels();
+    const active = state.scene === 'dungeon' ? 'DungeonScene' : 'IslandScene';
+    this.scene.pause(active);
+    this.scene.pause();
+    this.scene.launch('GuideScene', { resume: [active, 'UIScene'] });
   }
 
   private openPanel(kind: string): void {

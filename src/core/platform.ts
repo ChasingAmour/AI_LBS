@@ -9,12 +9,14 @@ export interface ViewportInfo {
 export function isTouchDevice(): boolean {
   if (typeof navigator === 'undefined') return false;
   if (navigator.maxTouchPoints > 0) return true;
-  return typeof window !== 'undefined' && 'ontouchstart' in window;
+  if (typeof window !== 'undefined' && 'ontouchstart' in window) return true;
+  if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) return true;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
-/** Phones and small tablets get the virtual controls; desktops do not. */
+/** Any touch/coarse-pointer device gets the virtual controls. */
 export function prefersTouchLayout(info: ViewportInfo): boolean {
-  return info.touch && Math.min(info.width, info.height) < 900;
+  return info.touch;
 }
 
 /** Touch portrait is unplayable at 640×360, so sleep the loop behind a hint. */

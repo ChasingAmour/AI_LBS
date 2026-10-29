@@ -25,6 +25,13 @@ export class PauseScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5, 0);
 
+    const guide = makeText(this, PANEL.x + PANEL.w - 16, PANEL.y + 18, '操作指引', {
+      origin: [1, 0],
+      color: COLORS.goldDark,
+    });
+    guide.setInteractive({ useHandCursor: true });
+    guide.on('pointerdown', () => this.openGuide());
+
     this.button(88, '继续游戏', () => this.resumeGame());
     this.button(126, '保存进度', () => this.save());
     this.button(164, '导出存档', () => this.exportFile());
@@ -169,6 +176,14 @@ export class PauseScene extends Phaser.Scene {
   private replayIntro(): void {
     this.music()?.setDucked(false);
     this.scene.launch('IntroScene', { replay: true });
+    this.scene.stop();
+  }
+
+  private openGuide(): void {
+    const state = this.state();
+    const active = state?.scene === 'dungeon' ? 'DungeonScene' : 'IslandScene';
+    this.music()?.setDucked(false);
+    this.scene.launch('GuideScene', { resume: [active, 'UIScene'] });
     this.scene.stop();
   }
 

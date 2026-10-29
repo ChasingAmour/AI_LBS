@@ -59,6 +59,21 @@ export class TouchControls {
     });
     this.button(TOUCH.attack, () => this.scene.game.events.emit('ui:touchAttack'));
     this.button(TOUCH.interact, () => this.scene.game.events.emit('ui:touchInteract'));
+    const hints: Array<[string, number, number]> = [
+      ['移动', TOUCH.joystick.x, TOUCH.joystick.y - TOUCH.joystick.radius - 10],
+      ['攻击', TOUCH.attack.x, TOUCH.attack.y + TOUCH.attack.radius + 8],
+      ['奔跑', TOUCH.sprint.x, TOUCH.sprint.y + TOUCH.sprint.radius + 8],
+      ['菜单', TOUCH.menu.x, TOUCH.menu.y + TOUCH.menu.radius + 8],
+    ];
+    for (const [label, x, y] of hints) {
+      const hint = makeText(scene, x, y, label, {
+        origin: [0.5, 0],
+        color: COLORS.cream,
+        shadow: true,
+      });
+      this.root.add(hint);
+      this.playObjects.push(hint);
+    }
     this.interactText = makeText(scene, TOUCH.interact.x, TOUCH.interact.y + 23, '交互', {
       origin: [0.5, 0],
       color: COLORS.cream,
