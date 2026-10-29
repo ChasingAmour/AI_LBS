@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
-import { BASE_HEIGHT, BASE_WIDTH, integerScale } from './core/scaling';
+import { BASE_HEIGHT, BASE_WIDTH, fitScale, integerScale } from './core/scaling';
+import { isTouchDevice, shouldPauseForPortrait } from './core/platform';
 import { GAME_CONFIG } from './core/config';
 import { BootScene } from './scenes/BootScene';
 import { IslandScene } from './scenes/IslandScene';
@@ -11,12 +12,33 @@ import { DeathScene } from './scenes/DeathScene';
 
 const FONT_SPEC = '12px "Fusion Pixel 12px"';
 
-function applyIntegerScale(game: Phaser.Game): void {
+function applyViewportScale(game: Phaser.Game): void {
   const canvas = game.canvas;
   if (!canvas) return;
-  const { scale } = integerScale(window.innerWidth, window.innerHeight);
-  canvas.style.width = `${BASE_WIDTH * scale}px`;
-  canvas.style.height = `${BASE_HEIGHT * scale}px`;
+  const touch = isTouchDevice();
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const result = touch ? fitScale(width, height) : integerScale(width, height);
+  canvas.style.width = `${BASE_WIDTH * result.scale}px`;
+  canvas.style.height = `${BASE_HEIGHT * result.scale}px`;
+
+  const portrait = shouldPauseForPortrait({ touch, width, height });
+  document.body.classList.toggle('show-rotate', portrait);
+  if (portrait) game.loop.sleep();
+  else game.loop.wake();
+}
+
+function setupRotateHint(): void {
+  document.getElementById('rotate-fullscreen')?.addEventListener('click', () => {
+    const root = document.documentElement;
+    const fullscreen = root.requestFullscreen?.();
+    if (fullscreen) void fullscreen.catch(() => undefined);
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (mode: string) => Promise<void>;
+    };
+    const locked = orientation.lock?.('landscape');
+    if (locked) void locked.catch(() => undefined);
+  });
 }
 
 async function loadPixelFont(): Promise<void> {
@@ -38,8 +60,24 @@ async function boot(): Promise<void> {
     scene: [BootScene, IslandScene, DungeonScene, UIScene, PauseScene, DeathScene],
   } as Phaser.Types.Core.GameConfig);
 
-  applyIntegerScale(game);
-  window.addEventListener('resize', () => applyIntegerScale(game));
+  applyViewportScale(game);
+  const enforcePortraitSleep = (): void => {
+    if (document.body.classList.contains('show-rotate')) game.loop.sleep();
+  };
+  game.events.on('step', enforcePortraitSleep);
+  game.events.once('ready', () => {
+    applyViewportScale(game);
+    window.setTimeout(enforcePortraitSleep, 0);
+  });
+  setupRotateHint();
+  const onViewportChange = (): void => applyViewportScale(game);
+  window.addEventListener('resize', onViewportChange);
+  window.addEventListener('orientationchange', onViewportChange);
+
+  const unlockAudio = (): void => {
+    (game.sound as unknown as { unlock?: () => void }).unlock?.();
+  };
+  window.addEventListener('pointerdown', unlockAudio, { once: true });
 
   if (import.meta.env.DEV) {
     (globalThis as unknown as { __game: Phaser.Game }).__game = game;
