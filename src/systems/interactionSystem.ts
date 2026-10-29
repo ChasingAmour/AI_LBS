@@ -12,6 +12,7 @@ export type InteractKind =
   | 'chest'
   | 'dungeon'
   | 'groundLoot'
+  | 'fishing'
   | 'node'
   | 'water';
 
@@ -26,6 +27,9 @@ export interface InteractTarget {
 
 export interface InteractOptions {
   onWater: boolean;
+  /** a rod is selected and water is within reach */
+  nearWater?: boolean;
+  hasRod?: boolean;
 }
 
 /** Panels that can be open while the player is gathering. */
@@ -195,6 +199,15 @@ export function findInteractTarget(
       { kind: 'water', id: 'water', label: '喝水', x: px, y: py, durationSec: WATER_CHANNEL },
       6,
     );
+  }
+
+  // A selected rod beats gathering and drinking on the shore, but never loot,
+  // chests, buildings or enemies.
+  if (options.hasRod && options.nearWater) {
+    const current = best as InteractTarget | null;
+    if (!current || current.kind === 'node' || current.kind === 'water') {
+      return { kind: 'fishing', id: 'fishing', label: '钓鱼', x: px, y: py, durationSec: 0 };
+    }
   }
 
   return best;

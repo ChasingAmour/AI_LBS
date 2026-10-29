@@ -206,6 +206,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.set('uiPanel', uiPanel);
     const prompt = this.registry.get('interactPrompt');
     this.hud.setPrompt(typeof prompt === 'string' ? prompt : null);
+    this.touch?.setInteractLabel(typeof prompt === 'string' ? prompt : '交互');
     const progress = this.registry.get('interactProgress');
     this.hud.setProgress(typeof progress === 'number' ? progress : null);
   }

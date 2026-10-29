@@ -48,6 +48,40 @@ describe('interaction system', () => {
     expect(findInteractTarget(s, 0, 0, { onWater: true })?.kind).toBe('water');
   });
 
+  it('fishes over a resource node when a rod is selected near water', () => {
+    const s = createNewGame(1);
+    s.world.nodes = { tree_1: { x: 100, y: 100, type: 'tree' } };
+    const target = findInteractTarget(s, 100, 100, {
+      onWater: false,
+      nearWater: true,
+      hasRod: true,
+    });
+    expect(target?.kind).toBe('fishing');
+    expect(target?.label).toBe('钓鱼');
+  });
+
+  it('lets ground loot win over fishing', () => {
+    const s = createNewGame(1);
+    s.world.groundLoot.push({ baseId: 'wood', count: 1, x: 104, y: 100 });
+    const target = findInteractTarget(s, 100, 100, {
+      onWater: false,
+      nearWater: true,
+      hasRod: true,
+    });
+    expect(target?.kind).toBe('groundLoot');
+  });
+
+  it('does not fish without a rod or water', () => {
+    const s = createNewGame(1);
+    s.world.nodes = { tree_1: { x: 100, y: 100, type: 'tree' } };
+    expect(
+      findInteractTarget(s, 100, 100, { onWater: false, nearWater: true, hasRod: false })?.kind,
+    ).toBe('node');
+    expect(
+      findInteractTarget(s, 100, 100, { onWater: false, nearWater: false, hasRod: true })?.kind,
+    ).toBe('node');
+  });
+
   it('labels a depleted node and keeps chests interactable', () => {
     const s = createNewGame(1);
     s.world.nodes = {
