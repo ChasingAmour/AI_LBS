@@ -11,10 +11,10 @@ export const HUD = {
   clock: { x: 8, y: 8, w: 168, h: 30 },
   banner: { x: 184, y: 8, w: 296, h: 30 },
   camp: { x: 492, y: 8, w: 140, h: 30 },
-  status: { x: 8, y: 44, w: 176, h: 104 },
-  statusCompact: { x: 8, y: 44, w: 176, h: 30 },
-  goal: { x: 8, y: 156, w: 176, h: 26 },
-  goalCompact: { x: 8, y: 78, w: 176, h: 26 },
+  status: { x: 168, y: 280, w: 304, h: 26 },
+  statusCompact: { x: 168, y: 280, w: 304, h: 26 },
+  goal: { x: 8, y: 44, w: 176, h: 26 },
+  goalCompact: { x: 8, y: 44, w: 176, h: 26 },
   prompt: { x: 426, y: 230, w: 88, h: 24 },
 } as const;
 

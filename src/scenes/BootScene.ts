@@ -49,6 +49,11 @@ export class BootScene extends Phaser.Scene {
       state.scene = 'dungeon';
       state.dungeonFloor = forcedFloor as 1 | 2 | 3;
     }
+    if (import.meta.env.DEV) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('intro') === '0') state.flags.introSeen = true;
+      if (params.get('guide') === '0') state.flags.controlsSeen = true;
+    }
     this.registry.set('state', state);
     this.registry.set('loadSource', loaded.source);
     if (loaded.source === 'backup') {

@@ -15,9 +15,6 @@ import { drawPanel } from './widgets/panel';
 import { drawBarTrack } from './widgets/bar';
 import { drawSlot } from './widgets/slot';
 
-const BAR_W = 78;
-const BAR_H = 8;
-const ROW_H = 24;
 const TEXT_INTERVAL = 200;
 
 interface StatusRow {
@@ -53,13 +50,6 @@ export class Hud {
   private rows!: Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
   private statusChrome!: Phaser.GameObjects.Graphics;
   private goalChrome!: Phaser.GameObjects.Graphics;
-  private compactChrome!: Phaser.GameObjects.Graphics;
-  private compactBars: Phaser.GameObjects.Rectangle[] = [];
-  private compactIcons: Phaser.GameObjects.Image[] = [];
-  private rowObjects: Phaser.GameObjects.GameObject[] = [];
-  private compactToggle!: Phaser.GameObjects.Text;
-  private compactZone!: Phaser.GameObjects.Zone;
-  private compact = false;
   private slots: HotbarSlot[] = [];
   private lastTextAt = 0;
   private lastHotbarIndex = -1;
@@ -80,8 +70,6 @@ export class Hud {
     drawPanel(this.statusChrome, HUD.status);
     this.goalChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0);
     drawPanel(this.goalChrome, HUD.goal);
-    this.compactChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
-    drawPanel(this.compactChrome, HUD.statusCompact);
     this.bannerChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
     drawPanel(this.bannerChrome, HUD.banner);
     this.promptChrome = scene.add.graphics().setDepth(8000).setScrollFactor(0).setVisible(false);
@@ -162,123 +150,45 @@ export class Hud {
   }
 
   private createStatusRows(): void {
-    const rows: Array<['hp' | 'hunger' | 'thirst' | 'energy', HudIcon, string]> = [
-      ['hp', 'hp', '生命'],
-      ['hunger', 'hunger', '饱食'],
-      ['thirst', 'thirst', '口渴'],
-      ['energy', 'energy', '精力'],
+    const rows: Array<['hp' | 'hunger' | 'thirst' | 'energy', HudIcon]> = [
+      ['hp', 'hp'],
+      ['hunger', 'hunger'],
+      ['thirst', 'thirst'],
+      ['energy', 'energy'],
     ];
     this.rows = {} as Record<'hp' | 'hunger' | 'thirst' | 'energy', StatusRow>;
-    rows.forEach(([key, icon, label], index) => {
-      const top = HUD.status.y + 8 + index * ROW_H;
-      const iconImage = this.scene.add
-        .image(HUD.status.x + 12, top + 5, iconTexture(icon))
+    rows.forEach(([key, icon], index) => {
+      const slotX = HUD.status.x + 8 + index * 72;
+      this.scene.add
+        .image(slotX + 6, HUD.status.y + 13, iconTexture(icon))
         .setDepth(8001)
         .setScrollFactor(0);
-      const labelText = makeText(this.scene, HUD.status.x + 26, top + 5, label, {
+      drawBarTrack(this.statusChrome, {
+        x: slotX + 18,
+        y: HUD.status.y + 10,
+        w: 34,
+        h: 6,
+        color: iconColor(icon),
+      });
+      const fill = this.scene.add
+        .rectangle(slotX + 18, HUD.status.y + 10, 34, 6, iconColor(icon), 1)
+        .setOrigin(0, 0)
+        .setDepth(8001)
+        .setScrollFactor(0);
+      const value = makeText(this.scene, slotX + 56, HUD.status.y + 13, '', {
         origin: [0, 0.5],
         color: COLORS.ink,
       })
         .setDepth(8001)
         .setScrollFactor(0);
-      drawBarTrack(this.statusChrome, {
-        x: HUD.status.x + 66,
-        y: top + 1,
-        w: BAR_W,
-        h: BAR_H,
-        color: iconColor(icon),
-      });
-      const fill = this.scene.add
-        .rectangle(HUD.status.x + 66, top + 1, BAR_W, BAR_H, iconColor(icon), 1)
-        .setOrigin(0, 0)
-        .setDepth(8001)
-        .setScrollFactor(0);
-      const value = makeText(this.scene, HUD.status.x + HUD.status.w - 8, top + 5, '', {
-        origin: [1, 0.5],
-        color: COLORS.ink,
-      })
-        .setDepth(8001)
-        .setScrollFactor(0);
       this.rows[key] = { fill, value };
-      this.rowObjects.push(iconImage, labelText, fill, value);
-
-      const compactIcon = this.scene.add
-        .image(
-          HUD.statusCompact.x + 7,
-          HUD.statusCompact.y + 3 + index * 7,
-          iconTexture(icon),
-        )
-        .setDisplaySize(6, 6)
-        .setDepth(8001)
-        .setScrollFactor(0)
-        .setVisible(false);
-      const compactBar = this.scene.add
-        .rectangle(
-          HUD.statusCompact.x + 16,
-          HUD.statusCompact.y + 3 + index * 7,
-          118,
-          3,
-          iconColor(icon),
-          1,
-        )
-        .setOrigin(0, 0)
-        .setDepth(8001)
-        .setScrollFactor(0)
-        .setVisible(false);
-      this.compactIcons.push(compactIcon);
-      this.compactBars.push(compactBar);
-    });
-
-    this.compactToggle = makeText(
-      this.scene,
-      HUD.status.x + HUD.status.w - 12,
-      HUD.status.y + HUD.status.h - 14,
-      '▾',
-      { color: COLORS.inkSoft },
-    )
-      .setDepth(8003)
-      .setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-    this.compactToggle.on('pointerdown', () => {
-      this.setCompact(!this.compact);
-      this.scene.game.events.emit('ui:hudCompact', this.compact);
-    });
-    this.compactZone = this.scene.add
-      .zone(this.compactToggle.x, this.compactToggle.y, 28, 28)
-      .setDepth(8003)
-      .setScrollFactor(0)
-      .setInteractive({ useHandCursor: true });
-    this.compactZone.on('pointerdown', () => {
-      this.setCompact(!this.compact);
-      this.scene.game.events.emit('ui:hudCompact', this.compact);
     });
   }
 
-  /** Collapses the four status rows into thin coloured lines. */
-  setCompact(compact: boolean): void {
-    this.compact = compact;
-    this.statusChrome.setVisible(!compact);
-    for (const object of this.rowObjects) {
-      (object as unknown as { setVisible: (v: boolean) => void }).setVisible(!compact);
-    }
-    this.compactChrome.setVisible(compact);
-    for (const bar of this.compactBars) bar.setVisible(compact);
-    for (const icon of this.compactIcons) icon.setVisible(compact);
-    const rect = compact ? HUD.goalCompact : HUD.goal;
-    this.goalChrome.clear();
-    drawPanel(this.goalChrome, rect);
-    this.goalText.setPosition(rect.x + 8, rect.y + 13);
-    this.compactToggle
-      .setText(compact ? '▸' : '▾')
-      .setPosition(
-        (compact ? HUD.statusCompact.x + HUD.statusCompact.w : HUD.status.x + HUD.status.w) - 12,
-        (compact
-          ? HUD.statusCompact.y + HUD.statusCompact.h
-          : HUD.status.y + HUD.status.h) - 14,
-      );
-    this.compactZone.setPosition(this.compactToggle.x, this.compactToggle.y);
+  /** The old full/compact toggle is gone; status is always the bottom strip. */
+  setCompact(_compact: boolean): void {
+    // Kept for save compatibility; the HUD no longer has a full-height panel.
   }
-
   private createHotbar(): void {
     for (let index = 0; index < 8; index++) {
       const rect = hotbarSlotRect(index);
@@ -418,10 +328,8 @@ export class Hud {
   private drawStatus(key: 'hp' | 'hunger' | 'thirst' | 'energy', value: number): void {
     const row = this.rows[key];
     const clamped = Math.max(0, Math.min(100, value));
-    row.fill.setSize(barWidth(clamped, 100, BAR_W), BAR_H);
+    row.fill.setSize(barWidth(clamped, 100, 34), 6);
     this.setIfChanged(row.value, String(Math.round(clamped)));
-    const index = (['hp', 'hunger', 'thirst', 'energy'] as const).indexOf(key);
-    this.compactBars[index]?.setSize(Math.max(1, barWidth(clamped, 100, 120)), 3);
   }
 
   private setIfChanged(text: Phaser.GameObjects.Text, value: string): void {
