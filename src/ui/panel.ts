@@ -10,7 +10,7 @@ export interface PanelRow {
   onClick?: () => void;
 }
 
-export type PanelStyle = 'list' | 'build' | 'labor';
+export type PanelStyle = 'list' | 'craft' | 'build' | 'labor';
 
 interface PanelGeometry {
   width: number;
@@ -24,6 +24,7 @@ interface PanelGeometry {
 
 const GEOMETRY: Record<PanelStyle, PanelGeometry> = {
   list: { width: 420, height: 300, x: 110, y: 30, header: 44, perPage: 8, step: 1 },
+  craft: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 10, step: 1 },
   build: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 8, step: 2 },
   labor: { width: 560, height: 340, x: 40, y: 10, header: 52, perPage: 4, step: 1 },
 };
@@ -127,24 +128,16 @@ export class Panel {
     const geo = GEOMETRY[this.currentStyle];
     const { start, end } = visibleRows(this.rows.length, this.scroll, geo.perPage);
 
-    if (this.currentStyle === 'list') {
+    if (this.currentStyle === 'list' || this.currentStyle === 'craft') {
       this.renderList(start, end, geo);
     } else {
       this.renderCards(start, end);
     }
 
     if (this.rows.length > geo.perPage) {
-      if (this.scene.registry.get('touchEnabled')) {
-        this.pageButton('◀', geo.width - 78, 18, -geo.perPage);
-        this.rootPageLabel(geo);
-        this.pageButton('▶', geo.width - 16, 18, geo.perPage);
-      } else {
-        const hint = makeText(this.scene, geo.width / 2, geo.height - 16, '滚轮翻页', {
-          origin: [0.5, 0],
-          color: COLORS.muted,
-        });
-        this.rowObjects.push(hint);
-      }
+      this.pageButton('◀', geo.width - 78, 18, -geo.perPage);
+      this.rootPageLabel(geo);
+      this.pageButton('▶', geo.width - 16, 18, geo.perPage);
     }
 
     this.container.add(this.rowObjects);

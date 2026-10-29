@@ -68,10 +68,14 @@ export function gatherChannelMs(baseMs: number, hasTool: boolean, slow = false):
   return slow ? base * 2 : base;
 }
 
+const TOOL_FAMILIES: Record<string, string[]> = {
+  stone_axe: ['stone_axe', 'copper_axe', 'iron_axe'],
+  stone_pick: ['stone_pick', 'copper_pick', 'iron_pick'],
+};
+
 function ownsTool(state: GameState, toolId: string): boolean {
-  if (countItem(state, toolId) > 0) return true;
-  // The iron axe is the upgrade of the stone axe for every tree node.
-  return toolId === 'stone_axe' && countItem(state, 'iron_axe') > 0;
+  const family = TOOL_FAMILIES[toolId] ?? [toolId];
+  return family.some((id) => countItem(state, id) > 0);
 }
 
 export function hasToolFor(state: GameState, nodeId: string): boolean {

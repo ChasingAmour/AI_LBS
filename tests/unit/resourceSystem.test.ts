@@ -4,6 +4,7 @@ import { createRng } from '../../src/core/rng';
 import { addTool, countItem } from '../../src/systems/inventorySystem';
 import {
   gatherNode,
+  hasToolFor,
   openUniqueChest,
   respawnNodes,
   tickTorchFuel,
@@ -74,6 +75,15 @@ describe('resource system', () => {
       expect(wood.length).toBeGreaterThan(0);
       expect(wood[0].count).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it('higher-tier picks satisfy stone-tool nodes', () => {
+    const s = createNewGame(7);
+    expect(hasToolFor(s, 'rock_001')).toBe(false);
+    addTool(s, 'copper_pick');
+    expect(hasToolFor(s, 'rock_001')).toBe(true);
+    addTool(s, 'copper_axe');
+    expect(hasToolFor(s, 'tree_001')).toBe(true);
   });
 
   it('a tree yields 5 to 6 wood across four hits', () => {

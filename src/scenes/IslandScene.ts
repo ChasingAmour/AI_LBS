@@ -41,7 +41,7 @@ import {
 import { deriveStats, tickBootWear } from '../systems/statsSystem';
 import { playSfx } from '../systems/audio';
 import { isTouchControlPoint, isHotbarPoint } from '../ui/touchLayout';
-import { canChop } from '../systems/toolCombat';
+import { canChop, isAxe } from '../systems/toolCombat';
 import {
   FISHING_ROD_ID,
   rollCatch,
@@ -385,10 +385,20 @@ export class IslandScene extends Phaser.Scene {
   }
 
   private makeWorldTextures(): void {
-    if (this.textures.exists('palm') && this.textures.exists('hut') && this.textures.exists('flag')) return;
+    if (
+      this.textures.exists('palm') &&
+      this.textures.exists('hut') &&
+      this.textures.exists('flag') &&
+      this.textures.exists('workbench')
+    ) {
+      return;
+    }
 
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     this.drawPalm(g);
+    g.clear();
+
+    this.drawWorkbench(g);
     g.clear();
 
     this.drawHut(g);
@@ -591,9 +601,25 @@ export class IslandScene extends Phaser.Scene {
     g.generateTexture('flag', 14, 20);
   }
 
+  /** 24×16 workbench: wide plank top, legs, a saw and a mallet. */
+  private drawWorkbench(g: Phaser.GameObjects.Graphics): void {
+    g.fillStyle(0x5a3a1c).fillRect(3, 10, 3, 6);
+    g.fillRect(18, 10, 3, 6);
+    g.fillStyle(0x8a5a2b).fillRect(1, 6, 22, 5);
+    g.fillStyle(0xc9a24a).fillRect(2, 7, 20, 1);
+    g.fillStyle(0x6b4420).fillRect(1, 10, 22, 1);
+    g.fillStyle(0x6b4420).fillRect(4, 11, 2, 2);
+    g.fillRect(18, 11, 2, 2);
+    g.fillStyle(0xc9d4e0).fillRect(4, 3, 8, 2);
+    g.fillStyle(0x8a97a8).fillTriangle(12, 3, 15, 3, 12, 5);
+    g.fillStyle(0x6b4420).fillRect(2, 3, 2, 2);
+    g.fillStyle(0x8a5a2b).fillRect(16, 7, 6, 2);
+    g.fillStyle(0x6b4420).fillRect(18, 9, 2, 1);
+    g.generateTexture('workbench', 24, 16);
+  }
+
   /** Hand-drawn 18×24 palm: curved trunk, five fronds and two coconuts. */
-  private drawPalm(g: Phaser.GameObjects.Graphics): void {
-    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
+  private drawPalm(g: Phaser.GameObjects.Graphics): void {    g.fillStyle(0x6b4420).fillRect(9, 10, 3, 14);
     g.fillRect(7, 14, 3, 10);
     g.fillStyle(0x8a5a2b).fillRect(10, 10, 2, 14);
     g.fillStyle(0x2f6b34).fillRect(1, 5, 8, 3);
@@ -1035,9 +1061,7 @@ export class IslandScene extends Phaser.Scene {
 
   private hasAxe(): boolean {
     return this.state.inventory.some(
-      (item) =>
-        (item.baseId === 'stone_axe' || item.baseId === 'iron_axe') &&
-        (item.durability ?? 0) > 0,
+      (item) => isAxe(item.baseId) && (item.durability ?? 0) > 0,
     );
   }
 
@@ -1199,7 +1223,7 @@ export class IslandScene extends Phaser.Scene {
       this.nextAttackAt = now + 700;
       const selected = this.state.hotbar[this.state.hotbarIndex];
       if (!canChop(selected, 'tree') || !this.hasAxe()) {
-        this.game.events.emit('ui:banner', '空手砍不动树，需要石斧或铁斧');
+        this.game.events.emit('ui:banner', '空手砍不动树，需要石斧、铜斧或铁斧');
         this.drawSwing(angle, 36);
         return;
       }
@@ -1210,7 +1234,7 @@ export class IslandScene extends Phaser.Scene {
       }
       const result = gatherNode(this.state, tree.id, this.rng);
       this.state.rngState = this.rng.state();
-      damageTool(this.state, selected === 'iron_axe' ? 'iron_axe' : 'stone_axe', 1);
+      damageTool(this.state, isAxe(selected) ? selected : 'stone_axe', 1);
       if (result.items.length > 0) {
         collectLoot(this.state, result.items, tree.x, tree.y);
         const names = result.items
@@ -1543,7 +1567,11 @@ export class IslandScene extends Phaser.Scene {
       return;
     }
     if (this.channel) {
-      this.registry.set('interactProgress', this.channel.elapsed / this.channel.target.durationSec);
+      const duration = this.channel.target.durationSec;
+      this.registry.set(
+        'interactProgress',
+        duration > 0 ? this.channel.elapsed / duration : null,
+      );
       return;
     }
     const target = findInteractTarget(this.state, this.player.x, this.player.y, this.interactOptions());
@@ -1599,13 +1627,6 @@ export class IslandScene extends Phaser.Scene {
       const cost = this.gatherEnergyCost(node?.type ?? '');
       if (this.state.player.energy < cost) {
         this.game.events.emit('ui:banner', '精力不足，采集变慢');
-      }
-    }
-    if (target.kind === 'building' && this.state.player.energy < 10) {
-      const building = this.state.buildings.find((b) => b.id === target.id);
-      if (building?.type === 'workbench' || building?.type === 'storage') {
-        this.game.events.emit('ui:banner', '精力不足，先休息一下');
-        return;
       }
     }
     const nodeCost =

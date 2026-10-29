@@ -10,6 +10,7 @@ describe('tool combat', () => {
 
   it('only lets an axe chop trees', () => {
     expect(canChop('stone_axe', 'tree')).toBe(true);
+    expect(canChop('copper_axe', 'tree')).toBe(true);
     expect(canChop('iron_axe', 'tree')).toBe(true);
     expect(canChop('stone_pick', 'tree')).toBe(false);
     expect(canChop(null, 'tree')).toBe(false);

@@ -160,6 +160,9 @@ export function deriveStats(state: GameState): DerivedStats {
       case 'copper_guard':
         stats.defense += 4;
         break;
+      case 'iron_wall':
+        stats.defense += 3;
+        break;
     }
   }
 

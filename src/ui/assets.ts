@@ -49,7 +49,7 @@ const BUILDING_SPRITES: Record<string, BuildingSpriteSpec> = {
   shelter: { texture: 'hut', w: 64, h: 64 },
   tent: { texture: 'hut', w: 64, h: 64 },
   campfire: { texture: TEXTURE.dungeon, frame: 29, w: 16, h: 16 },
-  workbench: { texture: TEXTURE.farm, frame: 98, w: 16, h: 16 },
+  workbench: { texture: 'workbench', w: 24, h: 16 },
   storage: { texture: TEXTURE.dungeon, frame: 101, w: 16, h: 16 },
   cage: { texture: TEXTURE.farm, frame: 74, w: 16, h: 16 },
   fence: { texture: TEXTURE.town, frame: 45, w: 16, h: 16 },

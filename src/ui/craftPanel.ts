@@ -1,5 +1,6 @@
 import type { GameState } from '../core/gameState';
 import type { EventBus } from '../core/eventBus';
+import { EQUIPMENT } from '../data/equipment';
 import { ITEMS } from '../data/items';
 import {
   CATEGORY_NAMES,
@@ -39,11 +40,12 @@ export function craftRows(
       (recipe) => recipeCategory(recipe.id) === category,
     );
     if (recipes.length === 0) continue;
-    rows.push({ label: `— ${CATEGORY_NAMES[category]} —`, disabled: true });
+    rows.push({ label: `— ${CATEGORY_NAMES[category]}（${recipes.length}）—`, disabled: true });
     for (const recipe of recipes) {
       const stationOk = recipe.station === 'hand' || nearStation;
       const check = canCraft(state, recipe.id, stationOk);
-      const outputName = ITEMS[recipe.output]?.name ?? recipe.output;
+      const outputName =
+        ITEMS[recipe.output]?.name ?? EQUIPMENT[recipe.output]?.name ?? recipe.output;
       rows.push({
         label: outputName,
         detail: `${STATION_NAMES[recipe.station]} · ${costText(recipe)} · ${statusText(
@@ -71,6 +73,11 @@ export function openCraftPanel(
     panel.close();
     return;
   }
-  const refresh = () => panel.open('合成 (C)', craftRows(state, nearStation, refresh, bus));
-  panel.open('合成 (C)', craftRows(state, nearStation, refresh, bus));
+  const refresh = () =>
+    panel.open(craftTitle(), craftRows(state, nearStation, refresh, bus), 'craft');
+  panel.open(craftTitle(), craftRows(state, nearStation, refresh, bus), 'craft');
+}
+
+function craftTitle(): string {
+  return `合成 (C) · 共 ${Object.keys(RECIPES).length} 个配方`;
 }

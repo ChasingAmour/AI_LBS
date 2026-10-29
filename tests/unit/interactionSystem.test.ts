@@ -94,6 +94,18 @@ describe('interaction system', () => {
     expect(ripe?.label).toContain('收获');
   });
 
+  it('opens the workbench and storage without a timed channel', () => {
+    const s = createNewGame(1);
+    s.buildings.push({ id: 'b_bench', type: 'workbench', x: 6, y: 6, hp: 80 });
+    s.buildings.push({ id: 'b_box', type: 'storage', x: 10, y: 6, hp: 80 });
+    const bench = findInteractTarget(s, 6 * 16 + 8, 6 * 16 + 16, { onWater: false });
+    expect(bench?.kind).toBe('building');
+    expect(bench?.label).toBe('使用工作台');
+    expect(bench?.durationSec).toBe(0);
+    const box = findInteractTarget(s, 10 * 16 + 8, 6 * 16 + 16, { onWater: false });
+    expect(box?.durationSec).toBe(0);
+  });
+
   it('offers a waterskin refill when asked', () => {
     const s = createNewGame(1);
     expect(findInteractTarget(s, 0, 0, { onWater: true })?.label).toBe('喝水');

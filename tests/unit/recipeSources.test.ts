@@ -81,6 +81,6 @@ describe('recipe material sources', () => {
   });
 
   it('offers a broad recipe book', () => {
-    expect(Object.keys(RECIPES).length).toBe(32);
+    expect(Object.keys(RECIPES).length).toBe(41);
   });
 });

@@ -150,6 +150,16 @@ export const EQUIPMENT: Record<string, EquipBase> = {
     moveMul: 0.98,
     legendary: { id: 'copper_guard', name: '铜壁', desc: '防御 +4' },
   },
+  iron_armor: {
+    id: 'iron_armor',
+    name: '铁甲',
+    slot: 'armor',
+    source: 'craft',
+    durability: 120,
+    defense: 11,
+    moveMul: 0.95,
+    legendary: { id: 'iron_wall', name: '铁壁', desc: '防御 +3' },
+  },
   straw_shoes: {
     id: 'straw_shoes',
     name: '草鞋',

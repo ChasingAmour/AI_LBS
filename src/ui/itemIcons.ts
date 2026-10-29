@@ -29,9 +29,17 @@ const GENERATED = new Set([
   'fish_stew',
   'meat_stew',
   'roast_coconut',
+  'seaweed_salad',
+  'berry_jam',
+  'coconut_milk',
+  'shell_soup',
   'bandage',
   'herbal_poultice',
+  'coconut_salve',
+  'copper_axe',
+  'copper_pick',
   'iron_axe',
+  'iron_pick',
   'lantern',
   'torch',
   'club',
@@ -107,6 +115,34 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x4a2e14).fillRect(5, 6, 6, 1).fillRect(5, 9, 6, 1);
     g.fillStyle(0xf7f1e3).fillRect(7, 8, 2, 2);
   });
+  make('icon-seaweed_salad', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0x2f6b3f).fillRect(4, 6, 3, 4).fillRect(8, 5, 3, 5);
+    g.fillStyle(0x4f9f5f).fillRect(6, 7, 2, 3).fillRect(10, 6, 2, 4);
+    g.fillStyle(0xb03a2e).fillRect(5, 8, 2, 2).fillRect(10, 8, 2, 2);
+  });
+  make('icon-berry_jam', () => {
+    g.fillStyle(0x8a5a2b).fillRect(4, 5, 8, 9);
+    g.fillStyle(0xc9a24a).fillRect(3, 3, 10, 2);
+    g.fillStyle(0xb03a2e).fillRect(5, 7, 6, 6);
+    g.fillStyle(0xd4533f).fillRect(5, 7, 6, 2);
+    g.fillStyle(0xffd479).fillRect(7, 10, 2, 1);
+  });
+  make('icon-coconut_milk', () => {
+    g.fillStyle(0x6b4420).fillRect(3, 6, 10, 7);
+    g.fillStyle(0x8a5a2b).fillRect(3, 5, 10, 2);
+    g.fillStyle(0xf7f1e3).fillRect(4, 7, 8, 4);
+    g.fillStyle(0xf0e6d2).fillRect(8, 2, 2, 6);
+    g.fillStyle(0xc9a24a).fillRect(9, 2, 1, 6);
+  });
+  make('icon-shell_soup', () => {
+    g.fillStyle(0x6b4420).fillEllipse(8, 11, 13, 6);
+    g.fillStyle(0xc9a24a).fillEllipse(8, 9, 13, 5);
+    g.fillStyle(0xf0d8c0).fillTriangle(7, 10, 3, 6, 11, 6);
+    g.fillStyle(0xc9a24a).fillRect(7, 6, 2, 4);
+    g.fillStyle(0x4f9f5f).fillRect(10, 7, 2, 2);
+  });
   make('icon-stick', () => {
     g.fillStyle(0x8a5a2b).fillRect(4, 4, 2, 10);
     g.fillStyle(0xc9a24a).fillRect(4, 4, 1, 9);
@@ -124,6 +160,12 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x4f9f5f).fillEllipse(7, 7, 8, 4);
     g.fillStyle(0xf0e6d2).fillRect(5, 8, 6, 3);
     g.fillStyle(0x6fbf4f).fillRect(6, 7, 1, 2).fillRect(9, 9, 1, 2);
+  });
+  make('icon-coconut_salve', () => {
+    g.fillStyle(0x8a5a2b).fillRect(4, 6, 8, 8);
+    g.fillStyle(0xc9a24a).fillRect(3, 4, 10, 2);
+    g.fillStyle(0x6fbf4f).fillRect(5, 8, 6, 4);
+    g.fillStyle(0x4f9f5f).fillRect(6, 9, 2, 2).fillRect(9, 8, 1, 3);
   });
   make('icon-torch', () => {
     g.fillStyle(0x6b4420).fillRect(7, 7, 2, 8);
@@ -196,6 +238,23 @@ export function ensureItemIcons(scene: Phaser.Scene): void {
     g.fillStyle(0x8a5a2b).fillRect(7, 5, 2, 10);
     g.fillStyle(0xc9d4e0).fillTriangle(8, 3, 2, 5, 8, 9);
     g.fillStyle(0x8a97a8).fillTriangle(8, 4, 4, 5, 8, 8);
+  });
+  make('icon-copper_axe', () => {
+    g.fillStyle(0x8a5a2b).fillRect(7, 5, 2, 10);
+    g.fillStyle(0xc9793a).fillTriangle(8, 3, 2, 5, 8, 9);
+    g.fillStyle(0xd9975a).fillTriangle(8, 4, 4, 5, 8, 8);
+  });
+  make('icon-copper_pick', () => {
+    g.fillStyle(0x8a5a2b).fillRect(7, 5, 2, 10);
+    g.fillStyle(0xc9793a).fillRect(2, 3, 12, 2);
+    g.fillStyle(0xd9975a).fillRect(3, 3, 10, 1);
+    g.fillStyle(0x8a4f1e).fillRect(7, 5, 2, 2);
+  });
+  make('icon-iron_pick', () => {
+    g.fillStyle(0x8a5a2b).fillRect(7, 5, 2, 10);
+    g.fillStyle(0xc9d4e0).fillRect(2, 3, 12, 2);
+    g.fillStyle(0x8a97a8).fillRect(3, 4, 10, 1);
+    g.fillStyle(0x6a7480).fillRect(7, 5, 2, 2);
   });
   make('icon-lantern', () => {
     g.fillStyle(0x8a97a8).fillRect(5, 3, 6, 1).fillRect(4, 4, 1, 9).fillRect(11, 4, 1, 9);

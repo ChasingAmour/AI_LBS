@@ -147,8 +147,19 @@ export function findInteractTarget(
     if (building.type === 'tent') label = '睡觉';
     if (building.type === 'storage') label = '打开储物箱';
     if (building.type === 'workbench') label = '使用工作台';
+    const instant =
+      building.type === 'workbench' ||
+      building.type === 'storage' ||
+      building.type === 'campfire';
     consider(
-      { kind: 'building', id: building.id, label, x: bx, y: by, durationSec: BASE_CHANNEL },
+      {
+        kind: 'building',
+        id: building.id,
+        label,
+        x: bx,
+        y: by,
+        durationSec: instant ? 0 : BASE_CHANNEL,
+      },
       2,
     );
   }
